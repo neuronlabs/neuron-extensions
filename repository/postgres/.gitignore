@@ -1,0 +1,5 @@
+*.yml
+vendor
+*.out
+*.test
+.idea/
