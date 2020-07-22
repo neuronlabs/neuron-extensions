@@ -13,18 +13,15 @@ import (
 	"github.com/neuronlabs/neuron-plugins/repository/postgres/migrate"
 	"github.com/neuronlabs/neuron-plugins/repository/postgres/tests"
 	"github.com/neuronlabs/neuron/mapping"
-	"github.com/neuronlabs/neuron/query"
+	"github.com/neuronlabs/neuron/orm"
 )
 
 // TestIntegrationDelete integration tests for the Delete processes.
 func TestIntegrationDelete(t *testing.T) {
-	c := testingController(t, true, &tests.SimpleModel{})
+	c := testingController(t, true, testModels...)
 	p := testingRepository(c)
 
 	ctx := context.Background()
-
-	err := c.MigrateModels(ctx, &tests.SimpleModel{})
-	require.NoError(t, err)
 
 	mStruct, err := c.ModelStruct(&tests.SimpleModel{})
 	require.NoError(t, err)
@@ -35,7 +32,7 @@ func TestIntegrationDelete(t *testing.T) {
 		_ = internal.DropTables(ctx, p.ConnPool, table.Name, table.Schema)
 	}()
 
-	qc := query.NewCreator(c)
+	db := orm.New(c)
 	newModel := func() *tests.SimpleModel {
 		return &tests.SimpleModel{
 			Attr: "Something",
@@ -44,14 +41,14 @@ func TestIntegrationDelete(t *testing.T) {
 	t.Run("WithFilter", func(t *testing.T) {
 		model := newModel()
 		model2 := newModel()
-		models := []mapping.Model{model, model2}
+		models := []*tests.SimpleModel{model, model2}
 		// Insert models.
-		err = qc.Query(mStruct, models...).Insert()
+		err = tests.SimpleModels.Query(db, models...).Insert()
 		require.NoError(t, err)
 
 		assert.Len(t, models, 2)
 
-		affected, err := qc.Query(mStruct).Where("ID IN", model.ID, model2.ID).Delete()
+		affected, err := tests.SimpleModels.Query(db).Where("ID IN", model.ID, model2.ID).Delete()
 		require.NoError(t, err)
 
 		assert.Equal(t, int64(2), affected)
@@ -61,10 +58,10 @@ func TestIntegrationDelete(t *testing.T) {
 		model := newModel()
 		model2 := newModel()
 		// Insert models.
-		err = qc.Query(mStruct, model, model2).Insert()
+		err = tests.SimpleModels.Query(db, model, model2).Insert()
 		require.NoError(t, err)
 
-		affected, err := qc.Query(mStruct, model, model2).Delete()
+		affected, err := tests.SimpleModels.Query(db, model, model2).Delete()
 		require.NoError(t, err)
 
 		assert.Equal(t, int64(2), affected)
@@ -72,13 +69,10 @@ func TestIntegrationDelete(t *testing.T) {
 }
 
 func TestSoftDelete(t *testing.T) {
-	c := testingController(t, true, &tests.Model{})
+	c := testingController(t, true, testModels...)
 	p := testingRepository(c)
 
 	ctx := context.Background()
-
-	err := c.MigrateModels(ctx, &tests.Model{})
-	require.NoError(t, err)
 
 	mStruct, err := c.ModelStruct(&tests.Model{})
 	require.NoError(t, err)
@@ -89,7 +83,8 @@ func TestSoftDelete(t *testing.T) {
 		_ = internal.DropTables(ctx, p.ConnPool, table.Name, table.Schema)
 	}()
 
-	qc := query.NewCreator(c)
+	db := orm.New(c)
+
 	newModel := func() *tests.Model {
 		return &tests.Model{
 			AttrString: "Something",
@@ -99,15 +94,15 @@ func TestSoftDelete(t *testing.T) {
 	model2 := newModel()
 	models := []mapping.Model{model, model2}
 	// Insert models.
-	err = qc.Query(mStruct, models...).Insert()
+	err = db.Query(mStruct, models...).Insert()
 	require.NoError(t, err)
 
-	affected, err := qc.Query(mStruct, model).Delete()
+	affected, err := db.Query(mStruct, model).Delete()
 	require.NoError(t, err)
 
 	assert.Equal(t, int64(1), affected)
 
-	res, err := qc.Query(mStruct).Where("ID = ", model.ID).Find()
+	res, err := db.Query(mStruct).Where("ID = ", model.ID).Find()
 	require.NoError(t, err)
 
 	assert.Len(t, res, 0)

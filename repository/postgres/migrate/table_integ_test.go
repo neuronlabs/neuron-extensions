@@ -20,7 +20,7 @@ var cfg pgxpool.Config
 
 // TestAutoMigrateModels tests the auto migration of the models
 func TestAutoMigrateModels(t *testing.T) {
-	repoCfg := internal.TestingConfig(t)
+	repoCfg := internal.TestingPostgresConfig(t)
 	models := []mapping.Model{&Model{}, &BasicModel{}}
 
 	m := tCtrl(t, models...)

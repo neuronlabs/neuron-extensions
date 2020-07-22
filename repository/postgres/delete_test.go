@@ -18,7 +18,7 @@ func TestParseDeleteQuery(t *testing.T) {
 	mStruct, err := c.ModelStruct(&tests.Model{})
 	require.NoError(t, err)
 
-	s := query.NewScope(nil, mStruct)
+	s := query.NewScope(mStruct)
 	s.Filters = query.Filters{
 		query.NewFilterField(mStruct.Primary(), query.OpIn, 3, 10),
 	}

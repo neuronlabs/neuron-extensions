@@ -13,6 +13,7 @@ import (
 	"github.com/neuronlabs/neuron-plugins/repository/postgres/migrate"
 	"github.com/neuronlabs/neuron-plugins/repository/postgres/tests"
 	"github.com/neuronlabs/neuron/errors"
+	"github.com/neuronlabs/neuron/orm"
 	"github.com/neuronlabs/neuron/query"
 )
 
@@ -36,7 +37,7 @@ func TestUpdate(t *testing.T) {
 	}()
 
 	// No results should return no error.
-	qc := query.NewCreator(c)
+	db := orm.New(c)
 
 	newModel := func() *tests.SimpleModel {
 		return &tests.SimpleModel{
@@ -47,19 +48,19 @@ func TestUpdate(t *testing.T) {
 	// Insert two models.
 	model1 := newModel()
 	model2 := newModel()
-	err = qc.Query(mStruct, model1, model2).Insert()
+	err = db.Query(mStruct, model1, model2).Insert()
 	require.NoError(t, err)
 
 	t.Run("Model", func(t *testing.T) {
 		model := newModel()
 		model.ID = model1.ID
 		model.Attr = "Other"
-		affected, err := qc.Query(mStruct, model).Update()
+		affected, err := db.Query(mStruct, model).Update()
 		require.NoError(t, err)
 
 		assert.Equal(t, int64(1), affected)
 
-		models, err := qc.Query(mStruct).Where("ID =", model1.ID).Find()
+		models, err := db.Query(mStruct).Where("ID =", model1.ID).Find()
 		require.NoError(t, err)
 		if assert.Len(t, models, 1) {
 			assert.Equal(t, "Other", models[0].(*tests.SimpleModel).Attr)
@@ -69,7 +70,7 @@ func TestUpdate(t *testing.T) {
 	t.Run("NotFound", func(t *testing.T) {
 		model := newModel()
 		model.ID = 1e8
-		affected, err := qc.Query(mStruct, model).Update()
+		affected, err := db.Query(mStruct, model).Update()
 		assert.Error(t, err)
 		assert.True(t, errors.IsClass(err, query.ClassNoResult), "%v", err)
 		assert.Equal(t, int64(0), affected)
@@ -78,7 +79,7 @@ func TestUpdate(t *testing.T) {
 	t.Run("Filters", func(t *testing.T) {
 		model := newModel()
 		model.Attr = "Something"
-		affected, err := qc.Query(mStruct, model).Select(mStruct.MustFieldByName("Attr")).Where("ID in", model1.ID, model2.ID).Update()
+		affected, err := db.Query(mStruct, model).Select(mStruct.MustFieldByName("Attr")).Where("ID in", model1.ID, model2.ID).Update()
 		require.NoError(t, err)
 
 		assert.Equal(t, int64(2), affected)
@@ -87,7 +88,7 @@ func TestUpdate(t *testing.T) {
 	t.Run("All", func(t *testing.T) {
 		model := newModel()
 		model.Attr = "Else"
-		affected, err := qc.Query(mStruct, model).Select(mStruct.MustFieldByName("Attr")).UpdateAll()
+		affected, err := db.Query(mStruct, model).Select(mStruct.MustFieldByName("Attr")).UpdateAll()
 		require.NoError(t, err)
 
 		assert.Equal(t, int64(2), affected)

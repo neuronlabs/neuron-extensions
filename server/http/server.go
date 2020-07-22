@@ -6,61 +6,65 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 
-	"github.com/neuronlabs/neuron/errors"
+	"github.com/neuronlabs/neuron-plugins/server/http/log"
 	"github.com/neuronlabs/neuron/server"
 )
 
 var _ server.Server = &Server{}
 
-type Server struct {
-	// Endpoints provides the mapping between the path - mime type and given endpoint handler
-	// map[path]map[method]map[mime]
-	Endpoints            map[string]map[string]map[string]*Endpoint
-	EndpointInitializers []EndpointInitializer
-	Options              server.Options
-	server               http.Server
-	router               *httprouter.Router
+// API is an interface used for the server API's.
+type API interface {
+	Init(options server.Options) error
+	SetRoutes(router *httprouter.Router) error
 }
 
+// Server is an http server implementation. It implements neuron/server.Server interface.
+type Server struct {
+	Options server.Options
+	server  http.Server
+	Router  *httprouter.Router
+	APIs    []API
+}
+
+// New creates new server.
 func New() *Server {
 	return &Server{
-		Endpoints: map[string]map[string]map[string]*Endpoint{},
-		server:    http.Server{},
-		router:    httprouter.New(),
+		server: http.Server{},
+		Router: httprouter.New(),
 	}
 }
 
+// SetAPI sets provided API on given server.
+func (s *Server) SetAPI(a API) {
+	s.APIs = append(s.APIs, a)
+}
+
+// Serve serves all routes stored in given server.
 func (s *Server) Serve() error {
-	return nil
+	s.server.Handler = s.Router
+	return s.server.ListenAndServe()
 }
 
+// Shutdown gently shutdown the server connection.
 func (s *Server) Shutdown(ctx context.Context) error {
+	if err := s.server.Shutdown(ctx); err != nil {
+		log.Errorf("HTTP server shutdown failed: %v", err)
+		return err
+	}
 	return nil
 }
 
-func (s *Server) Initialize(options *server.Options) error {
+// Initialize initializes server with provided options.
+func (s *Server) Initialize(options server.Options) error {
 	// Initialize all endpoints.
-
-	for _, initializer := range s.EndpointInitializers {
-		endpoint := initializer(c, db)
-		methodsMap, ok := s.Endpoints[endpoint.Path]
-		if !ok {
-			methodsMap = map[string]map[string]*Endpoint{}
-			s.Endpoints[endpoint.Path] = methodsMap
+	s.Options = options
+	for _, api := range s.APIs {
+		if err := api.Init(options); err != nil {
+			return err
 		}
-		mimeMap, ok := methodsMap[endpoint.Method]
-		if !ok {
-			mimeMap = map[string]*Endpoint{}
-			methodsMap[endpoint.Method] = mimeMap
+		if err := api.SetRoutes(s.Router); err != nil {
+			return err
 		}
-
-		_, ok = mimeMap[endpoint.MimeType]
-		if ok {
-			return errors.Newf(server.ClassDuplicatedEndpoint, "endpoint: %s %s %s is already registered for the server",
-				endpoint.Method, endpoint.Path, endpoint.MimeType)
-		}
-		mimeMap[endpoint.MimeType] = endpoint
-
 	}
 	return nil
 }

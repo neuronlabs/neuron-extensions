@@ -6,7 +6,7 @@ import (
 	"path"
 	"time"
 
-	"github.com/neuronlabs/neuron/codec"
+	neuronCodec "github.com/neuronlabs/neuron/codec"
 	"github.com/neuronlabs/neuron/errors"
 
 	"github.com/neuronlabs/neuron/log"
@@ -17,7 +17,7 @@ import (
 // ErrorsPayload is a serializer struct for representing a valid JSON API errors payload.
 type ErrorsPayload struct {
 	JSONAPI map[string]interface{} `json:"jsonapi,omitempty"`
-	Errors  []*codec.Error         `json:"errors"`
+	Errors  []*neuronCodec.Error   `json:"errors"`
 }
 
 // Marshal marshals provided value 'v' into writer 'w'
@@ -29,7 +29,7 @@ func marshalPayload(w io.Writer, payload Payloader) error {
 	return nil
 }
 
-func queryPayload(s *query.Scope, o *codec.MarshalOptions) (Payloader, error) {
+func queryPayload(s *query.Scope, o *neuronCodec.MarshalOptions) (Payloader, error) {
 	var (
 		payload Payloader
 		err     error
@@ -37,17 +37,17 @@ func queryPayload(s *query.Scope, o *codec.MarshalOptions) (Payloader, error) {
 
 	if len(s.Models) == 0 {
 		if o != nil && o.SingleResult {
-			payload = &ManyPayload{Data: []*Node{}}
-		} else {
 			payload = &SinglePayload{Data: nil}
+		} else {
+			payload = &ManyPayload{Data: []*Node{}}
 		}
 		return payload, nil
 	}
 
-	if len(s.Models) > 0 {
-		payload, err = marshalQueryManyModels(s, o)
-	} else {
+	if len(s.Models) == 1 && o != nil && o.SingleResult {
 		payload, err = marshalQuerySingleModel(s, o)
+	} else {
+		payload, err = marshalQueryManyModels(s, o)
 	}
 	if err != nil {
 		return nil, err
@@ -67,7 +67,7 @@ func queryPayload(s *query.Scope, o *codec.MarshalOptions) (Payloader, error) {
 	return payload, nil
 }
 
-func includedRelationsNodes(s *query.Scope, o *codec.MarshalOptions) ([]*Node, error) {
+func includedRelationsNodes(s *query.Scope, o *neuronCodec.MarshalOptions) ([]*Node, error) {
 	fieldSet := s.FieldSet
 	for _, included := range s.IncludedRelations {
 		if len(included.Fieldset) == 1 && included.Fieldset[0].IsPrimary() {
@@ -89,7 +89,7 @@ func includedRelationsNodes(s *query.Scope, o *codec.MarshalOptions) ([]*Node, e
 	return nodes, nil
 }
 
-func marshalQuerySingleModel(s *query.Scope, o *codec.MarshalOptions) (*SinglePayload, error) {
+func marshalQuerySingleModel(s *query.Scope, o *neuronCodec.MarshalOptions) (*SinglePayload, error) {
 	var model mapping.Model
 	if len(s.Models) > 0 {
 		model = s.Models[0]
@@ -108,12 +108,12 @@ func marshalQuerySingleModel(s *query.Scope, o *codec.MarshalOptions) (*SinglePa
 	var links *TopLinks
 	if o != nil {
 		switch o.Link.Type {
-		case codec.ResourceLink:
+		case neuronCodec.ResourceLink:
 			// By default the top level should contain 'self' value.
 			links = &TopLinks{Self: path.Join(o.Link.BaseURL, o.Link.Collection, o.Link.RootID)}
-		case codec.RelatedLink:
+		case neuronCodec.RelatedLink:
 			links = &TopLinks{Self: path.Join(o.Link.BaseURL, o.Link.Collection, o.Link.RootID, o.Link.RelatedField)}
-		case codec.RelationshipLink:
+		case neuronCodec.RelationshipLink:
 			links = &TopLinks{
 				Self:    path.Join(o.Link.BaseURL, o.Link.Collection, o.Link.RootID, "relationships", o.Link.RelatedField),
 				Related: path.Join(o.Link.BaseURL, o.Link.Collection, o.Link.RootID, o.Link.RelatedField),
@@ -123,7 +123,7 @@ func marshalQuerySingleModel(s *query.Scope, o *codec.MarshalOptions) (*SinglePa
 	return &SinglePayload{Data: n, Links: links}, nil
 }
 
-func marshalQueryManyModels(s *query.Scope, o *codec.MarshalOptions) (*ManyPayload, error) {
+func marshalQueryManyModels(s *query.Scope, o *neuronCodec.MarshalOptions) (*ManyPayload, error) {
 	n, err := visitQueryManyNodes(s, o)
 	if err != nil {
 		return nil, err
@@ -131,34 +131,34 @@ func marshalQueryManyModels(s *query.Scope, o *codec.MarshalOptions) (*ManyPaylo
 
 	var (
 		links *TopLinks
-		meta  *codec.Meta
+		meta  *neuronCodec.Meta
 	)
 	if o != nil {
 		switch o.Link.Type {
-		case codec.ResourceLink:
+		case neuronCodec.ResourceLink:
 			links = &TopLinks{Self: path.Join(o.Link.BaseURL, o.Link.Collection)}
 			links.SetPaginationLinks(o)
 			if pLinks := o.Link.PaginationLinks; pLinks != nil {
 				if pLinks.Total != 0 {
-					meta = &codec.Meta{KeyTotal: pLinks.Total}
+					meta = &neuronCodec.Meta{KeyTotal: pLinks.Total}
 				}
 			}
-		case codec.RelatedLink:
+		case neuronCodec.RelatedLink:
 			links = &TopLinks{Self: path.Join(o.Link.BaseURL, o.Link.Collection, o.Link.RootID, o.Link.RelatedField)}
 			links.SetPaginationLinks(o)
 			if pLinks := o.Link.PaginationLinks; pLinks != nil {
 				if pLinks.Total != 0 {
-					meta = &codec.Meta{KeyTotal: pLinks.Total}
+					meta = &neuronCodec.Meta{KeyTotal: pLinks.Total}
 				}
 			}
-		case codec.RelationshipLink:
+		case neuronCodec.RelationshipLink:
 			links = &TopLinks{
 				Related: path.Join(o.Link.BaseURL, o.Link.Collection, o.Link.RootID, o.Link.RelatedField),
 				Self:    path.Join(o.Link.BaseURL, o.Link.Collection, o.Link.RootID, "relationships", o.Link.RelatedField),
 			}
 			if pLinks := o.Link.PaginationLinks; pLinks != nil {
 				if pLinks.Total != 0 {
-					meta = &codec.Meta{KeyTotal: pLinks.Total}
+					meta = &neuronCodec.Meta{KeyTotal: pLinks.Total}
 				}
 			}
 		}
@@ -166,7 +166,7 @@ func marshalQueryManyModels(s *query.Scope, o *codec.MarshalOptions) (*ManyPaylo
 	return &ManyPayload{Data: n, Links: links, Meta: meta}, nil
 }
 
-func visitQueryManyNodes(s *query.Scope, o *codec.MarshalOptions) ([]*Node, error) {
+func visitQueryManyNodes(s *query.Scope, o *neuronCodec.MarshalOptions) ([]*Node, error) {
 	nodes := make([]*Node, len(s.Models))
 	fieldSet := s.FieldSet
 	for _, included := range s.IncludedRelations {
@@ -182,13 +182,13 @@ func visitQueryManyNodes(s *query.Scope, o *codec.MarshalOptions) ([]*Node, erro
 	return nodes, nil
 }
 
-func visitModels(mStruct *mapping.ModelStruct, models []mapping.Model, o *codec.MarshalOptions) ([]*Node, error) {
+func visitModels(mStruct *mapping.ModelStruct, models []mapping.Model, o *neuronCodec.MarshalOptions) ([]*Node, error) {
 	var nodes []*Node
 	for _, model := range models {
 		if model == nil {
 			continue
 		}
-		node, err := visitModelNode(mStruct, model, o, mStruct.Fields())
+		node, err := visitModelNode(mStruct, model, o, mStruct.StructFields())
 		if err != nil {
 			return nil, err
 		}
@@ -197,7 +197,7 @@ func visitModels(mStruct *mapping.ModelStruct, models []mapping.Model, o *codec.
 	return nodes, nil
 }
 
-func visitModelNode(mStruct *mapping.ModelStruct, model mapping.Model, o *codec.MarshalOptions, fieldSet []*mapping.StructField) (node *Node, err error) {
+func visitModelNode(mStruct *mapping.ModelStruct, model mapping.Model, o *neuronCodec.MarshalOptions, fieldSet []*mapping.StructField) (node *Node, err error) {
 	node = &Node{Type: mStruct.Collection()}
 
 	// set primary
@@ -335,7 +335,7 @@ func visitModelNode(mStruct *mapping.ModelStruct, model mapping.Model, o *codec.
 			}
 
 			if o != nil {
-				if o.Link.Type == codec.ResourceLink {
+				if o.Link.Type == neuronCodec.ResourceLink {
 					link := make(map[string]interface{})
 					link["self"] = path.Join(o.Link.BaseURL, mStruct.Collection(), node.ID, "relationships", fieldName)
 					link["related"] = path.Join(o.Link.BaseURL, mStruct.Collection(), node.ID, fieldName)
@@ -346,6 +346,7 @@ func visitModelNode(mStruct *mapping.ModelStruct, model mapping.Model, o *codec.
 					r.Meta = &optionMeta
 				}
 			}
+			node.Relationships[fieldName] = r
 		case mapping.KindRelationshipSingle:
 			if singleRelationer == nil {
 				singleRelationer, ok = model.(mapping.SingleRelationer)
@@ -370,7 +371,7 @@ func visitModelNode(mStruct *mapping.ModelStruct, model mapping.Model, o *codec.
 
 			r := &RelationshipOneNode{}
 			if o != nil {
-				if o.Link.Type == codec.ResourceLink {
+				if o.Link.Type == neuronCodec.ResourceLink {
 					link := make(map[string]interface{})
 					link["self"] = path.Join(o.Link.BaseURL, mStruct.Collection(), node.ID, "relationships", fieldName)
 					link["related"] = path.Join(o.Link.BaseURL, mStruct.Collection(), node.ID, fieldName)
@@ -392,7 +393,7 @@ func visitModelNode(mStruct *mapping.ModelStruct, model mapping.Model, o *codec.
 		}
 	}
 
-	if o != nil && o.Link.Type == codec.ResourceLink {
+	if o != nil && o.Link.Type == neuronCodec.ResourceLink {
 		links := make(map[string]interface{})
 		links["self"] = path.Join(o.Link.BaseURL, mStruct.Collection(), node.ID)
 		linksObj := Links(links)
@@ -408,7 +409,7 @@ func getFieldFlags(field *mapping.StructField, model *mapping.ModelStruct) (bool
 	fieldName := field.NeuronName()
 
 	// extract jsonapi field tags if exists
-	tags := field.ExtractCustomFieldTags(codec.StructTag, mapping.AnnotationSeparator, " ")
+	tags := field.ExtractCustomFieldTags(neuronCodec.StructTag, mapping.AnnotationSeparator, " ")
 	// overwrite neuron marshal flags by the 'codec' flags
 	for _, tag := range tags {
 		switch tag.Key {

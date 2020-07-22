@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-//go:generate neuron-generator models methods --format=gofmt --single-file .
+//go:generate neuron-generator models --format=goimports --single-file .
 
 // InsertModel is the model prepared for insertion.
 type SimpleModel struct {

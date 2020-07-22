@@ -11,13 +11,13 @@ import (
 	"github.com/neuronlabs/neuron-plugins/repository/postgres/migrate"
 )
 
+//go:generate neuron-generator models methods --format=goimports --type=QueryModel --single-file .
+
 // queryModel is the model used for testing the queries filters.
 type QueryModel struct {
 	ID         int    `neuron:"type=primary"`
 	StringAttr string `neuron:"type=attr"`
 }
-
-//go:generate neuron-generator models methods --type=QueryModel --single-file .
 
 func getScope(t *testing.T) *query.Scope {
 	t.Helper()
@@ -33,5 +33,5 @@ func getScope(t *testing.T) *query.Scope {
 	err = migrate.PrepareModel(mStruct)
 	require.NoError(t, err)
 
-	return query.NewScope(nil, mStruct)
+	return query.NewScope(mStruct)
 }

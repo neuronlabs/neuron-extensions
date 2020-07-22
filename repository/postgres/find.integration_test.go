@@ -12,18 +12,15 @@ import (
 	"github.com/neuronlabs/neuron-plugins/repository/postgres/internal"
 	"github.com/neuronlabs/neuron-plugins/repository/postgres/migrate"
 	"github.com/neuronlabs/neuron-plugins/repository/postgres/tests"
-	"github.com/neuronlabs/neuron/query"
+	"github.com/neuronlabs/neuron/orm"
 )
 
 // TestRepositoryFind tests the repository list method.
 func TestRepositoryFind(t *testing.T) {
-	c := testingController(t, true, &tests.SimpleModel{})
+	c := testingController(t, true, testModels...)
 	p := testingRepository(c)
 
 	ctx := context.Background()
-
-	err := c.MigrateModels(ctx, &tests.SimpleModel{})
-	require.NoError(t, err)
 
 	mStruct, err := c.ModelStruct(&tests.SimpleModel{})
 	require.NoError(t, err)
@@ -35,9 +32,9 @@ func TestRepositoryFind(t *testing.T) {
 	}()
 
 	// No results should return no error.
-	qc := query.NewCreator(c)
+	db := orm.New(c)
 
-	models, err := qc.Query(mStruct).Find()
+	models, err := db.Query(mStruct).Find()
 	require.NoError(t, err)
 
 	assert.Len(t, models, 0)
@@ -50,11 +47,11 @@ func TestRepositoryFind(t *testing.T) {
 	// Insert two models.
 	model1 := newModel()
 	model2 := newModel()
-	err = qc.Query(mStruct, model1, model2).Insert()
+	err = db.Query(mStruct, model1, model2).Insert()
 	require.NoError(t, err)
 
 	t.Run("Limit", func(t *testing.T) {
-		models, err = qc.Query(mStruct).Limit(1).Find()
+		models, err = db.Query(mStruct).Limit(1).Find()
 		require.NoError(t, err)
 
 		if assert.Len(t, models, 1) {
@@ -63,7 +60,7 @@ func TestRepositoryFind(t *testing.T) {
 	})
 
 	t.Run("Offset", func(t *testing.T) {
-		models, err = qc.Query(mStruct).Offset(1).Find()
+		models, err = db.Query(mStruct).Offset(1).Find()
 		require.NoError(t, err)
 
 		if assert.Len(t, models, 1) {
@@ -72,7 +69,7 @@ func TestRepositoryFind(t *testing.T) {
 	})
 
 	t.Run("Filter", func(t *testing.T) {
-		models, err = qc.Query(mStruct).Where("ID =", model2.ID).Find()
+		models, err = db.Query(mStruct).Where("ID =", model2.ID).Find()
 		require.NoError(t, err)
 
 		if assert.Len(t, models, 1) {

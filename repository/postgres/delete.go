@@ -4,19 +4,15 @@ import (
 	"context"
 	"strings"
 
-	"github.com/neuronlabs/neuron/errors"
-	"github.com/neuronlabs/neuron/query"
-
 	"github.com/neuronlabs/neuron-plugins/repository/postgres/filters"
 	"github.com/neuronlabs/neuron-plugins/repository/postgres/log"
 	"github.com/neuronlabs/neuron-plugins/repository/postgres/migrate"
+	"github.com/neuronlabs/neuron/errors"
+	"github.com/neuronlabs/neuron/query"
 )
 
-// Compile time check if Postgres implements query.Deleter interface.
-var _ query.Deleter = &Postgres{}
-
 // Delete deletes all the values that matches scope's filters.
-// Implements query.Deleter interface.
+// Implements repository.Repository interface.
 func (p *Postgres) Delete(ctx context.Context, s *query.Scope) (int64, error) {
 	q, err := p.parseDeleteQuery(s)
 	if err != nil {

@@ -1,7 +1,7 @@
 package jsonapi
 
 import (
-	"github.com/neuronlabs/neuron/codec"
+	neuronCodec "github.com/neuronlabs/neuron/codec"
 )
 
 // TopLinks is used to represent a `links` object.
@@ -17,7 +17,7 @@ type TopLinks struct {
 }
 
 // SetPaginationLinks sets the pagination links from the marshal options
-func (t *TopLinks) SetPaginationLinks(o *codec.MarshalOptions) {
+func (t *TopLinks) SetPaginationLinks(o *neuronCodec.MarshalOptions) {
 	// if pagination links are set
 	pLinks := o.Link.PaginationLinks
 	if pLinks == nil {

@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	neuronCodec "github.com/neuronlabs/neuron/codec"
 	"github.com/neuronlabs/neuron/config"
 	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/query"
@@ -18,7 +19,7 @@ import (
 // TestMarshal tests the marshal function.
 func TestMarshal(t *testing.T) {
 	buf := bytes.Buffer{}
-	cd := &Codec{}
+	cd := &codec{}
 	prepare := func(t *testing.T, models ...mapping.Model) *mapping.ModelMap {
 		t.Helper()
 		c := defaultTestingController(t)
@@ -292,7 +293,7 @@ func TestMarshalScope(t *testing.T) {
 		err := s.Include(owners)
 		require.NoError(t, err)
 
-		payload, err := queryPayload(s, nil)
+		payload, err := queryPayload(s, &neuronCodec.MarshalOptions{SingleResult: true})
 		if assert.NoError(t, err) {
 			single, ok := payload.(*SinglePayload)
 			if assert.True(t, ok) {
@@ -401,7 +402,7 @@ func TestMarshalCustomTag(t *testing.T) {
 
 	attributes := modelStruct.Attributes()
 	s.FieldSet = append([]*mapping.StructField{modelStruct.Primary()}, attributes...)
-	payload, err := queryPayload(s, nil)
+	payload, err := queryPayload(s, &neuronCodec.MarshalOptions{SingleResult: true})
 	assert.NoError(t, err)
 
 	buffer := &bytes.Buffer{}

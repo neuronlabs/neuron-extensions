@@ -17,10 +17,8 @@ import (
 	"github.com/neuronlabs/neuron-plugins/repository/postgres/migrate"
 )
 
-var _ query.Finder = &Postgres{}
-
 // Find lists all the values that matches scope's filters, sorts and pagination.
-// Implements query.Lister interface.
+// Implements repository.Repository interface.
 func (p *Postgres) Find(ctx context.Context, s *query.Scope) error {
 	q, err := p.parseSelectQuery(s)
 	if err != nil {

@@ -8,12 +8,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/neuronlabs/neuron-plugins/repository/postgres/migrate"
 	"github.com/neuronlabs/neuron/config"
 	"github.com/neuronlabs/neuron/controller"
 	"github.com/neuronlabs/neuron/mapping"
 )
 
-func testingController(t *testing.T, dial bool, models ...mapping.Model) *controller.Controller {
+func testingController(t *testing.T, integration bool, models ...mapping.Model) *controller.Controller {
 	t.Helper()
 
 	c := controller.NewDefault()
@@ -21,14 +22,14 @@ func testingController(t *testing.T, dial bool, models ...mapping.Model) *contro
 	cfg := config.Service{DriverName: "postgres"}
 
 	e, ok := os.LookupEnv("POSTGRES_TESTING")
-	if dial && !ok {
+	if integration && !ok {
 		t.Skip("no 'POSTGRES_TESTING' environment variable defined")
 	}
 	cfg.Connection.RawURL = e
 
 	err := c.RegisterService("postgres-testing", &cfg)
 	require.NoError(t, err)
-	if dial {
+	if integration {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
 
@@ -36,6 +37,12 @@ func testingController(t *testing.T, dial bool, models ...mapping.Model) *contro
 		require.NoError(t, err)
 	}
 	require.NoError(t, c.RegisterModels(models...))
+	if integration {
+		require.NoError(t, c.MapModelsRepositories(models...))
+		require.NoError(t, c.MigrateModels(context.Background(), models...))
+	} else {
+		require.NoError(t, migrate.PrepareModels(c.ModelMap.Models()...))
+	}
 	return c
 }
 

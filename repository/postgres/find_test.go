@@ -20,7 +20,7 @@ func TestParseSelect(t *testing.T) {
 	attrField, ok := mStruct.Attribute("attr_string")
 	require.True(t, ok)
 
-	s := query.NewScope(nil, mStruct)
+	s := query.NewScope(mStruct)
 	s.FieldSet = mStruct.Fields()
 	s.Filters = query.Filters{
 		query.NewFilterField(mStruct.Primary(), query.OpIn, 3, 4),

@@ -1,7 +1,7 @@
 package jsonapi
 
 import (
-	"github.com/neuronlabs/neuron/codec"
+	neuronCodec "github.com/neuronlabs/neuron/codec"
 )
 
 // Payloader is used to encapsulate the One and Many payload types
@@ -9,7 +9,7 @@ type Payloader interface {
 	GetNodes() []*Node
 	GetIncluded() []*Node
 	SetLinks(links *TopLinks)
-	SetMeta(meta *codec.Meta)
+	SetMeta(meta *neuronCodec.Meta)
 	SetIncluded(included []*Node)
 }
 
@@ -19,10 +19,10 @@ var _ Payloader = &SinglePayload{}
 // SinglePayload is used to represent a generic JSON API payload where a single
 // resource (Node) was included as an {} in the "data" key
 type SinglePayload struct {
-	Links    *TopLinks   `json:"links,omitempty"`
-	Meta     *codec.Meta `json:"meta,omitempty"`
-	Data     *Node       `json:"data"`
-	Included []*Node     `json:"included,omitempty"`
+	Links    *TopLinks         `json:"links,omitempty"`
+	Meta     *neuronCodec.Meta `json:"meta,omitempty"`
+	Data     *Node             `json:"data"`
+	Included []*Node           `json:"included,omitempty"`
 }
 
 func (p *SinglePayload) GetNodes() []*Node {
@@ -48,7 +48,7 @@ func (p *SinglePayload) SetLinks(links *TopLinks) {
 
 // SetMeta sets the meta for the single payload.
 // Implements Payloader interface.
-func (p *SinglePayload) SetMeta(meta *codec.Meta) {
+func (p *SinglePayload) SetMeta(meta *neuronCodec.Meta) {
 	p.Meta = meta
 }
 
@@ -58,10 +58,10 @@ var _ Payloader = &ManyPayload{}
 // ManyPayload is used to represent a generic JSON API payload where many
 // resources (Nodes) were included in an [] in the "data" key
 type ManyPayload struct {
-	Links    *TopLinks   `json:"links,omitempty"`
-	Meta     *codec.Meta `json:"meta,omitempty"`
-	Data     []*Node     `json:"data"`
-	Included []*Node     `json:"included,omitempty"`
+	Links    *TopLinks         `json:"links,omitempty"`
+	Meta     *neuronCodec.Meta `json:"meta,omitempty"`
+	Data     []*Node           `json:"data"`
+	Included []*Node           `json:"included,omitempty"`
 }
 
 func (p *ManyPayload) GetNodes() []*Node {
@@ -87,7 +87,7 @@ func (p *ManyPayload) SetLinks(links *TopLinks) {
 
 // SetMeta sets the meta for the single payload.
 // Implements Payloader interface.
-func (p *ManyPayload) SetMeta(meta *codec.Meta) {
+func (p *ManyPayload) SetMeta(meta *neuronCodec.Meta) {
 	p.Meta = meta
 }
 
@@ -102,19 +102,19 @@ type Node struct {
 	Attributes    map[string]interface{} `json:"attributes,omitempty"`
 	Relationships map[string]interface{} `json:"relationships,omitempty"`
 	Links         *Links                 `json:"links,omitempty"`
-	Meta          *codec.Meta            `json:"meta,omitempty"`
+	Meta          *neuronCodec.Meta      `json:"meta,omitempty"`
 }
 
 // RelationshipOneNode is used to represent a generic single JSON API relation.
 type RelationshipOneNode struct {
-	Data  *Node       `json:"data"`
-	Links *Links      `json:"links,omitempty"`
-	Meta  *codec.Meta `json:"meta,omitempty"`
+	Data  *Node             `json:"data"`
+	Links *Links            `json:"links,omitempty"`
+	Meta  *neuronCodec.Meta `json:"meta,omitempty"`
 }
 
 // RelationshipManyNode is used to represent a generic has many JSON API relation.
 type RelationshipManyNode struct {
-	Data  []*Node     `json:"data"`
-	Links *Links      `json:"links,omitempty"`
-	Meta  *codec.Meta `json:"meta,omitempty"`
+	Data  []*Node           `json:"data"`
+	Links *Links            `json:"links,omitempty"`
+	Meta  *neuronCodec.Meta `json:"meta,omitempty"`
 }

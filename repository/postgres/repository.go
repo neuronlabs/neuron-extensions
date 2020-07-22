@@ -11,6 +11,7 @@ import (
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/query"
+	"github.com/neuronlabs/neuron/repository"
 	"github.com/neuronlabs/neuron/service"
 
 	postgresErrors "github.com/neuronlabs/neuron-plugins/repository/postgres/errors"
@@ -23,11 +24,11 @@ import (
 const FactoryName = "postgres"
 
 var (
-	// compile time check for the query.FullRepository interface..
-	_ query.FullRepository = &Postgres{}
-	// compile time check for the repository.Postgres interface.
+	// Compile time check if Postgres implements repository.Repository interface.
+	_ repository.Repository = &Postgres{}
+	// compile time check for the service.Service interface.
 	_ service.Service = &Postgres{}
-	// compile time check for the repository.Migrator interface.
+	// compile time check for the service.Migrator interface.
 	_ service.Migrator = &Postgres{}
 )
 

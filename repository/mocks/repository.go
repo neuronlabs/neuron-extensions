@@ -5,6 +5,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/neuronlabs/neuron/mapping"
+	"github.com/neuronlabs/neuron/repository"
+
 	"github.com/stretchr/testify/mock"
 
 	"github.com/neuronlabs/neuron/query"
@@ -28,7 +30,7 @@ Repository
 
 var (
 	// compile time check for the query.FullRepository implementation.
-	_ query.FullRepository = &Repository{}
+	_ repository.Repository = &Repository{}
 	// compile time check for the repository.Repository implementation.
 	_ service.Service = &Repository{}
 )
@@ -66,11 +68,11 @@ func (_m *Repository) ID() string {
 }
 
 // Begin provides a mock function with given fields: ctx, s
-func (_m *Repository) Begin(ctx context.Context, tx *query.Tx) error {
+func (_m *Repository) Begin(ctx context.Context, tx *query.Transaction) error {
 	ret := _m.Called(ctx, tx)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *query.Tx) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *query.Transaction) error); ok {
 		r0 = rf(ctx, tx)
 	} else {
 		r0 = ret.Error(0)
@@ -80,16 +82,16 @@ func (_m *Repository) Begin(ctx context.Context, tx *query.Tx) error {
 }
 
 // Close closes the repository connection.
-func (_m *Repository) Close(ctx context.Context) error {
+func (_m *Repository) Close(context.Context) error {
 	return nil
 }
 
 // Commit provides a mock function with given fields: ctx, m.
-func (_m *Repository) Commit(ctx context.Context, tx *query.Tx) error {
+func (_m *Repository) Commit(ctx context.Context, tx *query.Transaction) error {
 	ret := _m.Called(ctx, tx)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *query.Tx) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *query.Transaction) error); ok {
 		r0 = rf(ctx, tx)
 	} else {
 		r0 = ret.Error(0)
@@ -219,11 +221,11 @@ func (_m *Repository) RegisterModels(...*mapping.ModelStruct) error {
 }
 
 // Rollback provides a mock function with given fields: ctx, s
-func (_m *Repository) Rollback(ctx context.Context, tx *query.Tx) error {
+func (_m *Repository) Rollback(ctx context.Context, tx *query.Transaction) error {
 	ret := _m.Called(ctx, tx)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *query.Tx) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *query.Transaction) error); ok {
 		r0 = rf(ctx, tx)
 	} else {
 		r0 = ret.Error(0)

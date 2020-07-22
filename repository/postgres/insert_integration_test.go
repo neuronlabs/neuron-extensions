@@ -13,18 +13,15 @@ import (
 	"github.com/neuronlabs/neuron-plugins/repository/postgres/migrate"
 	"github.com/neuronlabs/neuron-plugins/repository/postgres/tests"
 	"github.com/neuronlabs/neuron/errors"
+	"github.com/neuronlabs/neuron/orm"
 	"github.com/neuronlabs/neuron/query"
 )
 
 func TestInsertSingleModel(t *testing.T) {
-	c := testingController(t, true, &tests.SimpleModel{})
+	c := testingController(t, true, testModels...)
 	p := testingRepository(c)
 
 	ctx := context.Background()
-
-	err := c.MigrateModels(ctx, &tests.SimpleModel{})
-	require.NoError(t, err)
-
 	mStruct, err := c.ModelStruct(&tests.SimpleModel{})
 	require.NoError(t, err)
 
@@ -35,7 +32,7 @@ func TestInsertSingleModel(t *testing.T) {
 	}()
 
 	// No results should return no error.
-	qc := query.NewCreator(c)
+	db := orm.New(c)
 
 	newModel := func() *tests.SimpleModel {
 		return &tests.SimpleModel{
@@ -45,7 +42,7 @@ func TestInsertSingleModel(t *testing.T) {
 	// Insert two models.
 	t.Run("AutoFieldset", func(t *testing.T) {
 		model1 := newModel()
-		err = qc.Query(mStruct, model1).Insert()
+		err = db.Query(mStruct, model1).Insert()
 		require.NoError(t, err)
 
 		assert.NotZero(t, model1.ID)
@@ -54,7 +51,7 @@ func TestInsertSingleModel(t *testing.T) {
 	t.Run("BatchModels", func(t *testing.T) {
 		model1 := newModel()
 		model2 := newModel()
-		err = qc.Query(mStruct, model1, model2).Insert()
+		err = db.Query(mStruct, model1, model2).Insert()
 		require.NoError(t, err)
 
 		assert.NotZero(t, model1.ID)
@@ -66,7 +63,7 @@ func TestInsertSingleModel(t *testing.T) {
 	t.Run("WithFieldset", func(t *testing.T) {
 		model1 := newModel()
 		model1.Attr = "something"
-		err = qc.Query(mStruct, model1).Select(mStruct.MustFieldByName("Attr")).Insert()
+		err = db.Query(mStruct, model1).Select(mStruct.MustFieldByName("Attr")).Insert()
 		require.NoError(t, err)
 
 		assert.NotZero(t, model1.ID)
@@ -75,11 +72,11 @@ func TestInsertSingleModel(t *testing.T) {
 	t.Run("WithID", func(t *testing.T) {
 		model1 := newModel()
 		model1.ID = 1e8
-		err = qc.Query(mStruct, model1).Insert()
+		err = db.Query(mStruct, model1).Insert()
 		require.NoError(t, err)
 
 		assert.NotZero(t, model1.ID)
-		err = qc.Query(mStruct, model1).Insert()
+		err = db.Query(mStruct, model1).Insert()
 		if assert.Error(t, err) {
 			assert.True(t, errors.IsClass(err, query.ClassViolationUnique), err)
 		}

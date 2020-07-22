@@ -15,11 +15,8 @@ import (
 	"github.com/neuronlabs/neuron-plugins/repository/postgres/migrate"
 )
 
-// Compile time check if Postgres implements query.Inserter.
-var _ query.Inserter = &Postgres{}
-
 // Insert depending on the query efficiently inserts models with related fieldSets.
-// Implements repository.Inserter interface.
+// Implements repository.Repository interface.
 func (p *Postgres) Insert(ctx context.Context, s *query.Scope) error {
 	if s.BulkFieldSets == nil {
 		return p.insertWithFieldSet(ctx, s)

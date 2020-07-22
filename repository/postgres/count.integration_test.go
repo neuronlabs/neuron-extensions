@@ -13,19 +13,17 @@ import (
 	"github.com/neuronlabs/neuron-plugins/repository/postgres/migrate"
 	"github.com/neuronlabs/neuron-plugins/repository/postgres/tests"
 	"github.com/neuronlabs/neuron/mapping"
-	"github.com/neuronlabs/neuron/query"
+	"github.com/neuronlabs/neuron/orm"
 )
+
+var testModels = []mapping.Model{&tests.Model{}, &tests.SimpleModel{}, &tests.OmitModel{}}
 
 // TestIntegrationCount does integration tests for the Count method.
 func TestIntegrationCount(t *testing.T) {
-	c := testingController(t, true, &tests.Model{})
+	c := testingController(t, true, testModels...)
 	p := testingRepository(c)
 
 	ctx := context.Background()
-
-	err := c.MigrateModels(ctx, &tests.Model{})
-	require.NoError(t, err)
-
 	mStruct, err := c.ModelStruct(&tests.Model{})
 	require.NoError(t, err)
 
@@ -35,7 +33,7 @@ func TestIntegrationCount(t *testing.T) {
 		_ = internal.DropTables(ctx, p.ConnPool, table.Name, table.Schema)
 	}()
 
-	qc := query.NewCreator(c)
+	db := orm.New(c)
 
 	newModel := func() *tests.Model {
 		return &tests.Model{
@@ -45,12 +43,12 @@ func TestIntegrationCount(t *testing.T) {
 	}
 	models := []mapping.Model{newModel(), newModel()}
 	// Insert models.
-	err = qc.Query(mStruct, models...).Insert()
+	err = db.Query(mStruct, models...).Insert()
 	require.NoError(t, err)
 
 	assert.Len(t, models, 2)
 
-	countAll, err := qc.Query(mStruct).Count()
+	countAll, err := db.Query(mStruct).Count()
 	require.NoError(t, err)
 
 	assert.Equal(t, int64(2), countAll)

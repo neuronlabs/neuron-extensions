@@ -14,7 +14,7 @@ import (
 
 // TestKeyWords tests the keywords functions.
 func TestKeyWords(t *testing.T) {
-	cfg := internal.TestingConfig(t)
+	cfg := internal.TestingPostgresConfig(t)
 
 	ctx := context.Background()
 

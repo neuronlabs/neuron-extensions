@@ -16,10 +16,8 @@ import (
 	"github.com/neuronlabs/neuron-plugins/repository/postgres/internal"
 )
 
-var _ query.Updater = &Postgres{}
-
 // Update patches all the values that matches scope's filters, sorts and pagination
-// Implements query.Updater interface
+// Implements repository.Repository interface
 func (p *Postgres) Update(ctx context.Context, s *query.Scope) (int64, error) {
 	// There are two possibilities - update with filters or update models.
 	// The first one must contain a single model and the filters.

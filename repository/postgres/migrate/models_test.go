@@ -10,6 +10,8 @@ import (
 	"github.com/neuronlabs/neuron/mapping"
 )
 
+//go:generate neuron-generator models methods --format=goimports --type=Model,BasicModel --single-file .
+
 type Model struct {
 	ID         int        `neuron:"type=primary"`
 	Attr       string     `neuron:"type=attr" db:"name=attribute"`
@@ -29,8 +31,6 @@ type BasicModel struct {
 	Varchar20 string     `neuron:"type=attr" db:"type=varchar(20)"`
 	Float32   float32    `neuron:"type=attr"`
 }
-
-//go:generate neuron-generator models methods --type=Model,BasicModel --single-file .
 
 // TestParseModel tests the extraction of the pq tags
 func TestParseModel(t *testing.T) {

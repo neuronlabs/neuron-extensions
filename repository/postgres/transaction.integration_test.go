@@ -13,17 +13,15 @@ import (
 	"github.com/neuronlabs/neuron-plugins/repository/postgres/migrate"
 	"github.com/neuronlabs/neuron-plugins/repository/postgres/tests"
 	"github.com/neuronlabs/neuron/errors"
+	"github.com/neuronlabs/neuron/orm"
 	"github.com/neuronlabs/neuron/query"
 )
 
 func TestTransactions(t *testing.T) {
-	c := testingController(t, true, &tests.SimpleModel{})
+	c := testingController(t, true, testModels...)
 	p := testingRepository(c)
 
 	ctx := context.Background()
-
-	err := c.MigrateModels(ctx, &tests.SimpleModel{})
-	require.NoError(t, err)
 
 	mStruct, err := c.ModelStruct(&tests.SimpleModel{})
 	require.NoError(t, err)
@@ -34,11 +32,11 @@ func TestTransactions(t *testing.T) {
 		_ = internal.DropTables(ctx, p.ConnPool, table.Name, table.Schema)
 	}()
 
-	qc := query.NewCreator(c)
+	db := orm.New(c)
 
 	t.Run("Commit", func(t *testing.T) {
 		// No results should return no error.
-		tx := query.Begin(ctx, c, nil)
+		tx := db.Begin(ctx, nil)
 
 		model := &tests.SimpleModel{Attr: "Name"}
 		err = tx.Query(mStruct, model).Insert()
@@ -53,7 +51,7 @@ func TestTransactions(t *testing.T) {
 		_, ok = p.Transactions[tx.Transaction.ID]
 		assert.False(t, ok)
 
-		res, err := qc.Query(mStruct).Where("id =", model.ID).Get()
+		res, err := db.Query(mStruct).Where("id =", model.ID).Get()
 		require.NoError(t, err)
 
 		assert.Equal(t, res.GetPrimaryKeyValue(), model.ID)
@@ -61,7 +59,7 @@ func TestTransactions(t *testing.T) {
 
 	t.Run("Rollback", func(t *testing.T) {
 		// No results should return no error.
-		tx := query.Begin(ctx, c, nil)
+		tx := db.Begin(ctx, nil)
 
 		model := &tests.SimpleModel{Attr: "Name"}
 		err = tx.Query(mStruct, model).Insert()
@@ -78,7 +76,7 @@ func TestTransactions(t *testing.T) {
 		_, ok = p.Transactions[tx.Transaction.ID]
 		assert.False(t, ok)
 
-		_, err := qc.Query(mStruct).Where("id =", model.ID).Get()
+		_, err := db.Query(mStruct).Where("id =", model.ID).Get()
 		require.Error(t, err)
 		assert.True(t, errors.IsClass(err, query.ClassNoResult))
 	})

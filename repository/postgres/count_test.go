@@ -19,7 +19,7 @@ func TestParseCount(t *testing.T) {
 	mStruct, err := c.ModelStruct(&tests.Model{})
 	require.NoError(t, err)
 
-	s := query.NewScope(nil, mStruct)
+	s := query.NewScope(mStruct)
 	s.Filters = query.Filters{query.NewFilterField(mStruct.Primary(), query.OpIn, 12, 23)}
 
 	q, err := p.parseCountQuery(s)

@@ -4,19 +4,20 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/neuronlabs/neuron/codec"
+	neuronCodec "github.com/neuronlabs/neuron/codec"
 	"github.com/neuronlabs/neuron/log"
 	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/query"
 )
 
-// MarshalModels implements codec.Codec interface.
-func (c *Codec) MarshalModels(w io.Writer, modelStruct *mapping.ModelStruct, models []mapping.Model, options *codec.MarshalOptions) error {
+// MarshalModels implements neuronCodec.codec interface.
+func (c *codec) MarshalModels(w io.Writer, modelStruct *mapping.ModelStruct, models []mapping.Model, options *neuronCodec.MarshalOptions) error {
 	nodes, err := visitModels(modelStruct, models, options)
 	if err != nil {
 		log.Debug2f("visitModels failed: %v", err)
 		return err
 	}
+
 	var payload Payloader
 	if len(nodes) == 1 && options != nil && options.SingleResult {
 		payload = &SinglePayload{Data: nodes[0]}
@@ -29,8 +30,8 @@ func (c *Codec) MarshalModels(w io.Writer, modelStruct *mapping.ModelStruct, mod
 	return nil
 }
 
-// MarshalQuery implements codec.QueryMarshaler interface.
-func (c *Codec) MarshalQuery(w io.Writer, s *query.Scope, options *codec.MarshalOptions) error {
+// MarshalQuery implements neuronCodec.QueryMarshaler interface.
+func (c *codec) MarshalQuery(w io.Writer, s *query.Scope, options *neuronCodec.MarshalOptions) error {
 	payload, err := queryPayload(s, options)
 	if err != nil {
 		return err
