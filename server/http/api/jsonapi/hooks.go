@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"github.com/neuronlabs/neuron/auth"
+	"github.com/neuronlabs/neuron/db"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/mapping"
-	"github.com/neuronlabs/neuron/orm"
 	"github.com/neuronlabs/neuron/query"
 	"github.com/neuronlabs/neuron/server"
 )
@@ -17,7 +17,7 @@ type QueryParams struct {
 	Context context.Context
 	// DB is current interface used to get database connection. Overwritten to transaction would be used in other
 	// database connections in given endpoint.
-	DB orm.DB
+	DB db.DB
 	// Scope is the query scope.
 	Scope *query.Scope
 	// Relations are the relations unmarshaled in the creation / update process.

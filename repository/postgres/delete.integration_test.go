@@ -9,11 +9,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/internal"
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/migrate"
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/tests"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/migrate"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/tests"
+	"github.com/neuronlabs/neuron/db"
 	"github.com/neuronlabs/neuron/mapping"
-	"github.com/neuronlabs/neuron/orm"
 )
 
 // TestIntegrationDelete integration tests for the Delete processes.
@@ -32,7 +32,7 @@ func TestIntegrationDelete(t *testing.T) {
 		_ = internal.DropTables(ctx, p.ConnPool, table.Name, table.Schema)
 	}()
 
-	db := orm.New(c)
+	db := db.New(c)
 	newModel := func() *tests.SimpleModel {
 		return &tests.SimpleModel{
 			Attr: "Something",
@@ -41,14 +41,14 @@ func TestIntegrationDelete(t *testing.T) {
 	t.Run("WithFilter", func(t *testing.T) {
 		model := newModel()
 		model2 := newModel()
-		models := []*tests.SimpleModel{model, model2}
+		models := []mapping.Model{model, model2}
 		// Insert models.
-		err = tests.SimpleModels.Query(db, models...).Insert()
+		err = db.Query(mStruct, models...).Insert()
 		require.NoError(t, err)
 
 		assert.Len(t, models, 2)
 
-		affected, err := tests.SimpleModels.Query(db).Where("ID IN", model.ID, model2.ID).Delete()
+		affected, err := db.Query(mStruct).Where("ID IN", model.ID, model2.ID).Delete()
 		require.NoError(t, err)
 
 		assert.Equal(t, int64(2), affected)
@@ -58,10 +58,10 @@ func TestIntegrationDelete(t *testing.T) {
 		model := newModel()
 		model2 := newModel()
 		// Insert models.
-		err = tests.SimpleModels.Query(db, model, model2).Insert()
+		err = db.Query(mStruct, model, model2).Insert()
 		require.NoError(t, err)
 
-		affected, err := tests.SimpleModels.Query(db, model, model2).Delete()
+		affected, err := db.Query(mStruct, model, model2).Delete()
 		require.NoError(t, err)
 
 		assert.Equal(t, int64(2), affected)
@@ -83,7 +83,7 @@ func TestSoftDelete(t *testing.T) {
 		_ = internal.DropTables(ctx, p.ConnPool, table.Name, table.Schema)
 	}()
 
-	db := orm.New(c)
+	db := db.New(c)
 
 	newModel := func() *tests.Model {
 		return &tests.Model{

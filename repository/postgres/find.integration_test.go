@@ -9,10 +9,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/internal"
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/migrate"
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/tests"
-	"github.com/neuronlabs/neuron/orm"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/migrate"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/tests"
+	"github.com/neuronlabs/neuron/db"
 )
 
 // TestRepositoryFind tests the repository list method.
@@ -32,7 +32,7 @@ func TestRepositoryFind(t *testing.T) {
 	}()
 
 	// No results should return no error.
-	db := orm.New(c)
+	db := db.New(c)
 
 	models, err := db.Query(mStruct).Find()
 	require.NoError(t, err)

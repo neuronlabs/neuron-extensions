@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/internal"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
 )
 
 // field tag constraints

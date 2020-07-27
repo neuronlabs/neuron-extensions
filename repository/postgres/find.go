@@ -11,10 +11,10 @@ import (
 	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/query"
 
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/filters"
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/internal"
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/log"
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/migrate"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/filters"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/log"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/migrate"
 )
 
 // Find lists all the values that matches scope's filters, sorts and pagination.
@@ -106,8 +106,9 @@ type selectQuery struct {
 }
 
 func (p *Postgres) parseSelectQuery(s *query.Scope) (*selectQuery, error) {
-	if len(s.FieldSet) == 0 {
-		return nil, errors.New(query.ClassNoFieldsInFieldSet, "provided empty fieldset for the list/get type query")
+	commonFieldSet, hasCommonFieldset := s.CommonFieldSet()
+	if !hasCommonFieldset {
+		return nil, errors.New(query.ClassNoFieldsInFieldSet, "no fieldset found for the list/get type query")
 	}
 
 	t, err := migrate.ModelsTable(s.ModelStruct)
@@ -120,7 +121,7 @@ func (p *Postgres) parseSelectQuery(s *query.Scope) (*selectQuery, error) {
 	sb := &strings.Builder{}
 
 	var i int
-	for _, field := range s.FieldSet {
+	for _, field := range commonFieldSet {
 		if _, ok := field.StoreGet(migrate.OmitKey); ok {
 			continue
 		}
@@ -131,7 +132,7 @@ func (p *Postgres) parseSelectQuery(s *query.Scope) (*selectQuery, error) {
 		}
 		q.fieldsOrder = append(q.fieldsOrder, field)
 		p.writeQuotedWord(sb, dbName)
-		if i != len(s.FieldSet)-1 {
+		if i != len(commonFieldSet)-1 {
 			sb.WriteString(", ")
 		}
 		i++
@@ -211,15 +212,15 @@ func (p *Postgres) parseSelectSort(s *query.Scope, sb *strings.Builder) error {
 	sb.WriteString(" ORDER BY ")
 	for i, field := range s.SortingOrder {
 		if log.Level() == log.LevelDebug3 {
-			log.Debug3f("Sorting by field: '%s' with '%s' order", field.StructField.NeuronName(), field.Order.String())
+			log.Debug3f("Sorting by field: '%s' with '%s' order", field.Field().NeuronName(), field.Order().String())
 		}
-		dbName, err := migrate.FieldColumnName(field.StructField)
+		dbName, err := migrate.FieldColumnName(field.Field())
 		if err != nil {
 			return err
 		}
 		p.writeQuotedWord(sb, dbName)
 
-		if field.Order == query.DescendingOrder {
+		if field.Order() == query.DescendingOrder {
 			log.Debug2f("[SCOPE][%s] descending sorting by: '%s' at: '%d' sort order", s.ID, dbName, i)
 			sb.WriteString(" DESC")
 		} else {

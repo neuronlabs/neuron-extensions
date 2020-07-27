@@ -1,4 +1,4 @@
-module github.com/neuronlabs/neuron-plugins/repository/postgres
+module github.com/neuronlabs/neuron-extensions/repository/postgres
 
 go 1.11
 

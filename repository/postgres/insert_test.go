@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/internal"
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/tests"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/tests"
 	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/query"
 )
@@ -29,8 +29,8 @@ func TestParseInsertQuery(t *testing.T) {
 
 	s := query.NewScope(m, model)
 	// get rid of the primary field.
-	s.FieldSet = m.Fields()[1:]
-	q, err := repo.parseInsertWithFieldSet(s)
+	s.FieldSets = []mapping.FieldSet{m.Fields()[1:]}
+	q, err := repo.parseInsertWithCommonFieldSet(s)
 	require.NoError(t, err)
 
 	assert.Equal(t, "INSERT INTO public.models (attr_string,string_ptr,int,created_at,updated_at,deleted_at) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id", q.query)
@@ -59,7 +59,9 @@ func TestParseWithDefault(t *testing.T) {
 
 	p.AutoSelectNotNulls = false
 	s := query.NewScope(m, model)
-	q, err := p.parseInsertWithFieldSet(s)
+	s.FieldSets = append(s.FieldSets, mapping.FieldSet{})
+
+	q, err := p.parseInsertWithCommonFieldSet(s)
 	require.NoError(t, err)
 
 	assert.Equal(t, "INSERT INTO public.models VALUES (DEFAULT) RETURNING id", q.query)
@@ -93,16 +95,7 @@ func TestParseBulkInsert(t *testing.T) {
 	firstFieldset := mapping.FieldSet{m.MustFieldByName("ID"), m.MustFieldByName("AttrString"), m.MustFieldByName("Int")}
 	secondFieldset := mapping.FieldSet{m.MustFieldByName("AttrString"), m.MustFieldByName("CreatedAt")}
 	s := query.NewScope(m, model, model2, model3)
-	s.BulkFieldSets = &query.BulkFieldSet{
-		FieldSets: []mapping.FieldSet{
-			firstFieldset,
-			secondFieldset,
-		},
-		Indices: map[string][]int{
-			firstFieldset.Hash():  {0},
-			secondFieldset.Hash(): {1, 2},
-		},
-	}
+	s.FieldSets = []mapping.FieldSet{firstFieldset, secondFieldset, secondFieldset}
 	queryIndices, err := repo.parseInsertBulkFieldsetQuery(s, batch)
 	require.NoError(t, err)
 

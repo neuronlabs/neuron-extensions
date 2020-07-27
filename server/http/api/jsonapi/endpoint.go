@@ -3,7 +3,7 @@ package jsonapi
 import (
 	"net/http"
 
-	"github.com/neuronlabs/neuron-plugins/server/http/middleware"
+	"github.com/neuronlabs/neuron-extensions/server/http/middleware"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/query"

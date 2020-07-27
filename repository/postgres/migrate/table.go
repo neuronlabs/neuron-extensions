@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neuronlabs/neuron/controller"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/mapping"
 
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/internal"
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/log"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/log"
 )
 
 // Table is the model for the SQL table definition.
@@ -251,13 +250,13 @@ func ModelsTableName(m *mapping.ModelStruct) (string, error) {
 func modelsTable(m *mapping.ModelStruct) (*Table, error) {
 	t, ok := m.StoreGet(TableKey)
 	if !ok {
-		return nil, errors.NewDetf(controller.ClassInternal, "model's: '%s' doesn't have table stored", m.Type().Name())
+		return nil, errors.NewDetf(errors.ClassInternal, "model's: '%s' doesn't have table stored", m.Type().Name())
 	}
 
 	tb, ok := t.(*Table)
 	if !ok {
 		log.Errorf("The table stored within model's: '%s' Store is not a '*migrate.Table' - '%T'", m.Collection(), t)
-		return nil, errors.NewDetf(controller.ClassInternal, "stored table for model: '%s' is not a *migrate.Table", m.Type().Name())
+		return nil, errors.NewDetf(errors.ClassInternal, "stored table for model: '%s' is not a *migrate.Table", m.Type().Name())
 	}
 	return tb, nil
 }

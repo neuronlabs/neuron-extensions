@@ -6,8 +6,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/tests"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/tests"
 	"github.com/neuronlabs/neuron/query"
+	"github.com/neuronlabs/neuron/query/filter"
 )
 
 // TestParseCount tests the count method for the postgres repository
@@ -20,7 +21,7 @@ func TestParseCount(t *testing.T) {
 	require.NoError(t, err)
 
 	s := query.NewScope(mStruct)
-	s.Filters = query.Filters{query.NewFilterField(mStruct.Primary(), query.OpIn, 12, 23)}
+	s.Filters = filter.Filters{filter.New(mStruct.Primary(), filter.OpIn, 12, 23)}
 
 	q, err := p.parseCountQuery(s)
 	require.NoError(t, err)

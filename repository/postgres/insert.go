@@ -7,19 +7,19 @@ import (
 
 	"github.com/jackc/pgx/v4"
 
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/internal"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/query"
 
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/migrate"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/migrate"
 )
 
 // Insert depending on the query efficiently inserts models with related fieldSets.
 // Implements repository.Repository interface.
 func (p *Postgres) Insert(ctx context.Context, s *query.Scope) error {
-	if s.BulkFieldSets == nil {
-		return p.insertWithFieldSet(ctx, s)
+	if len(s.FieldSets) == 1 {
+		return p.insertWithCommonFieldSet(ctx, s)
 	}
 	return p.insertWithBulkFieldSet(ctx, s)
 }
@@ -28,8 +28,8 @@ func (p *Postgres) Insert(ctx context.Context, s *query.Scope) error {
 // PRIVATE
 //
 
-func (p *Postgres) insertWithFieldSet(ctx context.Context, s *query.Scope) error {
-	q, err := p.parseInsertWithFieldSet(s)
+func (p *Postgres) insertWithCommonFieldSet(ctx context.Context, s *query.Scope) error {
+	q, err := p.parseInsertWithCommonFieldSet(s)
 	if err != nil {
 		return err
 	}
@@ -41,10 +41,18 @@ func (p *Postgres) insertWithFieldSet(ctx context.Context, s *query.Scope) error
 		return nil
 	}
 
-	// Scan the primary value
-	if err = p.connection(s).QueryRow(ctx, q.query, q.values...).Scan(s.Models[0].GetPrimaryKeyAddress()); err != nil {
-		return errors.NewDetf(p.errorClass(err), "inserting failed: %v", err)
+	rows, err := p.connection(s).Query(ctx, q.query, q.values...)
+	if err != nil {
+		return errors.NewDetf(p.errorClass(err), "creating query failed")
 	}
+	var i int
+	for rows.Next() {
+		if err = rows.Scan(s.Models[i].GetPrimaryKeyAddress()); err != nil {
+			return errors.NewDetf(p.errorClass(err), "inserting failed: %v", err)
+		}
+		i++
+	}
+	rows.Close()
 	return nil
 }
 
@@ -78,7 +86,6 @@ func (p *Postgres) insertWithBulkFieldSet(ctx context.Context, s *query.Scope) e
 				}
 				i++
 			}
-
 			rows.Close()
 		}
 	}
@@ -91,17 +98,18 @@ type insertQuery struct {
 	primarySelected bool
 }
 
-func (p *Postgres) parseInsertWithFieldSet(s *query.Scope) (*insertQuery, error) {
+func (p *Postgres) parseInsertWithCommonFieldSet(s *query.Scope) (*insertQuery, error) {
 	// Models length is already checked - must be one.
 	t, err := migrate.ModelsTable(s.ModelStruct)
 	if err != nil {
 		return nil, err
 	}
 
-	fieldSet, autoSelected := p.prepareInsertFieldset(s.ModelStruct, s.FieldSet)
-	if err != nil {
-		return nil, err
+	commonFieldSet, hasCommonFieldSet := s.CommonFieldSet()
+	if !hasCommonFieldSet {
+		return nil, errors.NewDetf(query.ClassInvalidFieldSet, "no insert fieldset provided")
 	}
+	fieldSet, autoSelected := p.prepareInsertFieldset(s.ModelStruct, commonFieldSet)
 
 	iq := &insertQuery{}
 	sb := &strings.Builder{}
@@ -205,8 +213,14 @@ func (p *Postgres) parseInsertBulkFieldsetQuery(s *query.Scope, batch internal.B
 		sb           strings.Builder
 		autoSelected mapping.FieldSet
 	)
-	queryIndices = make([][]int, len(s.BulkFieldSets.FieldSets))
-	for i := range s.BulkFieldSets.FieldSets {
+
+	bulk := &mapping.BulkFieldSet{}
+	for i, fieldSet := range s.FieldSets {
+		bulk.Add(fieldSet, i)
+	}
+
+	queryIndices = make([][]int, len(bulk.FieldSets))
+	for i := range bulk.FieldSets {
 		var values []interface{}
 		sb.WriteString("INSERT INTO ")
 		p.writeQuotedWord(&sb, t.Schema)
@@ -214,12 +228,9 @@ func (p *Postgres) parseInsertBulkFieldsetQuery(s *query.Scope, batch internal.B
 		p.writeQuotedWord(&sb, t.Name)
 
 		// Get the fieldset and related model indices, add to the query indices and trim the fieldset.
-		fieldSet := s.BulkFieldSets.FieldSets[i]
-		indices := s.BulkFieldSets.GetIndicesByFieldset(fieldSet)
+		fieldSet := bulk.FieldSets[i]
+		indices := bulk.GetIndicesByFieldset(fieldSet)
 		fieldSet, autoSelected = p.prepareInsertFieldset(s.ModelStruct, fieldSet)
-		if err != nil {
-			return nil, err
-		}
 
 		var primarySelected bool
 		// Write fieldset column names (id, name, surname).

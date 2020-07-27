@@ -6,18 +6,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/internal"
-	"github.com/neuronlabs/neuron/query"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
+	"github.com/neuronlabs/neuron/query/filter"
 )
 
 // TestBasicSQLizer test the basic sqlizer functions
 func TestBasicSQLizer(t *testing.T) {
 	t.Run("Single", func(t *testing.T) {
 		s := getScope(t)
-		fv := &query.OperatorValues{Values: []interface{}{12345}}
-		fv.Operator = query.OpEqual
+		f := filter.New(s.ModelStruct.Primary(), filter.OpEqual, 12345)
 
-		queries, err := BasicSQLizer(s, internal.DummyQuotedWriteFunc, s.ModelStruct.Primary(), fv)
+		queries, err := BasicSQLizer(s, internal.DummyQuotedWriteFunc, f)
 		require.NoError(t, err)
 		require.Len(t, queries, 1)
 
@@ -29,10 +28,9 @@ func TestBasicSQLizer(t *testing.T) {
 
 	t.Run("Multiple", func(t *testing.T) {
 		s := getScope(t)
-		fv := &query.OperatorValues{Values: []interface{}{12345, 6789}}
-		fv.Operator = query.OpEqual
+		f := filter.New(s.ModelStruct.Primary(), filter.OpEqual, 12345, 6789)
 
-		queries, err := BasicSQLizer(s, internal.DummyQuotedWriteFunc, s.ModelStruct.Primary(), fv)
+		queries, err := BasicSQLizer(s, internal.DummyQuotedWriteFunc, f)
 		require.NoError(t, err)
 
 		require.Len(t, queries, 2)
@@ -53,11 +51,9 @@ func TestBasicSQLizer(t *testing.T) {
 func TestInSQLizer(t *testing.T) {
 	t.Run("Single", func(t *testing.T) {
 		s := getScope(t)
+		f := filter.New(s.ModelStruct.Primary(), filter.OpIn, 12345)
 
-		fv := &query.OperatorValues{Values: []interface{}{12345}}
-		fv.Operator = query.OpIn
-
-		queries, err := InSQLizer(s, internal.DummyQuotedWriteFunc, s.ModelStruct.Primary(), fv)
+		queries, err := InSQLizer(s, internal.DummyQuotedWriteFunc, f)
 		require.NoError(t, err)
 
 		require.Len(t, queries, 1)
@@ -70,11 +66,9 @@ func TestInSQLizer(t *testing.T) {
 
 	t.Run("Multiple", func(t *testing.T) {
 		s := getScope(t)
+		f := filter.New(s.ModelStruct.Primary(), filter.OpIn, 12345, 6789)
 
-		fv := &query.OperatorValues{Values: []interface{}{12345, 6789}}
-		fv.Operator = query.OpIn
-
-		queries, err := InSQLizer(s, internal.DummyQuotedWriteFunc, s.ModelStruct.Primary(), fv)
+		queries, err := InSQLizer(s, internal.DummyQuotedWriteFunc, f)
 		require.NoError(t, err)
 
 		require.Len(t, queries, 1)
@@ -91,10 +85,9 @@ func TestInSQLizer(t *testing.T) {
 func TestStringOperatorsSQLizer(t *testing.T) {
 	t.Run("Contains", func(t *testing.T) {
 		s := getScope(t)
-		fv := &query.OperatorValues{Values: []interface{}{"name"}}
-		fv.Operator = query.OpContains
+		f := filter.New(s.ModelStruct.Primary(), filter.OpContains, "name")
 
-		queries, err := StringOperatorsSQLizer(s, internal.DummyQuotedWriteFunc, s.ModelStruct.Primary(), fv)
+		queries, err := StringOperatorsSQLizer(s, internal.DummyQuotedWriteFunc, f)
 		require.NoError(t, err)
 
 		require.Len(t, queries, 1)
@@ -107,11 +100,9 @@ func TestStringOperatorsSQLizer(t *testing.T) {
 
 	t.Run("StartsWith", func(t *testing.T) {
 		s := getScope(t)
+		f := filter.New(s.ModelStruct.Primary(), filter.OpStartsWith, "name")
 
-		fv := &query.OperatorValues{Values: []interface{}{"name"}}
-		fv.Operator = query.OpStartsWith
-
-		queries, err := StringOperatorsSQLizer(s, internal.DummyQuotedWriteFunc, s.ModelStruct.Primary(), fv)
+		queries, err := StringOperatorsSQLizer(s, internal.DummyQuotedWriteFunc, f)
 		require.NoError(t, err)
 
 		require.Len(t, queries, 1)
@@ -124,10 +115,9 @@ func TestStringOperatorsSQLizer(t *testing.T) {
 
 	t.Run("EndsWith", func(t *testing.T) {
 		s := getScope(t)
-		fv := &query.OperatorValues{Values: []interface{}{"name"}}
-		fv.Operator = query.OpEndsWith
+		f := filter.New(s.ModelStruct.Primary(), filter.OpEndsWith, "name")
 
-		queries, err := StringOperatorsSQLizer(s, internal.DummyQuotedWriteFunc, s.ModelStruct.Primary(), fv)
+		queries, err := StringOperatorsSQLizer(s, internal.DummyQuotedWriteFunc, f)
 		require.NoError(t, err)
 
 		require.Len(t, queries, 1)
@@ -140,11 +130,9 @@ func TestStringOperatorsSQLizer(t *testing.T) {
 
 	t.Run("Multiple", func(t *testing.T) {
 		s := getScope(t)
+		f := filter.New(s.ModelStruct.Primary(), filter.OpContains, "name", "surname")
 
-		fv := &query.OperatorValues{Values: []interface{}{"name", "surname"}}
-		fv.Operator = query.OpContains
-
-		queries, err := StringOperatorsSQLizer(s, internal.DummyQuotedWriteFunc, s.ModelStruct.Primary(), fv)
+		queries, err := StringOperatorsSQLizer(s, internal.DummyQuotedWriteFunc, f)
 		require.NoError(t, err)
 
 		require.Len(t, queries, 2)

@@ -4,16 +4,17 @@ import (
 	"net/http"
 
 	"github.com/neuronlabs/neuron/codec"
+	"github.com/neuronlabs/neuron/db"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/mapping"
-	"github.com/neuronlabs/neuron/orm"
 	"github.com/neuronlabs/neuron/query"
+	"github.com/neuronlabs/neuron/query/filter"
 	"github.com/neuronlabs/neuron/server"
 
-	"github.com/neuronlabs/neuron-plugins/codec/jsonapi"
+	"github.com/neuronlabs/neuron-extensions/codec/jsonapi"
 
-	"github.com/neuronlabs/neuron-plugins/server/http/httputil"
-	"github.com/neuronlabs/neuron-plugins/server/http/log"
+	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
+	"github.com/neuronlabs/neuron-extensions/server/http/log"
 )
 
 // HandleGet handles json:api get endpoint for the 'model'. Panics if the model is not mapped for given API controller.
@@ -45,7 +46,7 @@ func (a *API) handleGet(model *mapping.ModelStruct) http.HandlerFunc {
 			}
 		}
 
-		_, err = orm.Get(params.Context, params.DB, params.Scope)
+		_, err = db.Get(params.Context, params.DB, params.Scope)
 		if err != nil {
 			a.marshalErrors(rw, 0, httputil.MapError(err)...)
 			return
@@ -64,13 +65,21 @@ func (a *API) handleGet(model *mapping.ModelStruct) http.HandlerFunc {
 			linkType = codec.NoLink
 		}
 
-		options := &codec.MarshalOptions{Link: codec.LinkOptions{
-			Type:       linkType,
-			BaseURL:    a.BasePath,
-			RootID:     httputil.CtxMustGetID(params.Context),
-			Collection: model.Collection(),
-		}}
-		a.marshalScope(s, rw, http.StatusOK, options)
+		// TODO: add relations.
+		payload := codec.Payload{
+			ModelStruct:       s.ModelStruct,
+			Data:              s.Models,
+			FieldSets:         s.FieldSets,
+			IncludedRelations: s.IncludedRelations,
+			MarshalLinks: &codec.LinkOptions{
+				Type:       linkType,
+				BaseURL:    a.BasePath,
+				RootID:     httputil.CtxMustGetID(params.Context),
+				Collection: model.Collection(),
+			},
+			MarshalSingularFormat: true,
+		}
+		a.marshalPayload(rw, &payload, http.StatusOK)
 	}
 }
 
@@ -93,9 +102,7 @@ func (a *API) createGetScope(req *http.Request, mStruct *mapping.ModelStruct) (*
 	s := query.NewScope(mStruct)
 
 	// Set primary key filter for given model.
-	if err := s.Filter(query.NewFilterField(mStruct.Primary(), query.OpEqual, model.GetPrimaryKeyValue())); err != nil {
-		return nil, err
-	}
+	s.Filter(filter.New(mStruct.Primary(), filter.OpEqual, model.GetPrimaryKeyValue()))
 
 	// Get jsonapi codec ans parse query parameters.
 	parser, ok := jsonapi.Codec().(codec.ParameterParser)

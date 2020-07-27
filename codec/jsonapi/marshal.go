@@ -11,7 +11,6 @@ import (
 
 	"github.com/neuronlabs/neuron/log"
 	"github.com/neuronlabs/neuron/mapping"
-	"github.com/neuronlabs/neuron/query"
 )
 
 // ErrorsPayload is a serializer struct for representing a valid JSON API errors payload.
@@ -29,58 +28,17 @@ func marshalPayload(w io.Writer, payload Payloader) error {
 	return nil
 }
 
-func queryPayload(s *query.Scope, o *neuronCodec.MarshalOptions) (Payloader, error) {
-	var (
-		payload Payloader
-		err     error
-	)
-
-	if len(s.Models) == 0 {
-		if o != nil && o.SingleResult {
-			payload = &SinglePayload{Data: nil}
-		} else {
-			payload = &ManyPayload{Data: []*Node{}}
-		}
-		return payload, nil
-	}
-
-	if len(s.Models) == 1 && o != nil && o.SingleResult {
-		payload, err = marshalQuerySingleModel(s, o)
-	} else {
-		payload, err = marshalQueryManyModels(s, o)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	if o != nil && len(o.RelationQueries) > 0 {
-		var includedNodes []*Node
-		for _, q := range o.RelationQueries {
-			nodes, err := includedRelationsNodes(q, o)
-			if err != nil {
-				return nil, err
-			}
-			includedNodes = append(includedNodes, nodes...)
-		}
-		payload.SetIncluded(includedNodes)
-	}
-	return payload, nil
-}
-
-func includedRelationsNodes(s *query.Scope, o *neuronCodec.MarshalOptions) ([]*Node, error) {
-	fieldSet := s.FieldSet
-	for _, included := range s.IncludedRelations {
-		if len(included.Fieldset) == 1 && included.Fieldset[0].IsPrimary() {
-			fieldSet = append(fieldSet, included.StructField)
-		}
-	}
-
-	var nodes []*Node
-	for _, model := range s.Models {
+func (j *jsonapiCodec) visitModels(models []mapping.Model, linkOptions *neuronCodec.LinkOptions) (nodes []*Node, err error) {
+	var mStruct *mapping.ModelStruct
+	for _, model := range models {
 		if model == nil {
 			continue
 		}
-		node, err := visitModelNode(s.ModelStruct, model, o, fieldSet)
+		mStruct, err = j.c.ModelStruct(model)
+		if err != nil {
+			return nil, err
+		}
+		node, err := visitModelNode(mStruct, model, linkOptions, mStruct.StructFields())
 		if err != nil {
 			return nil, err
 		}
@@ -89,91 +47,47 @@ func includedRelationsNodes(s *query.Scope, o *neuronCodec.MarshalOptions) ([]*N
 	return nodes, nil
 }
 
-func marshalQuerySingleModel(s *query.Scope, o *neuronCodec.MarshalOptions) (*SinglePayload, error) {
-	var model mapping.Model
-	if len(s.Models) > 0 {
-		model = s.Models[0]
-	}
-	// Get the node for given model.
-	fieldSet := s.FieldSet
-	for _, include := range s.IncludedRelations {
-		fieldSet = append(fieldSet, include.StructField)
+func (j *jsonapiCodec) visitPayloadModels(payload *neuronCodec.Payload) (nodes []*Node, err error) {
+	nodes = make([]*Node, len(payload.Data))
+	var mStruct *mapping.ModelStruct
+
+	var commonFieldset mapping.FieldSet
+	switch len(payload.FieldSets) {
+	case 0:
+		commonFieldset = payload.ModelStruct.StructFields()
+		for _, relation := range payload.IncludedRelations {
+			commonFieldset = append(commonFieldset, relation.StructField)
+		}
+	case 1:
+		commonFieldset = payload.FieldSets[0]
+		// Add all included relations.
+		for _, relation := range payload.IncludedRelations {
+			commonFieldset = append(commonFieldset, relation.StructField)
+		}
+	case len(payload.Data):
+	default:
+		return nil, errors.NewDetf(neuronCodec.ClassMarshalPayload, "provided invalid payload fieldset number")
 	}
 
-	n, err := visitModelNode(s.ModelStruct, model, o, fieldSet)
-	if err != nil {
-		return nil, err
-	}
-
-	var links *TopLinks
-	if o != nil {
-		switch o.Link.Type {
-		case neuronCodec.ResourceLink:
-			// By default the top level should contain 'self' value.
-			links = &TopLinks{Self: path.Join(o.Link.BaseURL, o.Link.Collection, o.Link.RootID)}
-		case neuronCodec.RelatedLink:
-			links = &TopLinks{Self: path.Join(o.Link.BaseURL, o.Link.Collection, o.Link.RootID, o.Link.RelatedField)}
-		case neuronCodec.RelationshipLink:
-			links = &TopLinks{
-				Self:    path.Join(o.Link.BaseURL, o.Link.Collection, o.Link.RootID, "relationships", o.Link.RelatedField),
-				Related: path.Join(o.Link.BaseURL, o.Link.Collection, o.Link.RootID, o.Link.RelatedField),
+	for i, model := range payload.Data {
+		var fieldSet mapping.FieldSet
+		if commonFieldset != nil {
+			fieldSet = commonFieldset
+		} else {
+			fieldSet = payload.FieldSets[i]
+			for _, relation := range payload.IncludedRelations {
+				fieldSet = append(fieldSet, relation.StructField)
 			}
 		}
-	}
-	return &SinglePayload{Data: n, Links: links}, nil
-}
-
-func marshalQueryManyModels(s *query.Scope, o *neuronCodec.MarshalOptions) (*ManyPayload, error) {
-	n, err := visitQueryManyNodes(s, o)
-	if err != nil {
-		return nil, err
-	}
-
-	var (
-		links *TopLinks
-		meta  *neuronCodec.Meta
-	)
-	if o != nil {
-		switch o.Link.Type {
-		case neuronCodec.ResourceLink:
-			links = &TopLinks{Self: path.Join(o.Link.BaseURL, o.Link.Collection)}
-			links.SetPaginationLinks(o)
-			if pLinks := o.Link.PaginationLinks; pLinks != nil {
-				if pLinks.Total != 0 {
-					meta = &neuronCodec.Meta{KeyTotal: pLinks.Total}
-				}
-			}
-		case neuronCodec.RelatedLink:
-			links = &TopLinks{Self: path.Join(o.Link.BaseURL, o.Link.Collection, o.Link.RootID, o.Link.RelatedField)}
-			links.SetPaginationLinks(o)
-			if pLinks := o.Link.PaginationLinks; pLinks != nil {
-				if pLinks.Total != 0 {
-					meta = &neuronCodec.Meta{KeyTotal: pLinks.Total}
-				}
-			}
-		case neuronCodec.RelationshipLink:
-			links = &TopLinks{
-				Related: path.Join(o.Link.BaseURL, o.Link.Collection, o.Link.RootID, o.Link.RelatedField),
-				Self:    path.Join(o.Link.BaseURL, o.Link.Collection, o.Link.RootID, "relationships", o.Link.RelatedField),
-			}
-			if pLinks := o.Link.PaginationLinks; pLinks != nil {
-				if pLinks.Total != 0 {
-					meta = &neuronCodec.Meta{KeyTotal: pLinks.Total}
-				}
-			}
+		mStruct, err = j.c.ModelStruct(model)
+		if err != nil {
+			return nil, err
 		}
-	}
-	return &ManyPayload{Data: n, Links: links, Meta: meta}, nil
-}
 
-func visitQueryManyNodes(s *query.Scope, o *neuronCodec.MarshalOptions) ([]*Node, error) {
-	nodes := make([]*Node, len(s.Models))
-	fieldSet := s.FieldSet
-	for _, included := range s.IncludedRelations {
-		fieldSet = append(fieldSet, included.StructField)
-	}
-	for i, model := range s.Models {
-		node, err := visitModelNode(s.ModelStruct, model, o, fieldSet)
+		if mStruct != payload.ModelStruct {
+			return nil, errors.NewDet(neuronCodec.ClassMarshal, "expecting payload with single model type - provided multiple type models")
+		}
+		node, err := visitModelNode(mStruct, model, payload.MarshalLinks, fieldSet)
 		if err != nil {
 			return nil, err
 		}
@@ -182,22 +96,7 @@ func visitQueryManyNodes(s *query.Scope, o *neuronCodec.MarshalOptions) ([]*Node
 	return nodes, nil
 }
 
-func visitModels(mStruct *mapping.ModelStruct, models []mapping.Model, o *neuronCodec.MarshalOptions) ([]*Node, error) {
-	var nodes []*Node
-	for _, model := range models {
-		if model == nil {
-			continue
-		}
-		node, err := visitModelNode(mStruct, model, o, mStruct.StructFields())
-		if err != nil {
-			return nil, err
-		}
-		nodes = append(nodes, node)
-	}
-	return nodes, nil
-}
-
-func visitModelNode(mStruct *mapping.ModelStruct, model mapping.Model, o *neuronCodec.MarshalOptions, fieldSet []*mapping.StructField) (node *Node, err error) {
+func visitModelNode(mStruct *mapping.ModelStruct, model mapping.Model, linkOptions *neuronCodec.LinkOptions, fieldSet []*mapping.StructField) (node *Node, err error) {
 	node = &Node{Type: mStruct.Collection()}
 
 	// set primary
@@ -291,7 +190,7 @@ func visitModelNode(mStruct *mapping.ModelStruct, model mapping.Model, o *neuron
 				if log.CurrentLevel().IsAllowed(log.LevelDebug3) {
 					log.Debug3f("jsonapi marshal: %s - field: %s marshal time field using ISO8601 format", mStruct, field.NeuronName())
 				}
-				node.Attributes[fieldName] = t.UTC().Format(ISO8601TimeFormat)
+				node.Attributes[fieldName] = t.UTC().Format(neuronCodec.ISO8601TimeFormat)
 			} else {
 				node.Attributes[fieldName] = t.Unix()
 			}
@@ -334,16 +233,13 @@ func visitModelNode(mStruct *mapping.ModelStruct, model mapping.Model, o *neuron
 				r.Data[i] = &Node{Type: relation.NeuronCollectionName(), ID: id}
 			}
 
-			if o != nil {
-				if o.Link.Type == neuronCodec.ResourceLink {
+			if linkOptions != nil {
+				if linkOptions.Type == neuronCodec.ResourceLink {
 					link := make(map[string]interface{})
-					link["self"] = path.Join(o.Link.BaseURL, mStruct.Collection(), node.ID, "relationships", fieldName)
-					link["related"] = path.Join(o.Link.BaseURL, mStruct.Collection(), node.ID, fieldName)
+					link["self"] = path.Join(linkOptions.BaseURL, mStruct.Collection(), node.ID, "relationships", fieldName)
+					link["related"] = path.Join(linkOptions.BaseURL, mStruct.Collection(), node.ID, fieldName)
 					links := Links(link)
 					r.Links = &links
-				}
-				if optionMeta, ok := o.RelationshipMeta[fieldName]; ok {
-					r.Meta = &optionMeta
 				}
 			}
 			node.Relationships[fieldName] = r
@@ -370,16 +266,13 @@ func visitModelNode(mStruct *mapping.ModelStruct, model mapping.Model, o *neuron
 			}
 
 			r := &RelationshipOneNode{}
-			if o != nil {
-				if o.Link.Type == neuronCodec.ResourceLink {
+			if linkOptions != nil {
+				if linkOptions.Type == neuronCodec.ResourceLink {
 					link := make(map[string]interface{})
-					link["self"] = path.Join(o.Link.BaseURL, mStruct.Collection(), node.ID, "relationships", fieldName)
-					link["related"] = path.Join(o.Link.BaseURL, mStruct.Collection(), node.ID, fieldName)
+					link["self"] = path.Join(linkOptions.BaseURL, mStruct.Collection(), node.ID, "relationships", fieldName)
+					link["related"] = path.Join(linkOptions.BaseURL, mStruct.Collection(), node.ID, fieldName)
 					links := Links(link)
 					r.Links = &links
-				}
-				if optionMeta, ok := o.RelationshipMeta[fieldName]; ok {
-					r.Meta = &optionMeta
 				}
 			}
 			if relation != nil {
@@ -393,9 +286,9 @@ func visitModelNode(mStruct *mapping.ModelStruct, model mapping.Model, o *neuron
 		}
 	}
 
-	if o != nil && o.Link.Type == neuronCodec.ResourceLink {
+	if linkOptions != nil && linkOptions.Type == neuronCodec.ResourceLink {
 		links := make(map[string]interface{})
-		links["self"] = path.Join(o.Link.BaseURL, mStruct.Collection(), node.ID)
+		links["self"] = path.Join(linkOptions.BaseURL, mStruct.Collection(), node.ID)
 		linksObj := Links(links)
 		node.Links = &(linksObj)
 	}
@@ -410,7 +303,7 @@ func getFieldFlags(field *mapping.StructField, model *mapping.ModelStruct) (bool
 
 	// extract jsonapi field tags if exists
 	tags := field.ExtractCustomFieldTags(neuronCodec.StructTag, mapping.AnnotationSeparator, " ")
-	// overwrite neuron marshal flags by the 'codec' flags
+	// overwrite neuron marshal flags by the 'jsonapiCodec' flags
 	for _, tag := range tags {
 		switch tag.Key {
 		case "-":

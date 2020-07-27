@@ -13,7 +13,7 @@ import (
 	"github.com/neuronlabs/neuron/log"
 	"github.com/neuronlabs/neuron/mapping"
 
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/internal"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
 )
 
 var cfg pgxpool.Config

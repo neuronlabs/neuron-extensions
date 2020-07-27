@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/neuronlabs/neuron-plugins/codec/jsonapi"
-	"github.com/neuronlabs/neuron-plugins/server/http/httputil"
-	"github.com/neuronlabs/neuron-plugins/server/http/log"
+	"github.com/neuronlabs/neuron-extensions/codec/jsonapi"
+	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
+	"github.com/neuronlabs/neuron-extensions/server/http/log"
 	"github.com/neuronlabs/neuron/codec"
-	"github.com/neuronlabs/neuron/errors"
+	"github.com/neuronlabs/neuron/db"
 	"github.com/neuronlabs/neuron/mapping"
-	"github.com/neuronlabs/neuron/orm"
 	"github.com/neuronlabs/neuron/query"
+	"github.com/neuronlabs/neuron/query/filter"
 )
 
 // HandleUpdateRelationship handles json:api update relationship endpoint for the 'model'.
@@ -46,21 +46,22 @@ func (a *API) handleUpdateRelationship(mStruct *mapping.ModelStruct, relation *m
 		}
 
 		var removeRelationship bool
-		relations, err := jsonapi.Codec().UnmarshalModels(req.Body, relation.Relationship().Struct(), a.jsonapiUnmarshalOptions())
+		pu := jsonapi.Codec().(codec.PayloadUnmarshaler)
+		payload, err := pu.UnmarshalPayload(req.Body, codec.UnmarshalOptions{
+			StrictUnmarshal: a.StrictUnmarshal,
+			ModelStruct:     relation.Relationship().Struct(),
+		})
 		if err != nil {
-			clErr, ok := err.(errors.ClassError)
-			if !ok || clErr.Class() != codec.ClassNullDataInput {
-				a.marshalErrors(rw, 0, httputil.MapError(err)...)
-				return
-			}
-			removeRelationship = true
+			a.marshalErrors(rw, 0, httputil.MapError(err)...)
+			return
 		}
 
-		if len(relations) == 0 {
+		if len(payload.Data) == 0 {
 			removeRelationship = true
 		}
 
 		s := query.NewScope(mStruct, model)
+		s.FieldSets = payload.FieldSets
 
 		params := &QueryParams{
 			Context:   req.Context(),
@@ -79,12 +80,12 @@ func (a *API) handleUpdateRelationship(mStruct *mapping.ModelStruct, relation *m
 
 		// Check if the model with provided id exists.
 		existScope := query.NewScope(mStruct)
-		if err = existScope.Filter(query.NewFilterField(mStruct.Primary(), query.OpEqual, model.GetPrimaryKeyValue())); err != nil {
+		if existScope.Filter(filter.New(mStruct.Primary(), filter.OpEqual, model.GetPrimaryKeyValue())); err != nil {
 			a.marshalErrors(rw, 0, httputil.ErrInternalError())
 			return
 		}
 
-		exists, err := orm.Exists(params.Context, params.DB, existScope)
+		exists, err := db.Exists(params.Context, params.DB, existScope)
 		if err != nil {
 			a.marshalErrors(rw, 0, httputil.MapError(err)...)
 			return
@@ -96,9 +97,9 @@ func (a *API) handleUpdateRelationship(mStruct *mapping.ModelStruct, relation *m
 		}
 
 		if removeRelationship {
-			_, err = orm.RemoveRelations(params.Context, params.DB, params.Scope, relation)
+			_, err = db.RemoveRelations(params.Context, params.DB, params.Scope, relation)
 		} else {
-			err = orm.SetRelations(params.Context, params.DB, params.Scope, relation, relations...)
+			err = db.SetRelations(params.Context, params.DB, params.Scope, relation, payload.Data...)
 		}
 		if err != nil {
 			a.marshalErrors(rw, 0, httputil.MapError(err)...)
@@ -127,33 +128,23 @@ func (a *API) handleUpdateRelationship(mStruct *mapping.ModelStruct, relation *m
 			return
 		}
 
-		qm := jsonapi.Codec().(codec.QueryMarshaler)
-		relatedScope := query.NewScope(relation.Relationship().Struct(), relations...)
-		relatedScope.FieldSet = mapping.FieldSet{relation.Relationship().Struct().Primary()}
-
 		link := codec.RelationshipLink
 		if !a.MarshalLinks {
 			link = codec.NoLink
 		}
-
-		options := &codec.MarshalOptions{
-			Link: codec.LinkOptions{
-				Type:         link,
-				BaseURL:      a.BasePath,
-				RootID:       id,
-				Collection:   mStruct.Collection(),
-				RelatedField: relation.NeuronName(),
+		resPayload := codec.Payload{
+			ModelStruct: relation.Relationship().Struct(),
+			Data:        payload.Data,
+			FieldSets:   payload.FieldSets,
+			MarshalLinks: &codec.LinkOptions{
+				Type:          link,
+				BaseURL:       a.BasePath,
+				RootID:        id,
+				Collection:    mStruct.Collection(),
+				RelationField: relation.NeuronName(),
 			},
+			MarshalSingularFormat: relation.Kind() == mapping.KindRelationshipSingle,
 		}
-		qm, ok := jsonapi.Codec().(codec.QueryMarshaler)
-		if !ok {
-			log.Errorf("jsonapi codec is not a QueryMarshaler")
-			a.marshalErrors(rw, 500, httputil.ErrInternalError())
-			return
-		}
-		if err = qm.MarshalQuery(rw, relatedScope, options); err != nil {
-			a.marshalErrors(rw, 0, httputil.MapError(err)...)
-			return
-		}
+		a.marshalPayload(rw, &resPayload, http.StatusOK)
 	}
 }

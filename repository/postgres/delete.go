@@ -4,9 +4,9 @@ import (
 	"context"
 	"strings"
 
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/filters"
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/log"
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/migrate"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/filters"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/log"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/migrate"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/query"
 )

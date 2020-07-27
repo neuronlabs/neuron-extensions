@@ -1,7 +1,6 @@
 package jsonapi
 
 import (
-	"bytes"
 	"reflect"
 	"strconv"
 	"testing"
@@ -10,62 +9,58 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	neuronCodec "github.com/neuronlabs/neuron/codec"
-	"github.com/neuronlabs/neuron/config"
+	"github.com/neuronlabs/neuron/codec"
+	"github.com/neuronlabs/neuron/controller"
 	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/query"
 )
 
 // TestMarshal tests the marshal function.
 func TestMarshal(t *testing.T) {
-	buf := bytes.Buffer{}
-	cd := &codec{}
-	prepare := func(t *testing.T, models ...mapping.Model) *mapping.ModelMap {
+	prepare := func(t *testing.T, models ...mapping.Model) *jsonapiCodec {
 		t.Helper()
-		c := defaultTestingController(t)
-
-		buf.Reset()
+		c := controller.NewDefault()
 		require.NoError(t, c.RegisterModels(models...))
-		return c
+		return &jsonapiCodec{c: c}
 	}
 
-	prepareBlogs := func(t *testing.T) *mapping.ModelMap {
+	prepareBlogs := func(t *testing.T) *jsonapiCodec {
 		return prepare(t, &Blog{}, &Post{}, &Comment{})
 	}
 
 	tests := map[string]func(*testing.T){
 		"single": func(t *testing.T) {
-			c := prepareBlogs(t)
+			cd := prepareBlogs(t)
 			value := &Blog{ID: 5, Title: "My title", ViewCount: 14}
-			if assert.NoError(t, cd.MarshalModels(&buf, c.MustModelStruct(value), []mapping.Model{value}, nil)) {
-				marshaled := buf.String()
-				assert.Contains(t, marshaled, `"title":"My title"`)
-				assert.Contains(t, marshaled, `"view_count":14`)
-				assert.Contains(t, marshaled, `"id":"5"`)
+			data, err := cd.MarshalModels([]mapping.Model{value}, codec.MarshalOptions{})
+			if assert.NoError(t, err) {
+				assert.Contains(t, string(data), `"title":"My title"`)
+				assert.Contains(t, string(data), `"view_count":14`)
+				assert.Contains(t, string(data), `"id":"5"`)
 			}
 		},
 		"Time": func(t *testing.T) {
 
 			t.Run("NoPtr", func(t *testing.T) {
-				c := prepare(t, &ModelTime{})
+				cd := prepare(t, &ModelTime{})
 				now := time.Now()
 				value := &ModelTime{ID: 5, Time: now}
 
-				if assert.NoError(t, cd.MarshalModels(&buf, c.MustModelStruct(value), []mapping.Model{value}, nil)) {
-					marshaled := buf.String()
-					assert.Contains(t, marshaled, "time")
-					assert.Contains(t, marshaled, `"id":"5"`)
+				marshaled, err := cd.MarshalModels([]mapping.Model{value}, codec.MarshalOptions{})
+				if assert.NoError(t, err) {
+					assert.Contains(t, string(marshaled), "time")
+					assert.Contains(t, string(marshaled), `"id":"5"`)
 				}
 			})
 
 			t.Run("Ptr", func(t *testing.T) {
-				c := prepare(t, &ModelPtrTime{})
+				cd := prepare(t, &ModelPtrTime{})
 				now := time.Now()
 				value := &ModelPtrTime{ID: 5, Time: &now}
-				if assert.NoError(t, cd.MarshalModels(&buf, c.MustModelStruct(value), []mapping.Model{value}, nil)) {
-					marshaled := buf.String()
-					assert.Contains(t, marshaled, "time")
-					assert.Contains(t, marshaled, `"id":"5"`)
+				marshaled, err := cd.MarshalModels([]mapping.Model{value}, codec.MarshalOptions{})
+				if assert.NoError(t, err) {
+					assert.Contains(t, string(marshaled), "time")
+					assert.Contains(t, string(marshaled), `"id":"5"`)
 				}
 			})
 		},
@@ -168,16 +163,15 @@ func TestMarshal(t *testing.T) {
 		// 	})
 		// },
 		"many": func(t *testing.T) {
-			c := prepareBlogs(t)
+			cd := prepareBlogs(t)
 
 			values := []mapping.Model{&Blog{ID: 5, Title: "First"}, &Blog{ID: 2, Title: "Second"}}
-			if assert.NoError(t, cd.MarshalModels(&buf, c.MustModelStruct(&Blog{}), values, nil)) {
-				marshaled := buf.String()
-				assert.Contains(t, marshaled, `"title":"First"`)
-				assert.Contains(t, marshaled, `"title":"Second"`)
-
-				assert.Contains(t, marshaled, `"id":"5"`)
-				assert.Contains(t, marshaled, `"id":"2"`)
+			marshaled, err := cd.MarshalModels(values, codec.MarshalOptions{})
+			if assert.NoError(t, err) {
+				assert.Contains(t, string(marshaled), `"title":"First"`)
+				assert.Contains(t, string(marshaled), `"title":"Second"`)
+				assert.Contains(t, string(marshaled), `"id":"5"`)
+				assert.Contains(t, string(marshaled), `"id":"2"`)
 			}
 		},
 		// "Nested": func(t *testing.T) {
@@ -234,88 +228,87 @@ func TestMarshal(t *testing.T) {
 
 }
 
-// TestMarshalScope tests marshaling the query.
-func TestMarshalScope(t *testing.T) {
+// TestMarshalPayload tests marshaling the query.
+func TestMarshalPayload(t *testing.T) {
 	t.Run("MarshalToManyRelationship", func(t *testing.T) {
-		c := defaultTestingController(t)
+		c := controller.NewDefault()
 		require.NoError(t, c.RegisterModels(&Pet{}, &User{}, &UserPets{}))
 
 		pet := &Pet{ID: 5, Owners: []*User{{ID: 2, privateField: 1}, {ID: 3}}}
 		modelStruct := c.MustModelStruct(pet)
-		s := query.NewScope(modelStruct, pet)
+
+		cd := &jsonapiCodec{c: c}
 
 		owners, ok := modelStruct.RelationByName("Owners")
 		require.True(t, ok)
 
-		err := s.Include(owners)
-		require.NoError(t, err)
+		payload := &codec.Payload{
+			ModelStruct: modelStruct,
+			Data:        []mapping.Model{pet},
+			IncludedRelations: []*query.IncludedRelation{{
+				StructField: owners,
+				Fieldset:    owners.Relationship().Struct().StructFields(),
+			}},
+		}
 
-		payload, err := queryPayload(s, nil)
+		nodes, err := cd.visitPayloadModels(payload)
 		if assert.NoError(t, err) {
-			single, ok := payload.(*ManyPayload)
-			require.True(t, ok)
-			if assert.Len(t, single.Data, 1) {
-				assert.Equal(t, strconv.Itoa(pet.ID), single.Data[0].ID)
-				if assert.NotEmpty(t, single.Data[0].Relationships) {
-					if assert.NotNil(t, single.Data[0].Relationships["owners"]) {
-						owners, ok := single.Data[0].Relationships["owners"].(*RelationshipManyNode)
-						if assert.True(t, ok) {
-							var count int
-							for _, owner := range owners.Data {
-								if assert.NotNil(t, owner) {
-									switch owner.ID {
-									case "2", "3":
-										count++
-									}
+			assert.Equal(t, strconv.Itoa(pet.ID), nodes[0].ID)
+			if assert.NotEmpty(t, nodes[0].Relationships) {
+				if assert.NotNil(t, nodes[0].Relationships["owners"]) {
+					owners, ok := nodes[0].Relationships["owners"].(*RelationshipManyNode)
+					if assert.True(t, ok) {
+						var count int
+						for _, owner := range owners.Data {
+							if assert.NotNil(t, owner) {
+								switch owner.ID {
+								case "2", "3":
+									count++
 								}
 							}
-							assert.Equal(t, 2, count)
 						}
+						assert.Equal(t, 2, count)
 					}
 				}
 			}
 		}
-
 	})
 
 	t.Run("MarshalToManyEmptyRelationship", func(t *testing.T) {
-		c := defaultTestingController(t)
+		c := controller.NewDefault()
 		require.NoError(t, c.RegisterModels(&Pet{}, &User{}, &UserPets{}))
 
 		pet := &Pet{ID: 5, Owners: []*User{}}
 
 		modelStruct := c.MustModelStruct(pet)
-		s := query.NewScope(modelStruct, pet)
 
 		owners, ok := modelStruct.RelationByName("Owners")
 		require.True(t, ok)
 
-		err := s.Include(owners)
+		payload := &codec.Payload{
+			ModelStruct: modelStruct,
+			Data:        []mapping.Model{pet},
+			IncludedRelations: []*query.IncludedRelation{{
+				StructField: owners,
+				Fieldset:    owners.Relationship().Struct().StructFields(),
+			}},
+		}
+		cd := &jsonapiCodec{c: c}
+
+		nodes, err := cd.visitPayloadModels(payload)
 		require.NoError(t, err)
 
-		payload, err := queryPayload(s, &neuronCodec.MarshalOptions{SingleResult: true})
-		if assert.NoError(t, err) {
-			single, ok := payload.(*SinglePayload)
-			if assert.True(t, ok) {
-				if assert.NotNil(t, single.Data) {
-					assert.Equal(t, strconv.Itoa(pet.ID), single.Data.ID)
-					if assert.NotEmpty(t, single.Data.Relationships) {
-						if assert.NotNil(t, single.Data.Relationships["owners"]) {
-							owners, ok := single.Data.Relationships["owners"].(*RelationshipManyNode)
-							if assert.True(t, ok, reflect.TypeOf(single.Data.Relationships["owners"]).String()) {
-								if assert.NotNil(t, owners) {
-									assert.Empty(t, owners.Data)
-								}
-							}
-						}
+		assert.Equal(t, strconv.Itoa(pet.ID), nodes[0].ID)
+		if assert.NotEmpty(t, nodes[0].Relationships) {
+			if assert.NotNil(t, nodes[0].Relationships["owners"]) {
+				owners, ok := nodes[0].Relationships["owners"].(*RelationshipManyNode)
+				if assert.True(t, ok, reflect.TypeOf(nodes[0].Relationships["owners"]).String()) {
+					if assert.NotNil(t, owners) {
+						assert.Empty(t, owners.Data)
 					}
 				}
-				buf := bytes.Buffer{}
-				assert.NoError(t, marshalPayload(&buf, single))
-				assert.Contains(t, buf.String(), "owners")
 			}
 		}
-
 	})
 }
 
@@ -376,44 +369,29 @@ func TestMarshalScope(t *testing.T) {
 //
 // }
 
-var ctrlConfig *config.Controller
-
-func defaultTestingController(t *testing.T) *mapping.ModelMap {
-	t.Helper()
-	return mapping.NewModelMap(mapping.SnakeCase)
-}
-
-type CustomTagModel struct {
-	ID                int
-	VisibleCustomName string `codec:"visible"`
-	HiddenField       bool   `codec:"-"`
-	OmitEmptyField    string `codec:"omitempty"`
-	CustomOmitEmpty   string `codec:"custom,omitempty"`
-}
-
 func TestMarshalCustomTag(t *testing.T) {
-	c := defaultTestingController(t)
+	c := controller.NewDefault()
 	assert.NoError(t, c.RegisterModels(&CustomTagModel{}))
 
 	hidden := &CustomTagModel{ID: 1, VisibleCustomName: "found", HiddenField: true, OmitEmptyField: "found", CustomOmitEmpty: "found"}
 
 	modelStruct := c.MustModelStruct(hidden)
-	s := query.NewScope(modelStruct, hidden)
 
 	attributes := modelStruct.Attributes()
-	s.FieldSet = append([]*mapping.StructField{modelStruct.Primary()}, attributes...)
-	payload, err := queryPayload(s, &neuronCodec.MarshalOptions{SingleResult: true})
-	assert.NoError(t, err)
+	payload := &codec.Payload{
+		ModelStruct: modelStruct,
+		Data:        []mapping.Model{hidden},
+		FieldSets:   []mapping.FieldSet{append([]*mapping.StructField{modelStruct.Primary()}, attributes...)},
+	}
 
-	buffer := &bytes.Buffer{}
-	err = marshalPayload(buffer, payload)
-	assert.NoError(t, err)
+	cd := &jsonapiCodec{c: c}
 
-	sp, ok := payload.(*SinglePayload)
-	require.True(t, ok)
+	nodes, err := cd.visitPayloadModels(payload)
+	require.NoError(t, err)
 
-	attrs := sp.Data.Attributes
+	require.Len(t, nodes, 1)
 
+	attrs := nodes[0].Attributes
 	atr, ok := attrs["visible"]
 	if assert.True(t, ok, attrs) {
 		assert.Equal(t, "found", atr)

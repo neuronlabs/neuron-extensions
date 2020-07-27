@@ -4,11 +4,10 @@ import (
 	"context"
 	"strings"
 
-	"github.com/neuronlabs/neuron/controller"
 	"github.com/neuronlabs/neuron/errors"
 
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/internal"
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/log"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/log"
 )
 
 // KeyWordType is the postgres default key word type.
@@ -66,7 +65,7 @@ func GetKeyWords(ctx context.Context, conn internal.Connection, version int) (ma
 
 	rows, err := conn.Query(ctx, "SELECT word, catcode FROM pg_get_keywords()")
 	if err != nil {
-		return nil, errors.NewDetf(controller.ClassInternal, "can't get query postgres key words: %v", err.Error())
+		return nil, errors.NewDetf(errors.ClassInternal, "can't get query postgres key words: %v", err.Error())
 	}
 	defer rows.Close()
 

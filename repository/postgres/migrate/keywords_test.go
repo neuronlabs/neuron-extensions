@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/internal"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
 )
 
 // TestKeyWords tests the keywords functions.

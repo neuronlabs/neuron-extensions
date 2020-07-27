@@ -5,13 +5,13 @@ import (
 	"net/url"
 
 	"github.com/neuronlabs/neuron/codec"
+	"github.com/neuronlabs/neuron/db"
 	"github.com/neuronlabs/neuron/mapping"
-	"github.com/neuronlabs/neuron/orm"
 	"github.com/neuronlabs/neuron/query"
 
-	"github.com/neuronlabs/neuron-plugins/codec/jsonapi"
-	"github.com/neuronlabs/neuron-plugins/server/http/httputil"
-	"github.com/neuronlabs/neuron-plugins/server/http/log"
+	"github.com/neuronlabs/neuron-extensions/codec/jsonapi"
+	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
+	"github.com/neuronlabs/neuron-extensions/server/http/log"
 )
 
 // HandleList handles json:api list endpoint for the 'model'. Panics if the model is not mapped for given API controller.
@@ -60,7 +60,7 @@ func (a *API) handleList(model *mapping.ModelStruct) http.HandlerFunc {
 			}
 		}
 
-		if _, err := orm.Find(params.Context, params.DB, params.Scope); err != nil {
+		if _, err := db.Find(params.Context, params.DB, params.Scope); err != nil {
 			a.marshalErrors(rw, 0, httputil.MapError(err)...)
 			return
 		}
@@ -77,28 +77,34 @@ func (a *API) handleList(model *mapping.ModelStruct) http.HandlerFunc {
 		if !a.MarshalLinks {
 			linkType = codec.NoLink
 		}
-		options := &codec.MarshalOptions{Link: codec.LinkOptions{
-			Type:       linkType,
-			BaseURL:    a.BasePath,
-			Collection: model.Collection(),
-		}}
+		payload := &codec.Payload{
+			ModelStruct:       model,
+			Data:              params.Scope.Models,
+			IncludedRelations: params.Scope.IncludedRelations,
+			FieldSets:         params.Scope.FieldSets,
+			MarshalLinks: &codec.LinkOptions{
+				Type:       linkType,
+				BaseURL:    a.BasePath,
+				Collection: model.Collection(),
+			},
+		}
 
 		// if there were a query no set link type to 'NoLink'
 		if v, ok := s.StoreGet(jsonapi.StoreKeyMarshalLinks); ok && !v.(bool) {
-			options.Link.Type = codec.NoLink
+			payload.MarshalLinks.Type = codec.NoLink
 		}
 
 		// if there is no pagination then the pagination doesn't need to be created.
 		// marshal the results if there were no pagination set
 		if s.Pagination == nil || len(s.Models) == 0 {
-			a.marshalScope(s, rw, http.StatusOK, options)
+			a.marshalPayload(rw, payload, http.StatusOK)
 			return
 		}
 
 		// prepare new count scope - and build query parameters for the pagination
 		// page[limit] page[offset] page[number] page[size]
 		countScope := s.Copy()
-		total, err := orm.Count(params.Context, a.DB, countScope)
+		total, err := db.Count(params.Context, a.DB, countScope)
 		if err != nil {
 			a.marshalErrors(rw, 0, httputil.MapError(err)...)
 			return
@@ -111,8 +117,8 @@ func (a *API) handleList(model *mapping.ModelStruct) http.HandlerFunc {
 		s.Pagination.FormatQuery(temp)
 
 		paginationLinks := &codec.PaginationLinks{Total: total}
-		options.Link.PaginationLinks = paginationLinks
-		options.Link.PaginationLinks.Self = temp.Encode()
+		payload.PaginationLinks = paginationLinks
+		payload.PaginationLinks.Self = temp.Encode()
 
 		next, err := s.Pagination.Next(total)
 		if err != nil {
@@ -155,7 +161,7 @@ func (a *API) handleList(model *mapping.ModelStruct) http.HandlerFunc {
 		}
 		first.FormatQuery(temp)
 		paginationLinks.First = temp.Encode()
-		a.marshalScope(s, rw, http.StatusOK, options)
+		a.marshalPayload(rw, payload, http.StatusOK)
 	}
 }
 

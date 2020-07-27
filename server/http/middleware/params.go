@@ -5,8 +5,8 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 
-	"github.com/neuronlabs/neuron-plugins/server/http/httputil"
-	"github.com/neuronlabs/neuron-plugins/server/http/log"
+	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
+	"github.com/neuronlabs/neuron-extensions/server/http/log"
 )
 
 // StoreIDFromParams stores id parameter from the httprouter params under the key: 'idKey'.

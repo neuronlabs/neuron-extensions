@@ -4,13 +4,13 @@ import (
 	"net/http"
 
 	"github.com/neuronlabs/neuron/codec"
+	"github.com/neuronlabs/neuron/db"
 	"github.com/neuronlabs/neuron/mapping"
-	"github.com/neuronlabs/neuron/orm"
 	"github.com/neuronlabs/neuron/query"
 
-	"github.com/neuronlabs/neuron-plugins/codec/jsonapi"
-	"github.com/neuronlabs/neuron-plugins/server/http/httputil"
-	"github.com/neuronlabs/neuron-plugins/server/http/log"
+	"github.com/neuronlabs/neuron-extensions/codec/jsonapi"
+	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
+	"github.com/neuronlabs/neuron-extensions/server/http/log"
 )
 
 // HandleInsert handles json:api post endpoint for the 'model'. Panics if the model is not mapped for given API controller.
@@ -23,15 +23,15 @@ func (a *API) HandleInsert(model mapping.Model) http.HandlerFunc {
 func (a *API) handleInsert(model *mapping.ModelStruct) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
 		// unmarshal the input from the request body.
-		qu := jsonapi.Codec().(codec.QueryUnmarshaler)
-		q, err := qu.UnmarshalQuery(req.Body, model, &codec.UnmarshalOptions{StrictUnmarshal: a.StrictMarshal})
+		pu := jsonapi.Codec().(codec.PayloadUnmarshaler)
+		payload, err := pu.UnmarshalPayload(req.Body, codec.UnmarshalOptions{StrictUnmarshal: a.StrictUnmarshal, ModelStruct: model})
 		if err != nil {
 			log.Debugf("Unmarshal scope for: '%s' failed: %v", model.Collection(), err)
 			a.marshalErrors(rw, 0, httputil.MapError(err)...)
 			return
 		}
 
-		if len(q.Models) == 0 {
+		if len(payload.Data) == 0 {
 			err := httputil.ErrInvalidInput()
 			err.Detail = "nothing to insert"
 			a.marshalErrors(rw, 0, err)
@@ -42,12 +42,18 @@ func (a *API) handleInsert(model *mapping.ModelStruct) http.HandlerFunc {
 		relations := mapping.FieldSet{}
 		fields := mapping.FieldSet{}
 		var isPrimary bool
-		for _, field := range q.FieldSet {
+		if len(payload.FieldSets) > 0 {
+			err := httputil.ErrInvalidInput()
+			err.Detail = "bulk inserted not implemented yet"
+			a.marshalErrors(rw, 0, err)
+			return
+		}
+		for _, field := range payload.FieldSets[0] {
 			switch field.Kind() {
 			case mapping.KindRelationshipMultiple, mapping.KindRelationshipSingle:
 				// If the relationship is of BelongsTo kind - set its relationship primary key value into given model's foreign key.
 				if field.Relationship().Kind() == mapping.RelBelongsTo {
-					relationer, ok := q.Models[0].(mapping.SingleRelationer)
+					relationer, ok := payload.Data[0].(mapping.SingleRelationer)
 					if !ok {
 						log.Errorf("Model: '%s' doesn't implement mapping.SingleRelationer interface", model.Collection())
 						a.marshalErrors(rw, 500, httputil.ErrInternalError())
@@ -58,7 +64,7 @@ func (a *API) handleInsert(model *mapping.ModelStruct) http.HandlerFunc {
 						a.marshalErrors(rw, 0, httputil.MapError(err)...)
 						return
 					}
-					fielder, ok := q.Models[0].(mapping.Fielder)
+					fielder, ok := payload.Data[0].(mapping.Fielder)
 					if !ok {
 						log.Errorf("Model: '%s' doesn't implement mapping.SingleRelationer interface", model.Collection())
 						a.marshalErrors(rw, 500, httputil.ErrInternalError())
@@ -91,7 +97,8 @@ func (a *API) handleInsert(model *mapping.ModelStruct) http.HandlerFunc {
 		}
 		fields.Sort()
 
-		q.FieldSet = fields
+		q := query.NewScope(model, payload.Data...)
+		q.FieldSets = payload.FieldSets
 
 		// Create query parameters.
 		params := &QueryParams{
@@ -102,7 +109,7 @@ func (a *API) handleInsert(model *mapping.ModelStruct) http.HandlerFunc {
 		}
 
 		if len(relations) > 0 {
-			params.DB, err = orm.Begin(params.Context, params.DB, nil)
+			params.DB, err = db.Begin(params.Context, params.DB, nil)
 			if err != nil {
 				log.Errorf("Can't begin transaction: %v", err)
 				a.marshalErrors(rw, 0, httputil.ErrInternalError())
@@ -112,7 +119,7 @@ func (a *API) handleInsert(model *mapping.ModelStruct) http.HandlerFunc {
 
 		// Rollback the transaction if it exists and is not done yet.
 		defer func() {
-			tx, ok := params.DB.(*orm.Tx)
+			tx, ok := params.DB.(*db.Tx)
 			if ok && !tx.Transaction.State.Done() {
 				if err = tx.Rollback(); err != nil {
 					log.Errorf("Rolling back transaction failed: %v", err)
@@ -129,7 +136,7 @@ func (a *API) handleInsert(model *mapping.ModelStruct) http.HandlerFunc {
 		}
 
 		// Insert into database.
-		if err = orm.Insert(params.Context, params.DB, params.Scope); err != nil {
+		if err = db.Insert(params.Context, params.DB, params.Scope); err != nil {
 			a.marshalErrors(rw, 0, httputil.MapError(err)...)
 			return
 		}
@@ -140,12 +147,12 @@ func (a *API) handleInsert(model *mapping.ModelStruct) http.HandlerFunc {
 				case mapping.RelHasOne:
 					// SetRelations first clear the relationship and then add it - it is not required here as a hasOne
 					// only needs to add new relation to it's value.
-					if err = orm.AddRelations(params.Context, params.DB, q, relation); err != nil {
+					if err = db.AddRelations(params.Context, params.DB, q, relation); err != nil {
 						a.marshalErrors(rw, 0, httputil.MapError(err)...)
 						return
 					}
 				default:
-					if err = orm.SetRelations(params.Context, params.DB, q, relation); err != nil {
+					if err = db.SetRelations(params.Context, params.DB, q, relation); err != nil {
 						a.marshalErrors(rw, 0, httputil.MapError(err)...)
 						return
 					}
@@ -181,15 +188,20 @@ func (a *API) handleInsert(model *mapping.ModelStruct) http.HandlerFunc {
 		if !a.MarshalLinks {
 			linkType = codec.NoLink
 		}
-		// prepare the options to marshal jsonapi scope.
-		options := &codec.MarshalOptions{
-			Link: codec.LinkOptions{
+
+		resPayload := codec.Payload{
+			ModelStruct:       model,
+			Data:              q.Models,
+			FieldSets:         q.FieldSets,
+			IncludedRelations: q.IncludedRelations,
+			MarshalLinks: &codec.LinkOptions{
 				Type:       linkType,
 				BaseURL:    a.getBasePath(a.BasePath),
 				Collection: model.Collection(),
 				RootID:     stringID,
 			},
+			MarshalSingularFormat: true,
 		}
-		a.marshalScope(params.Scope, rw, http.StatusCreated, options)
+		a.marshalPayload(rw, &resPayload, http.StatusCreated)
 	}
 }

@@ -4,36 +4,44 @@ import (
 	"encoding/json"
 	"io"
 
-	neuronCodec "github.com/neuronlabs/neuron/codec"
+	"github.com/neuronlabs/neuron/codec"
+	"github.com/neuronlabs/neuron/controller"
 )
 
-var c *codec
+var c *jsonapiCodec
 
 func init() {
-	c = &codec{Mime: MimeType}
-	neuronCodec.RegisterCodec(MimeType, c)
+	c = &jsonapiCodec{Mime: MimeType}
+	codec.RegisterCodec(MimeType, c)
 }
 
-// Codec gets the codec value.
-func Codec() neuronCodec.Codec {
+// Codec gets the jsonapiCodec value.
+func Codec() codec.Codec {
 	return c
 }
 
-var _ neuronCodec.Codec = c
+var _ codec.Codec = c
 
-// codec is jsonapi model
-type codec struct {
+// jsonapiCodec is jsonapi model
+type jsonapiCodec struct {
 	Mime string
+	c    *controller.Controller
 }
 
-// MarshalErrors implements neuronCodec.codec interface.
-func (c *codec) MarshalErrors(w io.Writer, errors ...*neuronCodec.Error) error {
+// Initialize implements core.Initializer.
+func (j *jsonapiCodec) Initialize(ctrl *controller.Controller) error {
+	j.c = ctrl
+	return nil
+}
+
+// MarshalErrors implements neuronCodec.jsonapiCodec interface.
+func (j *jsonapiCodec) MarshalErrors(w io.Writer, errors ...*codec.Error) error {
 	p := ErrorsPayload{Errors: errors}
 	return json.NewEncoder(w).Encode(&p)
 }
 
-// UnmarshalErrors implements neuronCodec.codec interface.
-func (c *codec) UnmarshalErrors(r io.Reader) (neuronCodec.MultiError, error) {
+// UnmarshalErrors implements neuronCodec.jsonapiCodec interface.
+func (j *jsonapiCodec) UnmarshalErrors(r io.Reader) (codec.MultiError, error) {
 	p := &ErrorsPayload{}
 	if err := json.NewDecoder(r).Decode(p); err != nil {
 		return nil, err
@@ -41,7 +49,7 @@ func (c *codec) UnmarshalErrors(r io.Reader) (neuronCodec.MultiError, error) {
 	return p.Errors, nil
 }
 
-// MimeType implements neuronCodec.codec interface.
-func (c *codec) MimeType() string {
-	return c.Mime
+// MimeType implements neuronCodec.jsonapiCodec interface.
+func (j *jsonapiCodec) MimeType() string {
+	return j.Mime
 }

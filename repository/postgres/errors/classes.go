@@ -1,7 +1,6 @@
 package errors
 
 import (
-	"github.com/neuronlabs/neuron/controller"
 	"github.com/neuronlabs/neuron/errors"
 )
 
@@ -19,5 +18,5 @@ var (
 func init() {
 	MjrPostgres = errors.MustNewMajor()
 	ClassUnmappedError = errors.MustNewMajorClass(MjrPostgres)
-	ClassInternal = errors.MustNewMajorClass(controller.MjrInternal)
+	ClassInternal = errors.MustNewMajorClass(errors.MjrInternal)
 }

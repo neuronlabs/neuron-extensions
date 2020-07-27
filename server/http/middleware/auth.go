@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/neuronlabs/neuron-plugins/server/http/httputil"
+	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
 	"github.com/neuronlabs/neuron/auth"
 	"github.com/neuronlabs/neuron/log"
 )

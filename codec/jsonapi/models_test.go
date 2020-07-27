@@ -88,6 +88,15 @@ type ModelTime struct {
 // HiddenModel is the neuron model with hidden fields.
 type HiddenModel struct {
 	ID          int    `neuron:"type=primary;flags=hidden"`
-	Visibile    string `neuron:"type=attr"`
+	Visible     string `neuron:"type=attr"`
 	HiddenField string `neuron:"type=attr;flags=hidden"`
+}
+
+// CustomTagModel is the model with field that contains custom codec tag.
+type CustomTagModel struct {
+	ID                int
+	VisibleCustomName string `codec:"visible"`
+	HiddenField       bool   `codec:"-"`
+	OmitEmptyField    string `codec:"omitempty"`
+	CustomOmitEmpty   string `codec:"custom,omitempty"`
 }

@@ -6,8 +6,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/tests"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/tests"
 	"github.com/neuronlabs/neuron/query"
+	"github.com/neuronlabs/neuron/query/filter"
 )
 
 // TestParseDeleteQuery tests the parse delete query method.
@@ -19,8 +20,8 @@ func TestParseDeleteQuery(t *testing.T) {
 	require.NoError(t, err)
 
 	s := query.NewScope(mStruct)
-	s.Filters = query.Filters{
-		query.NewFilterField(mStruct.Primary(), query.OpIn, 3, 10),
+	s.Filters = filter.Filters{
+		filter.New(mStruct.Primary(), filter.OpIn, 3, 10),
 	}
 	q, err := p.parseDeleteQuery(s)
 	require.NoError(t, err)

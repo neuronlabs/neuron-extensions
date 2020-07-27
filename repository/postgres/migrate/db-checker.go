@@ -4,11 +4,10 @@ import (
 	"context"
 	"strconv"
 
-	"github.com/neuronlabs/neuron/controller"
 	"github.com/neuronlabs/neuron/errors"
 
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/internal"
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/log"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/log"
 )
 
 // GetVersion gets the numerical version of the postgres server.
@@ -18,12 +17,12 @@ func GetVersion(ctx context.Context, conn internal.Connection) (int, error) {
 	err := conn.QueryRow(ctx, "SHOW server_version_num;").Scan(&version)
 	if err != nil {
 		log.Debug("Querying server version failed: %v", err)
-		return 0, errors.NewDetf(controller.ClassInternal, "Can't obtain pq server version: %v", err.Error())
+		return 0, errors.NewDetf(errors.ClassInternal, "Can't obtain pq server version: %v", err.Error())
 	}
 
 	v, err := strconv.Atoi(version)
 	if err != nil {
-		return 0, errors.NewDetf(controller.ClassInternal, "Can't get postgres integer version: %v", err.Error())
+		return 0, errors.NewDetf(errors.ClassInternal, "Can't get postgres integer version: %v", err.Error())
 	}
 	return v, nil
 }

@@ -4,47 +4,47 @@ import (
 	"strings"
 
 	"github.com/neuronlabs/neuron/errors"
-	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/query"
+	"github.com/neuronlabs/neuron/query/filter"
 
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/internal"
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/migrate"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/migrate"
 )
 
 // BasicSQLizer gets the SQLQueries from the provided filter.
-func BasicSQLizer(s *query.Scope, quotedWriter internal.QuotedWordWriteFunc, field *mapping.StructField, fv *query.OperatorValues) (SQLQueries, error) {
+func BasicSQLizer(s *query.Scope, quotedWriter internal.QuotedWordWriteFunc, simple filter.Simple) (SQLQueries, error) {
 	queries := SQLQueries{}
 
-	columnName, err := migrate.FieldColumnName(field)
+	columnName, err := migrate.FieldColumnName(simple.StructField)
 	if err != nil {
 		return nil, err
 	}
 
-	op, err := getSQLOperator(fv.Operator)
+	op, err := getSQLOperator(simple.Operator)
 	if err != nil {
 		return nil, err
 	}
 	b := &strings.Builder{}
-	for _, v := range fv.Values {
+	for _, v := range simple.Values {
 		quotedWriter(b, columnName)
 		b.WriteString(" ")
 		b.WriteString(op)
 		b.WriteString(" ")
 		b.WriteString(internal.StringIncrementor(s))
-		queries = append(queries, &SQLQuery{Query: b.String(), Values: []interface{}{v}})
+		queries = append(queries, SQLQuery{Query: b.String(), Values: []interface{}{v}})
 		b.Reset()
 	}
 	return queries, nil
 }
 
 // NullSQLizer is the SQLizer function that returns NULL'ed queries.
-func NullSQLizer(s *query.Scope, quotedWriter internal.QuotedWordWriteFunc, field *mapping.StructField, fv *query.OperatorValues) (SQLQueries, error) {
-	columnName, err := migrate.FieldColumnName(field)
+func NullSQLizer(s *query.Scope, quotedWriter internal.QuotedWordWriteFunc, simple filter.Simple) (SQLQueries, error) {
+	columnName, err := migrate.FieldColumnName(simple.StructField)
 	if err != nil {
 		return nil, err
 	}
 
-	op, err := getSQLOperator(fv.Operator)
+	op, err := getSQLOperator(simple.Operator)
 	if err != nil {
 		return nil, err
 	}
@@ -54,22 +54,22 @@ func NullSQLizer(s *query.Scope, quotedWriter internal.QuotedWordWriteFunc, fiel
 	b.WriteString(" ")
 	b.WriteString(op)
 
-	queries := SQLQueries{&SQLQuery{Query: b.String()}}
+	queries := SQLQueries{SQLQuery{Query: b.String()}}
 
 	return queries, nil
 }
 
 // InSQLizer creates the SQLQueries for the 'IN' and 'NOT IN' filter Operators.
-func InSQLizer(s *query.Scope, quotedWriter internal.QuotedWordWriteFunc, field *mapping.StructField, fv *query.OperatorValues) (SQLQueries, error) {
-	if fv.Values == nil || len(fv.Values) == 0 {
+func InSQLizer(s *query.Scope, quotedWriter internal.QuotedWordWriteFunc, simple filter.Simple) (SQLQueries, error) {
+	if simple.Values == nil || len(simple.Values) == 0 {
 		return SQLQueries{}, nil
 	}
-	columnName, err := migrate.FieldColumnName(field)
+	columnName, err := migrate.FieldColumnName(simple.StructField)
 	if err != nil {
 		return nil, err
 	}
 
-	op, err := getSQLOperator(fv.Operator)
+	op, err := getSQLOperator(simple.Operator)
 	if err != nil {
 		return nil, err
 	}
@@ -81,27 +81,27 @@ func InSQLizer(s *query.Scope, quotedWriter internal.QuotedWordWriteFunc, field 
 	b.WriteString(op)
 	b.WriteString(" (")
 
-	for i := range fv.Values {
+	for i := range simple.Values {
 		b.WriteString(internal.StringIncrementor(s))
-		if i != len(fv.Values)-1 {
+		if i != len(simple.Values)-1 {
 			b.WriteRune(',')
 		}
 	}
 	b.WriteRune(')')
 
-	queries := SQLQueries{&SQLQuery{Query: b.String(), Values: fv.Values}}
+	queries := SQLQueries{SQLQuery{Query: b.String(), Values: simple.Values}}
 
 	return queries, nil
 }
 
 // StringOperatorsSQLizer creates the SQLQueries for the provided filter values.
-func StringOperatorsSQLizer(s *query.Scope, quotedWriter internal.QuotedWordWriteFunc, field *mapping.StructField, fv *query.OperatorValues) (SQLQueries, error) {
-	columnName, err := migrate.FieldColumnName(field)
+func StringOperatorsSQLizer(s *query.Scope, quotedWriter internal.QuotedWordWriteFunc, simple filter.Simple) (SQLQueries, error) {
+	columnName, err := migrate.FieldColumnName(simple.StructField)
 	if err != nil {
 		return nil, err
 	}
 
-	op, err := getSQLOperator(fv.Operator)
+	op, err := getSQLOperator(simple.Operator)
 	if err != nil {
 		return nil, err
 	}
@@ -109,18 +109,18 @@ func StringOperatorsSQLizer(s *query.Scope, quotedWriter internal.QuotedWordWrit
 	queries := SQLQueries{}
 
 	b := &strings.Builder{}
-	for _, v := range fv.Values {
+	for _, v := range simple.Values {
 		strValue, ok := v.(string)
 		if !ok {
-			return nil, errors.NewDetf(query.ClassFilterValues, "operator: '%s' requires string filter values", fv.Operator.Name)
+			return nil, errors.NewDetf(filter.ClassFilterValues, "operator: '%s' requires string filter values", simple.Operator.Name)
 		}
 
-		switch fv.Operator {
-		case query.OpStartsWith:
+		switch simple.Operator {
+		case filter.OpStartsWith:
 			strValue += "%"
-		case query.OpEndsWith:
+		case filter.OpEndsWith:
 			strValue = "%" + strValue
-		case query.OpContains:
+		case filter.OpContains:
 			strValue = "%" + strValue + "%"
 		}
 
@@ -130,7 +130,7 @@ func StringOperatorsSQLizer(s *query.Scope, quotedWriter internal.QuotedWordWrit
 		b.WriteRune(' ')
 		b.WriteString(internal.StringIncrementor(s))
 
-		queries = append(queries, &SQLQuery{Query: b.String(), Values: []interface{}{strValue}})
+		queries = append(queries, SQLQuery{Query: b.String(), Values: []interface{}{strValue}})
 		b.Reset()
 	}
 

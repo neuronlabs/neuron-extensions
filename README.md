@@ -1,2 +1,2 @@
-# neuron-plugins
-Neuron plugins
+# neuron-extensions
+Neuron extensions

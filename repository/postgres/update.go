@@ -7,13 +7,13 @@ import (
 
 	"github.com/jackc/pgx/v4"
 
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/filters"
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/migrate"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/filters"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/migrate"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/query"
 
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/internal"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
 )
 
 // Update patches all the values that matches scope's filters, sorts and pagination
@@ -29,36 +29,39 @@ func (p *Postgres) Update(ctx context.Context, s *query.Scope) (int64, error) {
 }
 
 func (p *Postgres) updateModels(ctx context.Context, s *query.Scope) (affected int64, err error) {
-	if s.BulkFieldSets != nil {
+	switch len(s.FieldSets) {
+	case 0:
+		return 0, errors.New(query.ClassInvalidFieldSet, "no fields to update")
+	case 1:
+		fieldSet := s.FieldSets[0]
+		switch len(s.Models) {
+		case 0:
+			return 0, errors.New(query.ClassNoModels, "no models to update")
+		case 1:
+			model := s.Models[0]
+			// Check if this is about to update all models.
+			if model.IsPrimaryKeyZero() {
+				return p.updateWithFilters(ctx, s)
+			}
+			return p.updatedModelWithFieldset(ctx, s, fieldSet, model)
+		}
+		b := &pgx.Batch{}
+		if err := p.updateBatchModelsWithFieldSet(s, b, fieldSet, s.Models...); err != nil {
+			return 0, err
+		}
+
+		results := p.connection(s).SendBatch(ctx, b)
+		for i := 0; i < b.Len(); i++ {
+			tag, err := results.Exec()
+			if err != nil {
+				return affected, err
+			}
+			affected += tag.RowsAffected()
+		}
+		return affected, nil
+	default:
 		return p.updateModelsWithBulkFieldSet(ctx, s)
 	}
-	switch len(s.Models) {
-	case 0:
-		return 0, errors.New(query.ClassNoModels, "no models to update")
-	case 1:
-		model := s.Models[0]
-		// Check if this is about to update all models.
-		if model.IsPrimaryKeyZero() {
-			return p.updateWithFilters(ctx, s)
-		}
-		return p.updatedModelWithFieldset(ctx, s, s.FieldSet, s.Models[0])
-	}
-
-	b := &pgx.Batch{}
-	if err := p.updateBatchModelsWithFieldSet(s, b, s.FieldSet, s.Models...); err != nil {
-		return 0, err
-	}
-
-	results := p.connection(s).SendBatch(ctx, b)
-	for i := 0; i < b.Len(); i++ {
-		tag, err := results.Exec()
-		if err != nil {
-			return affected, err
-		}
-		affected += tag.RowsAffected()
-	}
-	return affected, nil
-
 }
 
 func (p *Postgres) updateModelsWithBulkFieldSet(ctx context.Context, s *query.Scope) (affected int64, err error) {
@@ -66,8 +69,13 @@ func (p *Postgres) updateModelsWithBulkFieldSet(ctx context.Context, s *query.Sc
 	b := &pgx.Batch{}
 	// For each unique fieldset create a query that would be executed for each matched model.
 	// This would result in a query for each model.
-	for _, fieldSet := range s.BulkFieldSets.FieldSets {
-		indices := s.BulkFieldSets.GetIndicesByFieldset(fieldSet)
+	bulk := &mapping.BulkFieldSet{}
+	for i, fieldSet := range s.FieldSets {
+		bulk.Add(fieldSet, i)
+	}
+
+	for _, fieldSet := range bulk.FieldSets {
+		indices := bulk.GetIndicesByFieldset(fieldSet)
 		for _, index := range indices {
 			models = append(models, s.Models[index])
 		}
@@ -209,9 +217,15 @@ func (p *Postgres) buildUpdateQuery(s *query.Scope, fieldSet mapping.FieldSet, s
 
 func (p *Postgres) updateWithFilters(ctx context.Context, s *query.Scope) (int64, error) {
 	// Check if there is anything to update.
-	if len(s.FieldSet) == 0 {
+	if len(s.FieldSets) != 1 {
+		return 0, errors.New(query.ClassInvalidFieldSet, "provided empty fieldset length - update with filters")
+	}
+
+	fieldSet := s.FieldSets[0]
+	if len(fieldSet) == 0 {
 		return 0, errors.New(query.ClassInvalidFieldSet, "provided empty fieldset - update with filters")
 	}
+
 	// Check if there is exactly one model.
 	if len(s.Models) != 1 {
 		return 0, errors.New(query.ClassInvalidModels, "update with filters require exactly one model")
@@ -219,7 +233,7 @@ func (p *Postgres) updateWithFilters(ctx context.Context, s *query.Scope) (int64
 
 	sb := &strings.Builder{}
 	// Build update query.
-	if err := p.buildUpdateQuery(s, s.FieldSet, sb); err != nil {
+	if err := p.buildUpdateQuery(s, fieldSet, sb); err != nil {
 		return 0, err
 	}
 
@@ -230,7 +244,7 @@ func (p *Postgres) updateWithFilters(ctx context.Context, s *query.Scope) (int64
 		return 0, errors.New(mapping.ClassModelNotImplements, "model doesn't implement Fielder interface")
 	}
 
-	for _, field := range s.FieldSet {
+	for _, field := range fieldSet {
 		fieldValue, err := fielder.GetFieldValue(field)
 		if err != nil {
 			return 0, err

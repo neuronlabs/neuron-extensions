@@ -6,8 +6,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/tests"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/tests"
+	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/query"
+	"github.com/neuronlabs/neuron/query/filter"
 )
 
 func TestParseSelect(t *testing.T) {
@@ -21,10 +23,10 @@ func TestParseSelect(t *testing.T) {
 	require.True(t, ok)
 
 	s := query.NewScope(mStruct)
-	s.FieldSet = mStruct.Fields()
-	s.Filters = query.Filters{
-		query.NewFilterField(mStruct.Primary(), query.OpIn, 3, 4),
-		query.NewFilterField(attrField, query.OpEqual, "test"),
+	s.FieldSets = []mapping.FieldSet{mStruct.Fields()}
+	s.Filters = filter.Filters{
+		filter.New(mStruct.Primary(), filter.OpIn, 3, 4),
+		filter.New(attrField, filter.OpEqual, "test"),
 	}
 	s.Pagination = &query.Pagination{
 		Limit:  5,

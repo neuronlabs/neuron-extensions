@@ -5,11 +5,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neuronlabs/neuron/controller"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/mapping"
 
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/log"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/log"
 )
 
 var (
@@ -123,7 +122,7 @@ func findDataType(field *mapping.StructField) (DataTyper, error) {
 		}
 		dt, ok = defaultKindDT[k]
 		if !ok {
-			err := errors.NewDet(controller.ClassInternal, "postgres field type not found.")
+			err := errors.NewDet(errors.ClassInternal, "postgres field type not found.")
 			err.WithDetailf("Can't find the field type. Model: '%s', Field: '%s'", field.ModelStruct().Type().Name(), field.Name())
 			return nil, err
 		}
@@ -245,7 +244,7 @@ func registerDataType(dt DataTyper) error {
 	// check it the data type exists
 	_, ok := dataTypes[dt.KeyName()]
 	if ok {
-		return errors.NewDetf(controller.ClassInternal, "postgres data type: '%s' is already registered", dt.KeyName())
+		return errors.NewDetf(errors.ClassInternal, "postgres data type: '%s' is already registered", dt.KeyName())
 	}
 
 	// set the data type at index
@@ -266,7 +265,7 @@ func registerRefTypeDT(t reflect.Type, dt DataTyper, override ...bool) error {
 	}
 	_, ok := defaultTypeDT[t]
 	if ok && !ov {
-		return errors.NewDetf(controller.ClassInternal, "default data typer is already set for given type: '%s'", t.Name())
+		return errors.NewDetf(errors.ClassInternal, "default data typer is already set for given type: '%s'", t.Name())
 	}
 
 	defaultTypeDT[t] = dt

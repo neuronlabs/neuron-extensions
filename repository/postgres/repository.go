@@ -14,10 +14,10 @@ import (
 	"github.com/neuronlabs/neuron/repository"
 	"github.com/neuronlabs/neuron/service"
 
-	postgresErrors "github.com/neuronlabs/neuron-plugins/repository/postgres/errors"
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/internal"
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/log"
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/migrate"
+	postgresErrors "github.com/neuronlabs/neuron-extensions/repository/postgres/errors"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/log"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/migrate"
 )
 
 // FactoryName defines the name of the factory.

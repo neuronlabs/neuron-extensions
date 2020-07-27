@@ -8,29 +8,29 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	neuronCodec "github.com/neuronlabs/neuron/codec"
+	"github.com/neuronlabs/neuron/codec"
+	"github.com/neuronlabs/neuron/controller"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/mapping"
 )
 
 // TestUnmarshalScopeOne tests unmarshal scope one function.
 func TestUnmarshalScopeOne(t *testing.T) {
-	c := defaultTestingController(t)
-
+	c := controller.NewDefault()
 	err := c.RegisterModels(&Blog{}, &Post{}, &Comment{})
 	require.Nil(t, err)
 
-	cd := &codec{}
+	cd := &jsonapiCodec{c: c}
 	// Case 1:
 	// Correct with  attributes
 	t.Run("valid_attributes", func(t *testing.T) {
 		in := strings.NewReader("{\"data\": {\"type\": \"blogs\", \"id\": \"1\", \"attributes\": {\"title\": \"Some title.\"}}}")
 
-		models, err := cd.UnmarshalModels(in, c.MustModelStruct(&Blog{}), nil)
+		payload, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
 		require.NoError(t, err)
 
-		if assert.Len(t, models, 1) {
-			blog, ok := models[0].(*Blog)
+		if assert.Len(t, payload.Data, 1) {
+			blog, ok := payload.Data[0].(*Blog)
 			require.True(t, ok)
 			assert.Equal(t, 1, blog.ID)
 			assert.Equal(t, "Some title.", blog.Title)
@@ -59,11 +59,11 @@ func TestUnmarshalScopeOne(t *testing.T) {
 			}
 		}`)
 
-		models, err := cd.UnmarshalModels(in, c.MustModelStruct(&Blog{}), nil)
+		payload, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
 		require.NoError(t, err)
 
-		if assert.Len(t, models, 1) {
-			blog, ok := models[0].(*Blog)
+		if assert.Len(t, payload.Data, 1) {
+			blog, ok := payload.Data[0].(*Blog)
 			require.True(t, ok)
 			assert.Equal(t, 2, blog.ID)
 			assert.Equal(t, "Correct Unmarshal", blog.Title)
@@ -78,11 +78,11 @@ func TestUnmarshalScopeOne(t *testing.T) {
 	// Invalid document - no opening bracket.
 	t.Run("invalid_document", func(t *testing.T) {
 		in := strings.NewReader(`"data":{"type":"blogs","id":"1"}`)
-		_, err := cd.UnmarshalModels(in, c.MustModelStruct(&Blog{}), nil)
+		_, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
 		require.Error(t, err)
 		e, ok := err.(errors.ClassError)
 		if assert.True(t, ok) {
-			assert.Equal(t, neuronCodec.ClassUnmarshal, e.Class())
+			assert.Equal(t, codec.ClassUnmarshal, e.Class())
 		}
 	})
 
@@ -90,11 +90,11 @@ func TestUnmarshalScopeOne(t *testing.T) {
 	// Invalid collection - unrecognized collection
 	t.Run("invalid_collection", func(t *testing.T) {
 		in := strings.NewReader(`{"data":{"type":"unrecognized","id":"1"}}`)
-		_, err := cd.UnmarshalModels(in, c.MustModelStruct(&Blog{}), nil)
+		_, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
 		require.Error(t, err)
 		e, ok := err.(errors.ClassError)
 		if assert.True(t, ok) {
-			assert.Equal(t, neuronCodec.ClassUnmarshal, e.Class())
+			assert.Equal(t, codec.ClassUnmarshal, e.Class())
 		}
 	})
 
@@ -102,11 +102,11 @@ func TestUnmarshalScopeOne(t *testing.T) {
 	// Invalid syntax - syntax error
 	t.Run("invalid_syntax", func(t *testing.T) {
 		in := strings.NewReader(`{"data":{"type":"blogs","id":"1",}}`)
-		_, err := cd.UnmarshalModels(in, c.MustModelStruct(&Blog{}), nil)
+		_, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
 		require.Error(t, err)
 		e, ok := err.(errors.ClassError)
 		if assert.True(t, ok) {
-			assert.Equal(t, neuronCodec.ClassUnmarshal, e.Class())
+			assert.Equal(t, codec.ClassUnmarshal, e.Class())
 		}
 	})
 
@@ -115,55 +115,55 @@ func TestUnmarshalScopeOne(t *testing.T) {
 	t.Run("invalid_field_value", func(t *testing.T) {
 		// number instead of string
 		in := strings.NewReader(`{"data":{"type":"blogs","id":1.03}}`)
-		_, err := cd.UnmarshalModels(in, c.MustModelStruct(&Blog{}), nil)
+		_, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
 		require.Error(t, err)
 		e, ok := err.(errors.ClassError)
 		if assert.True(t, ok) {
-			assert.Equal(t, neuronCodec.ClassUnmarshal, e.Class())
+			assert.Equal(t, codec.ClassUnmarshal, e.Class())
 		}
 	})
 
 	t.Run("invalid_relationship_type", func(t *testing.T) {
 		// string instead of object
 		in := strings.NewReader(`{"data":{"type":"blogs","id":"1", "relationships":"invalid"}}`)
-		_, err := cd.UnmarshalModels(in, c.MustModelStruct(&Blog{}), nil)
+		_, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
 		require.Error(t, err)
 		e, ok := err.(errors.ClassError)
 		if assert.True(t, ok) {
-			assert.Equal(t, neuronCodec.ClassUnmarshal, e.Class())
+			assert.Equal(t, codec.ClassUnmarshal, e.Class())
 		}
 	})
 
 	// array
 	t.Run("invalid_id_value_array", func(t *testing.T) {
 		in := strings.NewReader(`{"data":{"type":"blogs","id":{"1":"2"}}}`)
-		_, err := cd.UnmarshalModels(in, c.MustModelStruct(&Blog{}), nil)
+		_, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
 		require.Error(t, err)
 		e, ok := err.(errors.ClassError)
 		if assert.True(t, ok) {
-			assert.Equal(t, neuronCodec.ClassUnmarshal, e.Class())
+			assert.Equal(t, codec.ClassUnmarshal, e.Class())
 		}
 	})
 
 	// array
 	t.Run("invalid_relationship_value_array", func(t *testing.T) {
 		in := strings.NewReader(`{"data":{"type":"blogs","id":"1", "relationships":["invalid"]}}`)
-		_, err := cd.UnmarshalModels(in, c.MustModelStruct(&Blog{}), nil)
+		_, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
 		require.Error(t, err)
 		e, ok := err.(errors.ClassError)
 		if assert.True(t, ok) {
-			assert.Equal(t, neuronCodec.ClassUnmarshal, e.Class())
+			assert.Equal(t, codec.ClassUnmarshal, e.Class())
 		}
 	})
 
 	// bool
 	t.Run("invalid_relationship_value_bool", func(t *testing.T) {
 		in := strings.NewReader(`{"data":{"type":"blogs","id":"1", "relationships":true}}`)
-		_, err := cd.UnmarshalModels(in, c.MustModelStruct(&Blog{}), nil)
+		_, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
 		require.Error(t, err)
 		e, ok := err.(errors.ClassError)
 		if assert.True(t, ok) {
-			assert.Equal(t, neuronCodec.ClassUnmarshal, e.Class())
+			assert.Equal(t, codec.ClassUnmarshal, e.Class())
 		}
 	})
 
@@ -171,7 +171,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 	// invalid field value within i.e. for attribute
 	t.Run("invalid_attribute_value", func(t *testing.T) {
 		in := strings.NewReader(`{"data":{"type":"blogs","id":"1", "attributes":{"title":1.02}}}`)
-		_, err := cd.UnmarshalModels(in, c.MustModelStruct(&Blog{}), nil)
+		_, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
 		require.Error(t, err)
 		e, ok := err.(errors.ClassError)
 		if assert.True(t, ok) {
@@ -182,13 +182,13 @@ func TestUnmarshalScopeOne(t *testing.T) {
 	t.Run("invalid_field_strict_mode", func(t *testing.T) {
 		// title attribute is missspelled as 'Atitle'
 		in := strings.NewReader(`{"data":{"type":"blogs","id":"1", "attributes":{"Atitle":1.02}}}`)
-		_, err := cd.UnmarshalModels(in, c.MustModelStruct(&Blog{}), &neuronCodec.UnmarshalOptions{
+		_, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{
 			StrictUnmarshal: true,
 		})
 		require.Error(t, err)
 		e, ok := err.(*errors.DetailedError)
 		if assert.True(t, ok) {
-			assert.Equal(t, neuronCodec.ClassUnmarshal, e.Class())
+			assert.Equal(t, codec.ClassUnmarshal, e.Class())
 		}
 	})
 
@@ -206,15 +206,17 @@ func TestUnmarshalScopeOne(t *testing.T) {
 				  }
 				}`)
 
-		c := defaultTestingController(t)
+		c := controller.NewDefault()
 		err := c.RegisterModels(&UnmarshalModel{})
 		require.Nil(t, err)
 
-		models, err := cd.UnmarshalModels(in, c.MustModelStruct(&UnmarshalModel{}), nil)
+		cd := &jsonapiCodec{c: c}
+
+		payload, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
 		require.NoError(t, err)
 
-		if assert.Len(t, models, 1) {
-			m, ok := models[0].(*UnmarshalModel)
+		if assert.Len(t, payload.Data, 1) {
+			m, ok := payload.Data[0].(*UnmarshalModel)
 			if assert.True(t, ok) {
 				assert.Nil(t, m.PtrString)
 				assert.Nil(t, m.PtrTime)
@@ -236,15 +238,16 @@ func TestUnmarshalScopeOne(t *testing.T) {
 				  	}
 				  }
 				}`)
-		c := defaultTestingController(t)
+		c := controller.NewDefault()
+		cd := &jsonapiCodec{c: c}
 		err := c.RegisterModels(&UnmarshalModel{})
 		require.Nil(t, err)
 
-		models, err := cd.UnmarshalModels(in, c.MustModelStruct(&UnmarshalModel{}), nil)
+		payload, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
 		require.NoError(t, err)
 
-		if assert.Len(t, models, 1) {
-			m, ok := models[0].(*UnmarshalModel)
+		if assert.Len(t, payload.Data, 1) {
+			m, ok := payload.Data[0].(*UnmarshalModel)
 			if assert.True(t, ok) {
 				if assert.NotNil(t, m.PtrString) {
 					assert.Equal(t, "maciej", *m.PtrString)
@@ -271,11 +274,12 @@ func TestUnmarshalScopeOne(t *testing.T) {
 				  	}
 				  }
 				}`)
-		c := defaultTestingController(t)
+		c := controller.NewDefault()
+		cd := &jsonapiCodec{c: c}
 		err := c.RegisterModels(&UnmarshalModel{})
 		require.Nil(t, err)
 
-		_, err = cd.UnmarshalModels(in, c.MustModelStruct(&UnmarshalModel{}), nil)
+		_, err = cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
 		assert.Error(t, err)
 	})
 
@@ -290,38 +294,41 @@ func TestUnmarshalScopeOne(t *testing.T) {
 				  	}
 				  }
 				}`)
-		c := defaultTestingController(t)
+		c := controller.NewDefault()
+		cd := &jsonapiCodec{c: c}
 		err := c.RegisterModels(&UnmarshalModel{})
 		require.Nil(t, err)
 
-		_, err = cd.UnmarshalModels(in, c.MustModelStruct(&UnmarshalModel{}), nil)
+		_, err = cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
 		assert.Error(t, err)
 	})
 
 	t.Run("Array", func(t *testing.T) {
 		t.Run("TooManyValues", func(t *testing.T) {
-			c := defaultTestingController(t)
+			c := controller.NewDefault()
+			cd := &jsonapiCodec{c: c}
 			err := c.RegisterModels(&ArrModel{})
-			require.NoError(t, err)
+			require.Nil(t, err)
 
 			in := strings.NewReader(`{"data":{"type":"arr_models","id":"1","attributes":{"arr": [1.251,125.162,16.162]}}}`)
 
-			_, err = cd.UnmarshalModels(in, c.MustModelStruct(&ArrModel{}), nil)
+			_, err = cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
 			assert.Error(t, err)
 		})
 
 		t.Run("Correct", func(t *testing.T) {
-			c := defaultTestingController(t)
+			c := controller.NewDefault()
+			cd := &jsonapiCodec{c: c}
 			err := c.RegisterModels(&ArrModel{})
 			require.NoError(t, err)
 
 			in := strings.NewReader(`{"data":{"type":"arr_models","id":"1","attributes":{"arr": [1.251,125.162]}}}`)
 
-			models, err := cd.UnmarshalModels(in, c.MustModelStruct(&ArrModel{}), nil)
+			payload, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
 			require.NoError(t, err)
 
-			if assert.Len(t, models, 1) {
-				m, ok := models[0].(*ArrModel)
+			if assert.Len(t, payload.Data, 1) {
+				m, ok := payload.Data[0].(*ArrModel)
 				require.True(t, ok)
 
 				assert.Equal(t, 1, m.ID)
@@ -1173,32 +1180,29 @@ func TestUnmarshalScopeOne(t *testing.T) {
 // }
 
 func TestUnmarshalEmpty(t *testing.T) {
-	c := defaultTestingController(t)
-
+	c := controller.NewDefault()
+	cd := &jsonapiCodec{c: c}
 	err := c.RegisterModels(&Blog{}, &Post{}, &Comment{})
 	require.Nil(t, err)
-	cd := Codec()
 	buf := &bytes.Buffer{}
 
 	t.Run("NullData", func(t *testing.T) {
-		mStruct := c.MustModelStruct(&Blog{})
 		buf.Reset()
 		buf.WriteString(`{"data": null}`)
 
-		models, err := cd.UnmarshalModels(buf, mStruct, nil)
+		payload, err := cd.UnmarshalPayload(buf, codec.UnmarshalOptions{})
 		require.NoError(t, err)
 
-		assert.Len(t, models, 0)
+		assert.Len(t, payload.Data, 0)
 	})
 
 	t.Run("EmptyData", func(t *testing.T) {
-		mStruct := c.MustModelStruct(&Blog{})
 		buf.Reset()
 		buf.WriteString(`{"data": []}`)
 
-		models, err := cd.UnmarshalModels(buf, mStruct, nil)
+		payload, err := cd.UnmarshalPayload(buf, codec.UnmarshalOptions{})
 		require.NoError(t, err)
 
-		assert.Len(t, models, 0)
+		assert.Len(t, payload.Data, 0)
 	})
 }

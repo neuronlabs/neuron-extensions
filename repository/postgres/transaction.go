@@ -9,7 +9,7 @@ import (
 	"github.com/neuronlabs/neuron/query"
 	"github.com/neuronlabs/neuron/repository"
 
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/log"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/log"
 )
 
 // compile time check for the repository.Transactioner interface.

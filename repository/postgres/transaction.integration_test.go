@@ -9,11 +9,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/internal"
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/migrate"
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/tests"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/migrate"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/tests"
+	"github.com/neuronlabs/neuron/db"
 	"github.com/neuronlabs/neuron/errors"
-	"github.com/neuronlabs/neuron/orm"
 	"github.com/neuronlabs/neuron/query"
 )
 
@@ -32,7 +32,7 @@ func TestTransactions(t *testing.T) {
 		_ = internal.DropTables(ctx, p.ConnPool, table.Name, table.Schema)
 	}()
 
-	db := orm.New(c)
+	db := db.New(c)
 
 	t.Run("Commit", func(t *testing.T) {
 		// No results should return no error.

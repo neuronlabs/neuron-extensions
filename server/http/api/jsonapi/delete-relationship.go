@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/neuronlabs/neuron-plugins/codec/jsonapi"
-	"github.com/neuronlabs/neuron-plugins/server/http/httputil"
-	"github.com/neuronlabs/neuron-plugins/server/http/log"
+	"github.com/neuronlabs/neuron-extensions/codec/jsonapi"
+	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
+	"github.com/neuronlabs/neuron-extensions/server/http/log"
+	"github.com/neuronlabs/neuron/codec"
+	"github.com/neuronlabs/neuron/db"
 	"github.com/neuronlabs/neuron/mapping"
-	"github.com/neuronlabs/neuron/orm"
 	"github.com/neuronlabs/neuron/query"
+	"github.com/neuronlabs/neuron/query/filter"
 )
 
 // HandleDeleteRelationship handles json:api delete relationship endpoint for the 'model'.
@@ -43,13 +45,17 @@ func (a *API) handleDeleteRelationship(mStruct *mapping.ModelStruct, relation *m
 			return
 		}
 
-		relations, err := jsonapi.Codec().UnmarshalModels(req.Body, relation.Relationship().Struct(), a.jsonapiUnmarshalOptions())
+		pu := jsonapi.Codec().(codec.PayloadUnmarshaler)
+		payload, err := pu.UnmarshalPayload(req.Body, codec.UnmarshalOptions{
+			ModelStruct:     relation.Relationship().Struct(),
+			StrictUnmarshal: a.StrictUnmarshal,
+		})
 		if err != nil {
 			a.marshalErrors(rw, 0, httputil.MapError(err)...)
 			return
 		}
 
-		for _, relation := range relations {
+		for _, relation := range payload.Data {
 			if relation.IsPrimaryKeyZero() {
 				err := httputil.ErrInvalidJSONFieldValue()
 				err.Detail = "one of provided relationships doesn't have it's primary key value stored"
@@ -58,17 +64,14 @@ func (a *API) handleDeleteRelationship(mStruct *mapping.ModelStruct, relation *m
 			}
 		}
 
-		if len(relations) == 0 {
+		if len(payload.Data) == 0 {
 			rw.WriteHeader(http.StatusNoContent)
 			return
 		}
 
 		s := query.NewScope(mStruct)
-		s.FieldSet = mapping.FieldSet{mStruct.Primary()}
-		if err = s.Filter(query.NewFilterField(mStruct.Primary(), query.OpEqual, model.GetPrimaryKeyValue())); err != nil {
-			a.marshalErrors(rw, 500, httputil.ErrInternalError())
-			return
-		}
+		s.FieldSets = []mapping.FieldSet{{mStruct.Primary()}}
+		s.Filter(filter.New(mStruct.Primary(), filter.OpEqual, model.GetPrimaryKeyValue()))
 
 		// Include relation values.
 		if err = s.Include(relation, relation.Relationship().Struct().Primary()); err != nil {
@@ -92,7 +95,7 @@ func (a *API) handleDeleteRelationship(mStruct *mapping.ModelStruct, relation *m
 		}
 
 		// Check if the model with provided id exists.
-		model, err = orm.Get(params.Context, params.DB, params.Scope)
+		model, err = db.Get(params.Context, params.DB, params.Scope)
 		if err != nil {
 			a.marshalErrors(rw, 0, httputil.MapError(err)...)
 			return
@@ -114,7 +117,7 @@ func (a *API) handleDeleteRelationship(mStruct *mapping.ModelStruct, relation *m
 
 			for _, relationModel := range models {
 				var isToDelete bool
-				for _, toDeleteModel := range relations {
+				for _, toDeleteModel := range payload.Data {
 					if relationModel.GetPrimaryKeyHashableValue() == toDeleteModel.GetPrimaryKeyHashableValue() {
 						isToDelete = true
 						break
@@ -141,7 +144,7 @@ func (a *API) handleDeleteRelationship(mStruct *mapping.ModelStruct, relation *m
 				return
 			}
 			var alreadySet bool
-			for _, relation := range relations {
+			for _, relation := range payload.Data {
 				if relation.GetPrimaryKeyHashableValue() == relationModel.GetPrimaryKeyHashableValue() {
 					alreadySet = true
 					break
@@ -154,9 +157,9 @@ func (a *API) handleDeleteRelationship(mStruct *mapping.ModelStruct, relation *m
 		}
 
 		if len(relationsToSet) == 0 {
-			_, err = orm.RemoveRelations(params.Context, params.DB, params.Scope, relation)
+			_, err = db.RemoveRelations(params.Context, params.DB, params.Scope, relation)
 		} else {
-			err = orm.SetRelations(params.Context, params.DB, params.Scope, relation, relationsToSet...)
+			err = db.SetRelations(params.Context, params.DB, params.Scope, relation, relationsToSet...)
 		}
 		if err != nil {
 			a.marshalErrors(rw, 0, httputil.MapError(err)...)

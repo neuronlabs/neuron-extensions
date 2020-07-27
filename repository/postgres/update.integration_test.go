@@ -9,11 +9,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/internal"
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/migrate"
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/tests"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/migrate"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/tests"
+	"github.com/neuronlabs/neuron/db"
 	"github.com/neuronlabs/neuron/errors"
-	"github.com/neuronlabs/neuron/orm"
 	"github.com/neuronlabs/neuron/query"
 )
 
@@ -37,7 +37,7 @@ func TestUpdate(t *testing.T) {
 	}()
 
 	// No results should return no error.
-	db := orm.New(c)
+	db := db.New(c)
 
 	newModel := func() *tests.SimpleModel {
 		return &tests.SimpleModel{

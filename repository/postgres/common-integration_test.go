@@ -12,8 +12,8 @@ import (
 
 	"github.com/neuronlabs/neuron/controller"
 
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/internal"
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/tests"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/tests"
 )
 
 func init() {

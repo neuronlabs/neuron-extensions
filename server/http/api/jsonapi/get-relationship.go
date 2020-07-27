@@ -5,12 +5,13 @@ import (
 	"net/http"
 
 	"github.com/neuronlabs/neuron/codec"
+	"github.com/neuronlabs/neuron/db"
 	"github.com/neuronlabs/neuron/mapping"
-	"github.com/neuronlabs/neuron/orm"
 	"github.com/neuronlabs/neuron/query"
+	"github.com/neuronlabs/neuron/query/filter"
 
-	"github.com/neuronlabs/neuron-plugins/server/http/httputil"
-	"github.com/neuronlabs/neuron-plugins/server/http/log"
+	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
+	"github.com/neuronlabs/neuron-extensions/server/http/log"
 )
 
 // HandleGetRelationship handles json:api get relationship endpoint for the 'model'.
@@ -50,7 +51,7 @@ func (a *API) handleGetRelationship(mStruct *mapping.ModelStruct, field *mapping
 		// Set preset filters.
 		s := query.NewScope(mStruct)
 		// Set the primary field value.
-		if err = s.Filter(query.NewFilterField(mStruct.Primary(), query.OpEqual, model.GetPrimaryKeyValue())); err != nil {
+		if s.Filter(filter.New(mStruct.Primary(), filter.OpEqual, model.GetPrimaryKeyValue())); err != nil {
 			log.Errorf("[GET-RELATED][%s][%s] Adding param primary filter with value: '%s' failed: %v", mStruct.Collection(), field.NeuronName(), id, err)
 			a.marshalErrors(rw, 0, httputil.ErrInternalError())
 			return
@@ -78,7 +79,7 @@ func (a *API) handleGetRelationship(mStruct *mapping.ModelStruct, field *mapping
 			}
 		}
 
-		model, err = orm.Get(params.Context, params.DB, params.Scope)
+		model, err = db.Get(params.Context, params.DB, params.Scope)
 		if err != nil {
 			log.Errorf("[GET-RELATED][%s][%s] Setting related field into fieldset failed: %v", mStruct.Collection(), field.NeuronName(), err)
 			a.marshalErrors(rw, 0, httputil.MapError(err)...)
@@ -99,15 +100,6 @@ func (a *API) handleGetRelationship(mStruct *mapping.ModelStruct, field *mapping
 			linkType = codec.NoLink
 		}
 
-		options := &codec.MarshalOptions{
-			Link: codec.LinkOptions{
-				Type:         linkType,
-				BaseURL:      a.BasePath,
-				RootID:       id,
-				Collection:   mStruct.Collection(),
-				RelatedField: field.NeuronName(),
-			},
-		}
 		var models []mapping.Model
 		if field.Relationship().IsToMany() {
 			mr, ok := model.(mapping.MultiRelationer)
@@ -136,6 +128,20 @@ func (a *API) handleGetRelationship(mStruct *mapping.ModelStruct, field *mapping
 			models = append(models, relationModel)
 		}
 
-		a.marshalModels(field.Relationship().Struct(), models, rw, http.StatusOK, options)
+		// TODO: add relations.
+		payload := codec.Payload{
+			ModelStruct: field.Relationship().Struct(),
+			Data:        models,
+			FieldSets:   []mapping.FieldSet{field.Relationship().Struct().Fields()},
+			MarshalLinks: &codec.LinkOptions{
+				Type:          linkType,
+				BaseURL:       a.BasePath,
+				RootID:        id,
+				Collection:    mStruct.Collection(),
+				RelationField: field.NeuronName(),
+			},
+			MarshalSingularFormat: false,
+		}
+		a.marshalPayload(rw, &payload, http.StatusOK)
 	}
 }

@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/migrate"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/migrate"
 	"github.com/neuronlabs/neuron/config"
 	"github.com/neuronlabs/neuron/controller"
 	"github.com/neuronlabs/neuron/mapping"

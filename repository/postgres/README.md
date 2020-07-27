@@ -60,7 +60,7 @@ import (
     "github.com/neuronlabs/neuron/config"
     "github.com/neuronlabs/neuron/log"
     // import postgres repository driver
-    _ "github.com/neuronlabs/neuron-plugins/repository/postgres"
+    _ "github.com/neuronlabs/neuron-extensions/repository/postgres"
 )
 
 

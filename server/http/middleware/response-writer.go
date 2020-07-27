@@ -9,7 +9,7 @@ import (
 	"github.com/neuronlabs/brotli"
 	"github.com/neuronlabs/jsonapi-handler/log"
 
-	"github.com/neuronlabs/neuron-plugins/server/http/httputil"
+	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
 )
 
 var _ http.ResponseWriter = &responseWriter{}

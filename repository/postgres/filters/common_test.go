@@ -8,7 +8,7 @@ import (
 	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/query"
 
-	"github.com/neuronlabs/neuron-plugins/repository/postgres/migrate"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/migrate"
 )
 
 //go:generate neuron-generator models methods --format=goimports --type=QueryModel --single-file .

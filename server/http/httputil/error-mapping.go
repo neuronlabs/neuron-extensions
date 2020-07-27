@@ -5,11 +5,11 @@ import (
 
 	"github.com/neuronlabs/neuron/auth"
 	"github.com/neuronlabs/neuron/codec"
-	"github.com/neuronlabs/neuron/controller"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/log"
 	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/query"
+	"github.com/neuronlabs/neuron/query/filter"
 	"github.com/neuronlabs/neuron/server"
 )
 
@@ -19,12 +19,12 @@ type ErrFunc func() *codec.Error
 // DefaultClassMapper is the default error classification mapper.
 var DefaultClassMapper = &ClassMapper{
 	Majors: map[errors.Major]ErrFunc{
-		controller.MjrInternal: ErrInternalError,
-		codec.MjrCodec:         ErrInvalidInput,
+		errors.MjrInternal: ErrInternalError,
+		codec.MjrCodec:     ErrInvalidInput,
+		filter.MjrFilter:   ErrInvalidQueryParameter,
 	},
 	Minors: map[errors.Minor]ErrFunc{
 		codec.MnrUnmarshal:    ErrInvalidInput,
-		query.MnrFilter:       ErrInvalidQueryParameter,
 		query.MnrViolation:    ErrInvalidJSONFieldValue,
 		mapping.MnrModel:      ErrInternalError,
 		mapping.MnrRepository: ErrInternalError,
@@ -33,7 +33,7 @@ var DefaultClassMapper = &ClassMapper{
 		// Query:
 		query.ClassFieldValue:         ErrInvalidJSONFieldValue,
 		query.ClassInvalidParameter:   ErrInvalidQueryParameter,
-		query.ClassFilterCollection:   ErrInvalidResourceName,
+		filter.ClassFilterCollection:  ErrInvalidResourceName,
 		query.ClassInvalidSort:        ErrInvalidQueryParameter,
 		query.ClassInvalidFieldSet:    ErrInvalidQueryParameter,
 		query.ClassNoFieldsInFieldSet: ErrInvalidQueryParameter,

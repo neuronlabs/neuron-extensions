@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/neuronlabs/neuron-plugins/server/http/httputil"
+	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
 	"github.com/neuronlabs/neuron/codec"
 )
 

@@ -9,12 +9,12 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 
-	httpServer "github.com/neuronlabs/neuron-plugins/server/http"
-	"github.com/neuronlabs/neuron-plugins/server/http/httputil"
-	"github.com/neuronlabs/neuron-plugins/server/http/middleware"
+	httpServer "github.com/neuronlabs/neuron-extensions/server/http"
+	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
+	"github.com/neuronlabs/neuron-extensions/server/http/middleware"
 	"github.com/neuronlabs/neuron/auth"
+	"github.com/neuronlabs/neuron/db"
 	"github.com/neuronlabs/neuron/errors"
-	"github.com/neuronlabs/neuron/orm"
 	"github.com/neuronlabs/neuron/server"
 
 	"github.com/neuronlabs/neuron/codec"
@@ -23,7 +23,7 @@ import (
 	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/query"
 
-	"github.com/neuronlabs/neuron-plugins/codec/jsonapi"
+	"github.com/neuronlabs/neuron-extensions/codec/jsonapi"
 )
 
 // Compile time check if API implements httpServer.API.
@@ -39,7 +39,7 @@ type API struct {
 	NoContentOnCreate bool
 	// StrictFieldsMode defines if the during unmarshal process the query should strictly check
 	// if all the fields are well known to given model.
-	StrictMarshal bool
+	StrictUnmarshal bool
 	// IncludeNestedLimit is a maximum value for nested includes (i.e. IncludeNestedLimit = 1
 	// allows ?include=posts.comments but does not allow ?include=posts.comments.author)
 	IncludeNestedLimit int
@@ -53,7 +53,7 @@ type API struct {
 	// Server options.
 	Authorizer    auth.Authorizer
 	Authenticator auth.Authenticator
-	DB            orm.DB
+	DB            db.DB
 	Controller    *controller.Controller
 
 	modelEndpoints   map[string][]*Endpoint
@@ -183,7 +183,7 @@ func (a *API) writeContentType(rw http.ResponseWriter) {
 }
 
 func (a *API) jsonapiUnmarshalOptions() *codec.UnmarshalOptions {
-	return &codec.UnmarshalOptions{StrictUnmarshal: a.StrictMarshal}
+	return &codec.UnmarshalOptions{StrictUnmarshal: a.StrictUnmarshal}
 }
 
 func (a *API) marshalErrors(rw http.ResponseWriter, status int, errs ...*codec.Error) {
@@ -201,14 +201,12 @@ func (a *API) marshalErrors(rw http.ResponseWriter, status int, errs ...*codec.E
 	}
 }
 
-func (a *API) marshalScope(s *query.Scope, rw http.ResponseWriter, status int, option *codec.MarshalOptions) {
+func (a *API) marshalPayload(rw http.ResponseWriter, payload *codec.Payload, status int) {
 	a.writeContentType(rw)
-	rw.WriteHeader(status)
-
 	buf := &bytes.Buffer{}
-	qm := jsonapi.Codec().(codec.QueryMarshaler)
-	if err := qm.MarshalQuery(buf, s, option); err != nil {
-		log.Errorf("[SCOPE][%s] jsonapi.MarshalScope failed: %v", s.ID.String(), err)
+	payloadMarshaler := jsonapi.Codec().(codec.PayloadMarshaler)
+	if err := payloadMarshaler.MarshalPayload(buf, payload); err != nil {
+		rw.WriteHeader(500)
 		err := jsonapi.Codec().MarshalErrors(rw, httputil.ErrInternalError())
 		if err != nil {
 			switch err {
@@ -220,33 +218,9 @@ func (a *API) marshalScope(s *query.Scope, rw http.ResponseWriter, status int, o
 		}
 		return
 	}
-
-	if _, err := rw.Write(buf.Bytes()); err != nil {
-		log.Errorf("Writing to response writer failed")
-	}
-}
-
-func (a *API) marshalModels(mStruct *mapping.ModelStruct, models []mapping.Model, rw http.ResponseWriter, status int, option *codec.MarshalOptions) {
-	a.writeContentType(rw)
 	rw.WriteHeader(status)
-
-	buf := &bytes.Buffer{}
-
-	if err := jsonapi.Codec().MarshalModels(buf, mStruct, models, option); err != nil {
-		err := jsonapi.Codec().MarshalErrors(rw, httputil.ErrInternalError())
-		if err != nil {
-			switch err {
-			case io.ErrShortWrite, io.ErrClosedPipe:
-				log.Debug2f("An error occurred while writing api errors: %v", err)
-			default:
-				log.Errorf("Marshaling error failed: %v", err)
-			}
-		}
-		return
-	}
-
 	if _, err := rw.Write(buf.Bytes()); err != nil {
-		log.Errorf("Writing to response writer failed")
+		log.Errorf("Writing to response writer failed: %v", err)
 	}
 }
 

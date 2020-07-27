@@ -30,69 +30,7 @@ const (
 	ParamPageNumber = "page[number]"
 )
 
-// UnmarshalModels implements neuronCodec.codec interface.
-func (c *codec) UnmarshalModels(r io.Reader, modelStruct *mapping.ModelStruct, options *neuronCodec.UnmarshalOptions) ([]mapping.Model, error) {
-	payloader, err := unmarshalPayload(r, options)
-	if err != nil {
-		return nil, unmarshalHandleDecodeError(err)
-	}
-
-	var includes map[string]*Node
-	if len(payloader.GetIncluded()) != 0 {
-		includes = map[string]*Node{}
-		for _, included := range payloader.GetIncluded() {
-			includes[includedKeyFunc(included)] = included
-		}
-	}
-
-	var models []mapping.Model
-	for _, node := range payloader.GetNodes() {
-		model := mapping.NewModel(modelStruct)
-		if _, err = unmarshalNode(modelStruct, node, model, includes, options); err != nil {
-			return nil, err
-		}
-		models = append(models, model)
-	}
-	return models, nil
-}
-
-// UnmarshalQuery implements neuronCodec.QueryUnmarshaler interface.
-func (c *codec) UnmarshalQuery(r io.Reader, modelStruct *mapping.ModelStruct, options *neuronCodec.UnmarshalOptions) (*query.Scope, error) {
-	payload, err := unmarshalPayload(r, options)
-	if err != nil {
-		return nil, unmarshalHandleDecodeError(err)
-	}
-
-	// TODO: set metadata to the query scope.
-	// TODO: set included relations from the options.
-	var includes map[string]*Node
-	if len(payload.GetIncluded()) != 0 {
-		includes = map[string]*Node{}
-		for _, included := range payload.GetIncluded() {
-			includes[includedKeyFunc(included)] = included
-		}
-	}
-
-	// Extract models and related fieldsets.
-	nodes := payload.GetNodes()
-	switch len(nodes) {
-	case 0:
-		return query.NewScope(modelStruct), nil
-	case 1:
-		model := mapping.NewModel(modelStruct)
-		fieldSet, err := unmarshalNode(modelStruct, nodes[0], model, includes, options)
-		if err != nil {
-			return nil, err
-		}
-		s := query.NewScope(modelStruct, model)
-		s.FieldSet = fieldSet
-		return s, nil
-	default:
-		return nil, errors.New(neuronCodec.ClassUnmarshal, "unmarshal multiple query nodes not implemented yet")
-	}
-}
-
-func (c *codec) newIncludedRelation(sField *mapping.StructField, fields map[*mapping.ModelStruct]mapping.FieldSet) (includedRelation *query.IncludedRelation) {
+func (j *jsonapiCodec) newIncludedRelation(sField *mapping.StructField, fields map[*mapping.ModelStruct]mapping.FieldSet) (includedRelation *query.IncludedRelation) {
 	includedRelation = &query.IncludedRelation{StructField: sField}
 	fs, ok := fields[sField.ModelStruct()]
 	if ok {
@@ -102,21 +40,21 @@ func (c *codec) newIncludedRelation(sField *mapping.StructField, fields map[*map
 			case mapping.KindAttribute:
 				includedRelation.Fieldset = append(includedRelation.Fieldset, field)
 			case mapping.KindRelationshipMultiple, mapping.KindRelationshipSingle:
-				includedRelation.IncludedRelations = append(includedRelation.IncludedRelations, c.newIncludedRelation(field, fields))
+				includedRelation.IncludedRelations = append(includedRelation.IncludedRelations, j.newIncludedRelation(field, fields))
 			}
 		}
 	} else {
 		// By default set full fieldset and all possible relationships.
 		includedRelation.Fieldset = sField.ModelStruct().Fields()
 		for _, relation := range sField.ModelStruct().RelationFields() {
-			includedRelation.IncludedRelations = append(includedRelation.IncludedRelations, c.newIncludedRelation(relation, fields))
+			includedRelation.IncludedRelations = append(includedRelation.IncludedRelations, j.newIncludedRelation(relation, fields))
 		}
 	}
 
 	return includedRelation
 }
 
-func unmarshalPayload(in io.Reader, options *neuronCodec.UnmarshalOptions) (Payloader, error) {
+func unmarshalPayload(in io.Reader, options neuronCodec.UnmarshalOptions) (Payloader, error) {
 	data, err := ioutil.ReadAll(in)
 	if err != nil {
 		return nil, err
@@ -144,16 +82,14 @@ func unmarshalPayload(in io.Reader, options *neuronCodec.UnmarshalOptions) (Payl
 	switch t {
 	case json.Delim('{'):
 		payloader = &SinglePayload{}
-	case json.Delim('['):
+	case json.Delim('['), nil:
 		payloader = &ManyPayload{}
-	case nil:
-		return nil, errors.New(neuronCodec.ClassNullDataInput, "provided null input")
 	default:
 		return nil, errors.New(neuronCodec.ClassUnmarshalDocument, "invalid input")
 	}
 	r.Seek(0, io.SeekStart)
 	dec = json.NewDecoder(r)
-	if options != nil && options.StrictUnmarshal {
+	if options.StrictUnmarshal {
 		dec.DisallowUnknownFields()
 	}
 	if err = dec.Decode(payloader); err != nil {
@@ -227,7 +163,7 @@ func unmarshalHandleDecodeError(err error) error {
 	}
 }
 
-func unmarshalNode(mStruct *mapping.ModelStruct, data *Node, model mapping.Model, included map[string]*Node, options *neuronCodec.UnmarshalOptions) (fieldSet mapping.FieldSet, err error) {
+func unmarshalNode(mStruct *mapping.ModelStruct, data *Node, model mapping.Model, included map[string]*Node, options neuronCodec.UnmarshalOptions) (fieldSet mapping.FieldSet, err error) {
 	if data.Type != model.NeuronCollectionName() {
 		err := errors.NewDet(neuronCodec.ClassUnmarshal, "unmarshal collection name doesn't match the root struct").
 			WithDetailf("unmarshal collection: '%s' doesn't match root collection:'%s'", data.Type, model.NeuronCollectionName())
@@ -247,7 +183,7 @@ func unmarshalNode(mStruct *mapping.ModelStruct, data *Node, model mapping.Model
 		if !isFielder {
 			if len(mStruct.Attributes()) > 0 {
 				return nil, errors.New(neuronCodec.ClassInternal, "provided model is not a Fielder")
-			} else if options != nil && options.StrictUnmarshal {
+			} else if options.StrictUnmarshal {
 				return nil, errors.New(neuronCodec.ClassUnmarshal, "provided model doesn't have any attributes")
 			}
 		} else {
@@ -299,7 +235,7 @@ func unmarshalNode(mStruct *mapping.ModelStruct, data *Node, model mapping.Model
 							return nil, errors.NewDet(mapping.ClassFieldValue, "invalid ISO8601 time field").
 								WithDetailf("Time field: '%s' has invalid formatting.", modelAttr.NeuronName())
 						}
-						t, err := time.Parse(strVal, ISO8601TimeFormat)
+						t, err := time.Parse(strVal, neuronCodec.ISO8601TimeFormat)
 						if err != nil {
 							return nil, errors.NewDet(mapping.ClassFieldValue, "invalid ISO8601 time field").
 								WithDetailf("Time field: '%s' has invalid formatting.", modelAttr.NeuronName())
@@ -370,7 +306,7 @@ func unmarshalNode(mStruct *mapping.ModelStruct, data *Node, model mapping.Model
 			}
 
 			if !ok || (ok && isHidden) {
-				if options != nil && options.StrictUnmarshal {
+				if options.StrictUnmarshal {
 					err := errors.NewDet(neuronCodec.ClassUnmarshal, "unknown field name")
 					err.Details = fmt.Sprintf("Provided unknown field name: '%s', for the collection: '%s'.", relName, data.Type)
 					return nil, err
@@ -429,7 +365,7 @@ func unmarshalNode(mStruct *mapping.ModelStruct, data *Node, model mapping.Model
 				}
 
 				if err := json.NewDecoder(buf).Decode(relationship); err != nil {
-					log.Debug2f("Controller.UnmarshalNode.RelationshipSingel json.Decode failed. %v", err)
+					log.Debug2f("Controller.UnmarshalNode.RelationshipSingle json.Decode failed. %v", err)
 					err := errors.NewDet(neuronCodec.ClassUnmarshal, "invalid relationship format")
 					err.Details = fmt.Sprintf("The value for the relationship: '%s' is of invalid form.", relName)
 					return nil, err
@@ -451,7 +387,7 @@ func unmarshalNode(mStruct *mapping.ModelStruct, data *Node, model mapping.Model
 			}
 		}
 	}
-	return nil, nil
+	return fieldSet, nil
 }
 
 func fullNode(n *Node, included map[string]*Node) *Node {
