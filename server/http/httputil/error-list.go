@@ -216,9 +216,17 @@ STATUS 403
 */
 
 // ErrForbidden server understood the request but refuses to authorize it.
-func ErrForbidden() *codec.Error {
+func ErrForbiddenAuthorize() *codec.Error {
 	return &codec.Error{
 		Title:  "The server understood the request but refuses to authorize it.",
+		Status: "403",
+	}
+}
+
+// ErrForbiddenOperation server understood the request but current operation is not allowed.
+func ErrForbiddenOperation() *codec.Error {
+	return &codec.Error{
+		Title:  "The server understood the request but current operation is forbidden.",
 		Status: "403",
 	}
 }

@@ -39,13 +39,14 @@ var DefaultClassMapper = &ClassMapper{
 		query.ClassNoFieldsInFieldSet: ErrInvalidQueryParameter,
 		query.ClassViolationUnique:    ErrResourceAlreadyExists,
 		query.ClassViolationCheck:     ErrInvalidJSONFieldValue,
-		query.ClassViolationNotNull:   ErrInvalidJSONFieldValue,
+		query.ClassViolationNotNull:   ErrInvalidInput,
 		codec.ClassMarshal:            ErrInternalError,
 		// Codec:
 		codec.ClassUnmarshalDocument: ErrInvalidJSONDocument,
 		// Mapping:
 		mapping.ClassFieldValue:           ErrInvalidJSONFieldValue,
 		mapping.ClassFieldNotParser:       ErrInvalidQueryParameter,
+		mapping.ClassFieldNotNullable:     ErrForbiddenOperation,
 		mapping.ClassModelNotFound:        ErrResourceNotFound,
 		mapping.ClassInvalidRelationField: ErrInvalidQueryParameter,
 		// Server:
@@ -56,8 +57,8 @@ var DefaultClassMapper = &ClassMapper{
 		// Auth:
 		auth.ClassAccountNotFound:     ErrInvalidAuthenticationInfo,
 		auth.ClassInvalidSecret:       ErrInvalidAuthenticationInfo,
-		auth.ClassForbidden:           ErrForbidden,
-		auth.ClassInvalidRole:         ErrForbidden,
+		auth.ClassForbidden:           ErrForbiddenAuthorize,
+		auth.ClassInvalidRole:         ErrForbiddenAuthorize,
 		auth.ClassAuthorizationHeader: ErrInvalidAuthorizationHeader,
 	},
 }
@@ -91,6 +92,10 @@ func (c *ClassMapper) Errors(err error) []*codec.Error {
 
 func (c *ClassMapper) errors(err error) []*codec.Error {
 	switch et := err.(type) {
+	case *codec.Error:
+		return []*codec.Error{et}
+	case codec.MultiError:
+		return et
 	case errors.ClassError:
 		return []*codec.Error{c.mapSingleError(et)}
 	case errors.MultiError:

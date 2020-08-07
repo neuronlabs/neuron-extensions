@@ -17,14 +17,14 @@ import (
 
 // TestMarshal tests the marshal function.
 func TestMarshal(t *testing.T) {
-	prepare := func(t *testing.T, models ...mapping.Model) *jsonapiCodec {
+	prepare := func(t *testing.T, models ...mapping.Model) *Codec {
 		t.Helper()
 		c := controller.NewDefault()
 		require.NoError(t, c.RegisterModels(models...))
-		return &jsonapiCodec{c: c}
+		return &Codec{c: c}
 	}
 
-	prepareBlogs := func(t *testing.T) *jsonapiCodec {
+	prepareBlogs := func(t *testing.T) *Codec {
 		return prepare(t, &Blog{}, &Post{}, &Comment{})
 	}
 
@@ -237,7 +237,7 @@ func TestMarshalPayload(t *testing.T) {
 		pet := &Pet{ID: 5, Owners: []*User{{ID: 2, privateField: 1}, {ID: 3}}}
 		modelStruct := c.MustModelStruct(pet)
 
-		cd := &jsonapiCodec{c: c}
+		cd := &Codec{c: c}
 
 		owners, ok := modelStruct.RelationByName("Owners")
 		require.True(t, ok)
@@ -247,7 +247,7 @@ func TestMarshalPayload(t *testing.T) {
 			Data:        []mapping.Model{pet},
 			IncludedRelations: []*query.IncludedRelation{{
 				StructField: owners,
-				Fieldset:    owners.Relationship().Struct().StructFields(),
+				Fieldset:    owners.Relationship().RelatedModelStruct().StructFields(),
 			}},
 		}
 
@@ -290,10 +290,10 @@ func TestMarshalPayload(t *testing.T) {
 			Data:        []mapping.Model{pet},
 			IncludedRelations: []*query.IncludedRelation{{
 				StructField: owners,
-				Fieldset:    owners.Relationship().Struct().StructFields(),
+				Fieldset:    owners.Relationship().RelatedModelStruct().StructFields(),
 			}},
 		}
-		cd := &jsonapiCodec{c: c}
+		cd := &Codec{c: c}
 
 		nodes, err := cd.visitPayloadModels(payload)
 		require.NoError(t, err)
@@ -384,7 +384,7 @@ func TestMarshalCustomTag(t *testing.T) {
 		FieldSets:   []mapping.FieldSet{append([]*mapping.StructField{modelStruct.Primary()}, attributes...)},
 	}
 
-	cd := &jsonapiCodec{c: c}
+	cd := &Codec{c: c}
 
 	nodes, err := cd.visitPayloadModels(payload)
 	require.NoError(t, err)

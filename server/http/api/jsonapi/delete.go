@@ -3,13 +3,11 @@ package jsonapi
 import (
 	"net/http"
 
-	"github.com/neuronlabs/neuron/db"
-	"github.com/neuronlabs/neuron/mapping"
-	"github.com/neuronlabs/neuron/query"
-	"github.com/neuronlabs/neuron/query/filter"
-
 	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
 	"github.com/neuronlabs/neuron-extensions/server/http/log"
+	"github.com/neuronlabs/neuron/mapping"
+	"github.com/neuronlabs/neuron/query"
+	"github.com/neuronlabs/neuron/server"
 )
 
 // HandleDelete handles json:api delete endpoint for the 'model'. Panics if the model is not mapped for given API controller.
@@ -40,44 +38,60 @@ func (a *API) handleDelete(mStruct *mapping.ModelStruct) http.HandlerFunc {
 			return
 		}
 
-		s := query.NewScope(mStruct)
-		if s.Filter(filter.New(mStruct.Primary(), filter.OpEqual, model.GetPrimaryKeyValue())); err != nil {
-			// this should not occur - primary field's model must match scope's model.
-			log.Errorf("[DELETE][%s] Adding param primary filter with value: '%s' failed: %v", mStruct.Collection(), id, err)
-			a.marshalErrors(rw, 0, httputil.ErrInternalError())
+		// Check if the primary key is not zero value.
+		if model.IsPrimaryKeyZero() {
+			err := httputil.ErrInvalidQueryParameter()
+			err.Detail = "provided zero value primary key for the model"
+			a.marshalErrors(rw, 0, err)
 			return
 		}
+		// Create scope for the delete purpose.
+		s := query.NewScope(mStruct, model)
 
-		// Set endpoint parameters.
-		params := &QueryParams{
-			Context: req.Context(),
-			DB:      a.DB,
-			Scope:   s,
+		params := &server.Params{
+			Ctx:           req.Context(),
+			DB:            a.DB,
+			Authenticator: a.Authenticator,
+			Authorizer:    a.Authorizer,
 		}
 
-		// Get and apply hook functions.
-		for _, hook := range hooks.getPreHooks(mStruct, query.Delete) {
-			if err = hook(params); err != nil {
-				a.marshalErrors(rw, 0, httputil.MapError(err)...)
-				return
+		modelHandler, hasModelHandler := a.handlers[mStruct]
+		if hasModelHandler {
+			beforeDeleter, ok := modelHandler.(server.BeforeDeleteHandler)
+			if ok {
+				if err = beforeDeleter.HandleBeforeDelete(params, s); err != nil {
+					a.marshalErrors(rw, 0, httputil.MapError(err)...)
+					return
+				}
 			}
 		}
 
-		if _, err = db.Delete(params.Context, params.DB, params.Scope); err != nil {
+		deleteHandler, ok := modelHandler.(server.DeleteHandler)
+		if !ok {
+			deleteHandler = a.defaultHandler
+		}
+
+		result, err := deleteHandler.HandleDelete(ctx, *params, s)
+		if err != nil {
 			log.Debugf("[DELETE][SCOPE][%s] Delete %s/%s root scope failed: %v", s.ID, mStruct.Collection(), id, err)
 			a.marshalErrors(rw, 0, httputil.MapError(err)...)
 			return
 		}
-
-		// Get and apply post hook functions.
-		for _, hook := range hooks.getPostHooks(mStruct, query.Delete) {
-			if err = hook(params); err != nil {
-				a.marshalErrors(rw, 0, httputil.MapError(err)...)
-				return
+		if hasModelHandler {
+			afterHandler, ok := modelHandler.(server.AfterDeleteHandler)
+			if ok {
+				if err = afterHandler.HandleAfterDelete(params, s, result); err != nil {
+					a.marshalErrors(rw, 0, httputil.MapError(err)...)
+					return
+				}
 			}
 		}
 
-		// Write no content status.
-		rw.WriteHeader(http.StatusNoContent)
+		if result == nil || result.Meta == nil {
+			// Write no content status.
+			rw.WriteHeader(http.StatusNoContent)
+			return
+		}
+		a.marshalPayload(rw, result, http.StatusOK)
 	}
 }

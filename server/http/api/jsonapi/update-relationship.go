@@ -8,10 +8,10 @@ import (
 	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
 	"github.com/neuronlabs/neuron-extensions/server/http/log"
 	"github.com/neuronlabs/neuron/codec"
-	"github.com/neuronlabs/neuron/db"
+	"github.com/neuronlabs/neuron/database"
 	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/query"
-	"github.com/neuronlabs/neuron/query/filter"
+	"github.com/neuronlabs/neuron/server"
 )
 
 // HandleUpdateRelationship handles json:api update relationship endpoint for the 'model'.
@@ -32,7 +32,7 @@ func (a *API) handleUpdateRelationship(mStruct *mapping.ModelStruct, relation *m
 		// Get the id from the url.
 		id := httputil.CtxMustGetID(req.Context())
 		if id == "" {
-			log.Debugf("[PATCH][%s] Empty id params", mStruct.Collection())
+			log.Debugf("[UPDATE-RELATIONSHIP][%s] Empty id params", mStruct.Collection())
 			err := httputil.ErrBadRequest()
 			err.Detail = "Provided empty 'id' in url"
 			a.marshalErrors(rw, 0, err)
@@ -41,77 +41,109 @@ func (a *API) handleUpdateRelationship(mStruct *mapping.ModelStruct, relation *m
 
 		model := mapping.NewModel(mStruct)
 		if err := model.SetPrimaryKeyStringValue(id); err != nil {
+			err := httputil.ErrInvalidQueryParameter()
+			err.Detail = "provided invalid 'id' value"
 			a.marshalErrors(rw, 0, httputil.MapError(err)...)
 			return
 		}
 
-		var removeRelationship bool
-		pu := jsonapi.Codec().(codec.PayloadUnmarshaler)
+		// Check if url parameter 'id' has zero value.
+		if model.IsPrimaryKeyZero() {
+			err := httputil.ErrInvalidQueryParameter()
+			err.Detail = "provided zero value primary key"
+			a.marshalErrors(rw, 0, err)
+			return
+		}
+
+		// Unmarshal relationship input.
+		pu := jsonapi.GetCodec(a.Controller).(codec.PayloadUnmarshaler)
 		payload, err := pu.UnmarshalPayload(req.Body, codec.UnmarshalOptions{
-			StrictUnmarshal: a.StrictUnmarshal,
-			ModelStruct:     relation.Relationship().Struct(),
+			StrictUnmarshal: a.Options.StrictUnmarshal,
+			ModelStruct:     relation.Relationship().RelatedModelStruct(),
 		})
 		if err != nil {
 			a.marshalErrors(rw, 0, httputil.MapError(err)...)
 			return
 		}
 
-		if len(payload.Data) == 0 {
-			removeRelationship = true
+		// Check if none of provided relations has zero value primary key.4
+		for _, relation := range payload.Data {
+			if relation.IsPrimaryKeyZero() {
+				err := httputil.ErrInvalidJSONFieldValue()
+				err.Detail = "one of provided relationships doesn't have it's primary key value stored"
+				a.marshalErrors(rw, 0, err)
+				return
+			}
 		}
 
+		// Create a query scope.
 		s := query.NewScope(mStruct, model)
-		s.FieldSets = payload.FieldSets
+		s.FieldSets = []mapping.FieldSet{{mStruct.Primary()}}
 
-		params := &QueryParams{
-			Context:   req.Context(),
-			DB:        a.DB,
-			Scope:     s,
-			Relations: nil,
-		}
-
-		// Get and apply pre hook functions.
-		for _, hook := range hooks.getPreHooksRelation(mStruct, query.UpdateRelationship, relation.Name()) {
-			if err = hook(params); err != nil {
-				a.marshalErrors(rw, 0, httputil.MapError(err)...)
-				return
-			}
-		}
-
-		// Check if the model with provided id exists.
-		existScope := query.NewScope(mStruct)
-		if existScope.Filter(filter.New(mStruct.Primary(), filter.OpEqual, model.GetPrimaryKeyValue())); err != nil {
-			a.marshalErrors(rw, 0, httputil.ErrInternalError())
+		// Include relation values.
+		if err = s.Include(relation, relation.Relationship().RelatedModelStruct().Primary()); err != nil {
+			a.marshalErrors(rw, 500, httputil.ErrInternalError())
 			return
 		}
 
-		exists, err := db.Exists(params.Context, params.DB, existScope)
+		params := a.params(req)
+		// Doing changes in the relationship requires to run it in a transaction.
+		tx, err := database.Begin(params.Ctx, params.DB, nil)
+		if err != nil {
+			a.marshalErrors(rw, 0, httputil.MapError(err)...)
+			return
+		}
+		defer func() {
+			if err != nil && !tx.State().Done() {
+				if err = tx.Rollback(); err != nil {
+					log.Errorf("Rolling back a transaction failed")
+				}
+			}
+		}()
+
+		params.DB = tx
+		_, err = a.getHandleChain(params, s)
 		if err != nil {
 			a.marshalErrors(rw, 0, httputil.MapError(err)...)
 			return
 		}
 
-		if !exists {
-			a.marshalErrors(rw, http.StatusNotFound, httputil.ErrResourceNotFound())
-			return
+		modelHandler, hasModelHandler := a.handlers[mStruct]
+		if hasModelHandler {
+			if beforeHandler, ok := modelHandler.(server.BeforeUpdateRelationsHandler); ok {
+				if err = beforeHandler.HandleBeforeUpdateRelations(params, model, payload); err != nil {
+					a.marshalErrors(rw, 0, httputil.MapError(err)...)
+					return
+				}
+			}
 		}
 
-		if removeRelationship {
-			_, err = db.RemoveRelations(params.Context, params.DB, params.Scope, relation)
-		} else {
-			err = db.SetRelations(params.Context, params.DB, params.Scope, relation, payload.Data...)
+		// Handle set relationships.
+		handler, ok := modelHandler.(server.SetRelationsHandler)
+		if !ok {
+			handler = a.defaultHandler
 		}
+		var result *codec.Payload
+		result, err = handler.HandleSetRelations(params.Ctx, *params, model, payload.Data, relation)
 		if err != nil {
 			a.marshalErrors(rw, 0, httputil.MapError(err)...)
 			return
 		}
 
-		// Get and apply pre hook functions.
-		for _, hook := range hooks.getPostHooksRelation(mStruct, query.UpdateRelationship, relation.Name()) {
-			if err = hook(params); err != nil {
-				a.marshalErrors(rw, 0, httputil.MapError(err)...)
-				return
+		// Do the after delete handler.
+		if hasModelHandler {
+			if afterHandler, ok := modelHandler.(server.AfterUpdateRelationsHandler); ok {
+				if err = afterHandler.HandleAfterUpdateRelations(params, model, payload.Data, result); err != nil {
+					a.marshalErrors(rw, 0, httputil.MapError(err)...)
+					return
+				}
 			}
+		}
+
+		if err = tx.Commit(); err != nil {
+			log.Errorf("Cannot commit a transaction: %v", err)
+			a.marshalErrors(rw, 500, httputil.ErrInternalError())
+			return
 		}
 
 		var hasJsonapiMimeType bool
@@ -122,29 +154,26 @@ func (a *API) handleUpdateRelationship(mStruct *mapping.ModelStruct, relation *m
 			}
 		}
 
-		if !hasJsonapiMimeType {
-			log.Debug3f("[PATCH][%s][%s] No 'Accept' Header - returning HTTP Status: No Content - 204", mStruct.Collection(), s.ID)
+		if !hasJsonapiMimeType || result == nil || (result.Data != nil && result.Meta != nil) {
 			rw.WriteHeader(http.StatusNoContent)
 			return
 		}
 
 		link := codec.RelationshipLink
-		if !a.MarshalLinks {
+		if !a.Options.PayloadLinks {
 			link = codec.NoLink
 		}
-		resPayload := codec.Payload{
-			ModelStruct: relation.Relationship().Struct(),
-			Data:        payload.Data,
-			FieldSets:   payload.FieldSets,
-			MarshalLinks: &codec.LinkOptions{
-				Type:          link,
-				BaseURL:       a.BasePath,
-				RootID:        id,
-				Collection:    mStruct.Collection(),
-				RelationField: relation.NeuronName(),
-			},
-			MarshalSingularFormat: relation.Kind() == mapping.KindRelationshipSingle,
+		result.ModelStruct = relation.Relationship().RelatedModelStruct()
+		result.Data = payload.Data
+		result.FieldSets = []mapping.FieldSet{{relation.Relationship().RelatedModelStruct().Primary()}}
+		result.MarshalLinks = codec.LinkOptions{
+			Type:          link,
+			BaseURL:       a.Options.PathPrefix,
+			RootID:        id,
+			Collection:    mStruct.Collection(),
+			RelationField: relation.NeuronName(),
 		}
-		a.marshalPayload(rw, &resPayload, http.StatusOK)
+		result.MarshalSingularFormat = relation.Kind() == mapping.KindRelationshipSingle
+		a.marshalPayload(rw, result, http.StatusOK)
 	}
 }

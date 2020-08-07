@@ -51,6 +51,7 @@ func (p *Postgres) updateModels(ctx context.Context, s *query.Scope) (affected i
 		}
 
 		results := p.connection(s).SendBatch(ctx, b)
+		defer results.Close()
 		for i := 0; i < b.Len(); i++ {
 			tag, err := results.Exec()
 			if err != nil {
@@ -88,6 +89,7 @@ func (p *Postgres) updateModelsWithBulkFieldSet(ctx context.Context, s *query.Sc
 	}
 
 	results := p.connection(s).SendBatch(ctx, b)
+	defer results.Close()
 	for i := 0; i < b.Len(); i++ {
 		tag, err := results.Exec()
 		if err != nil {
@@ -130,7 +132,7 @@ func (p *Postgres) updatedModelWithFieldset(ctx context.Context, s *query.Scope,
 
 	tag, err := p.connection(s).Exec(ctx, q, modelValues...)
 	if err != nil {
-		return affected, err
+		return affected, errors.NewDetf(p.errorClass(err), "update failed: %v", err)
 	}
 
 	return tag.RowsAffected(), nil
@@ -271,7 +273,7 @@ func (p *Postgres) updateWithFilters(ctx context.Context, s *query.Scope) (int64
 
 	tag, err := p.connection(s).Exec(ctx, sb.String(), values...)
 	if err != nil {
-		return 0, err
+		return 0, errors.NewDetf(p.errorClass(err), "update failed: %v", err)
 	}
 	return tag.RowsAffected(), nil
 }

@@ -20,7 +20,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 	err := c.RegisterModels(&Blog{}, &Post{}, &Comment{})
 	require.Nil(t, err)
 
-	cd := &jsonapiCodec{c: c}
+	cd := &Codec{c: c}
 	// Case 1:
 	// Correct with  attributes
 	t.Run("valid_attributes", func(t *testing.T) {
@@ -210,7 +210,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 		err := c.RegisterModels(&UnmarshalModel{})
 		require.Nil(t, err)
 
-		cd := &jsonapiCodec{c: c}
+		cd := &Codec{c: c}
 
 		payload, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
 		require.NoError(t, err)
@@ -239,7 +239,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 				  }
 				}`)
 		c := controller.NewDefault()
-		cd := &jsonapiCodec{c: c}
+		cd := &Codec{c: c}
 		err := c.RegisterModels(&UnmarshalModel{})
 		require.Nil(t, err)
 
@@ -275,7 +275,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 				  }
 				}`)
 		c := controller.NewDefault()
-		cd := &jsonapiCodec{c: c}
+		cd := &Codec{c: c}
 		err := c.RegisterModels(&UnmarshalModel{})
 		require.Nil(t, err)
 
@@ -295,7 +295,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 				  }
 				}`)
 		c := controller.NewDefault()
-		cd := &jsonapiCodec{c: c}
+		cd := &Codec{c: c}
 		err := c.RegisterModels(&UnmarshalModel{})
 		require.Nil(t, err)
 
@@ -306,7 +306,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 	t.Run("Array", func(t *testing.T) {
 		t.Run("TooManyValues", func(t *testing.T) {
 			c := controller.NewDefault()
-			cd := &jsonapiCodec{c: c}
+			cd := &Codec{c: c}
 			err := c.RegisterModels(&ArrModel{})
 			require.Nil(t, err)
 
@@ -318,7 +318,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 
 		t.Run("Correct", func(t *testing.T) {
 			c := controller.NewDefault()
-			cd := &jsonapiCodec{c: c}
+			cd := &Codec{c: c}
 			err := c.RegisterModels(&ArrModel{})
 			require.NoError(t, err)
 
@@ -1181,7 +1181,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 
 func TestUnmarshalEmpty(t *testing.T) {
 	c := controller.NewDefault()
-	cd := &jsonapiCodec{c: c}
+	cd := &Codec{c: c}
 	err := c.RegisterModels(&Blog{}, &Post{}, &Comment{})
 	require.Nil(t, err)
 	buf := &bytes.Buffer{}

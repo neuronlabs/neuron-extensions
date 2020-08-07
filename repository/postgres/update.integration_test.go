@@ -12,12 +12,12 @@ import (
 	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
 	"github.com/neuronlabs/neuron-extensions/repository/postgres/migrate"
 	"github.com/neuronlabs/neuron-extensions/repository/postgres/tests"
-	"github.com/neuronlabs/neuron/db"
+	"github.com/neuronlabs/neuron/database"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/query"
 )
 
-// // TestIntegrationPatch integration tests for Update method.
+// // TestIntegrationPatch integration tests for update method.
 func TestUpdate(t *testing.T) {
 	c := testingController(t, true, &tests.SimpleModel{})
 	p := testingRepository(c)
@@ -37,7 +37,7 @@ func TestUpdate(t *testing.T) {
 	}()
 
 	// No results should return no error.
-	db := db.New(c)
+	db := database.New(c)
 
 	newModel := func() *tests.SimpleModel {
 		return &tests.SimpleModel{
@@ -80,15 +80,6 @@ func TestUpdate(t *testing.T) {
 		model := newModel()
 		model.Attr = "Something"
 		affected, err := db.Query(mStruct, model).Select(mStruct.MustFieldByName("Attr")).Where("ID in", model1.ID, model2.ID).Update()
-		require.NoError(t, err)
-
-		assert.Equal(t, int64(2), affected)
-	})
-
-	t.Run("All", func(t *testing.T) {
-		model := newModel()
-		model.Attr = "Else"
-		affected, err := db.Query(mStruct, model).Select(mStruct.MustFieldByName("Attr")).UpdateAll()
 		require.NoError(t, err)
 
 		assert.Equal(t, int64(2), affected)

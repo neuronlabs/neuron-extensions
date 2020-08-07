@@ -12,7 +12,7 @@ import (
 	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
 	"github.com/neuronlabs/neuron-extensions/repository/postgres/migrate"
 	"github.com/neuronlabs/neuron-extensions/repository/postgres/tests"
-	"github.com/neuronlabs/neuron/db"
+	"github.com/neuronlabs/neuron/database"
 	"github.com/neuronlabs/neuron/mapping"
 )
 
@@ -33,7 +33,7 @@ func TestIntegrationCount(t *testing.T) {
 		_ = internal.DropTables(ctx, p.ConnPool, table.Name, table.Schema)
 	}()
 
-	db := db.New(c)
+	db := database.New(c)
 
 	newModel := func() *tests.Model {
 		return &tests.Model{

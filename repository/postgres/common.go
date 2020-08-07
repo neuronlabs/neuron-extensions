@@ -23,7 +23,7 @@ func (p *Postgres) prepareInsertFieldset(modelStruct *mapping.ModelStruct, set m
 		}
 		fieldSet = append(fieldSet, field)
 	}
-	if p.AutoSelectNotNulls {
+	if p.SelectNotNullsOnInsert {
 		for _, field := range modelStruct.Fields() {
 			if field.Kind() == mapping.KindPrimary {
 				continue

@@ -28,17 +28,17 @@ func marshalPayload(w io.Writer, payload Payloader) error {
 	return nil
 }
 
-func (j *jsonapiCodec) visitModels(models []mapping.Model, linkOptions *neuronCodec.LinkOptions) (nodes []*Node, err error) {
+func (c Codec) visitModels(models []mapping.Model, linkOptions neuronCodec.LinkOptions) (nodes []*Node, err error) {
 	var mStruct *mapping.ModelStruct
 	for _, model := range models {
 		if model == nil {
 			continue
 		}
-		mStruct, err = j.c.ModelStruct(model)
+		mStruct, err = c.c.ModelStruct(model)
 		if err != nil {
 			return nil, err
 		}
-		node, err := visitModelNode(mStruct, model, linkOptions, mStruct.StructFields())
+		node, err := visitModelNode(mStruct, model, linkOptions, mStruct.StructFields()...)
 		if err != nil {
 			return nil, err
 		}
@@ -47,14 +47,14 @@ func (j *jsonapiCodec) visitModels(models []mapping.Model, linkOptions *neuronCo
 	return nodes, nil
 }
 
-func (j *jsonapiCodec) visitPayloadModels(payload *neuronCodec.Payload) (nodes []*Node, err error) {
+func (c Codec) visitPayloadModels(payload *neuronCodec.Payload) (nodes []*Node, err error) {
 	nodes = make([]*Node, len(payload.Data))
 	var mStruct *mapping.ModelStruct
 
 	var commonFieldset mapping.FieldSet
 	switch len(payload.FieldSets) {
 	case 0:
-		commonFieldset = payload.ModelStruct.StructFields()
+		commonFieldset = append(payload.ModelStruct.Attributes(), payload.ModelStruct.RelationFields()...)
 		for _, relation := range payload.IncludedRelations {
 			commonFieldset = append(commonFieldset, relation.StructField)
 		}
@@ -62,7 +62,9 @@ func (j *jsonapiCodec) visitPayloadModels(payload *neuronCodec.Payload) (nodes [
 		commonFieldset = payload.FieldSets[0]
 		// Add all included relations.
 		for _, relation := range payload.IncludedRelations {
-			commonFieldset = append(commonFieldset, relation.StructField)
+			if len(relation.Fieldset) > 0 {
+				commonFieldset = append(commonFieldset, relation.StructField)
+			}
 		}
 	case len(payload.Data):
 	default:
@@ -76,10 +78,12 @@ func (j *jsonapiCodec) visitPayloadModels(payload *neuronCodec.Payload) (nodes [
 		} else {
 			fieldSet = payload.FieldSets[i]
 			for _, relation := range payload.IncludedRelations {
-				fieldSet = append(fieldSet, relation.StructField)
+				if len(relation.Fieldset) > 0 {
+					fieldSet = append(fieldSet, relation.StructField)
+				}
 			}
 		}
-		mStruct, err = j.c.ModelStruct(model)
+		mStruct, err = c.c.ModelStruct(model)
 		if err != nil {
 			return nil, err
 		}
@@ -87,7 +91,7 @@ func (j *jsonapiCodec) visitPayloadModels(payload *neuronCodec.Payload) (nodes [
 		if mStruct != payload.ModelStruct {
 			return nil, errors.NewDet(neuronCodec.ClassMarshal, "expecting payload with single model type - provided multiple type models")
 		}
-		node, err := visitModelNode(mStruct, model, payload.MarshalLinks, fieldSet)
+		node, err := visitModelNode(mStruct, model, payload.MarshalLinks, fieldSet...)
 		if err != nil {
 			return nil, err
 		}
@@ -96,7 +100,7 @@ func (j *jsonapiCodec) visitPayloadModels(payload *neuronCodec.Payload) (nodes [
 	return nodes, nil
 }
 
-func visitModelNode(mStruct *mapping.ModelStruct, model mapping.Model, linkOptions *neuronCodec.LinkOptions, fieldSet []*mapping.StructField) (node *Node, err error) {
+func visitModelNode(mStruct *mapping.ModelStruct, model mapping.Model, linkOptions neuronCodec.LinkOptions, fieldSet ...*mapping.StructField) (node *Node, err error) {
 	node = &Node{Type: mStruct.Collection()}
 
 	// set primary
@@ -233,14 +237,12 @@ func visitModelNode(mStruct *mapping.ModelStruct, model mapping.Model, linkOptio
 				r.Data[i] = &Node{Type: relation.NeuronCollectionName(), ID: id}
 			}
 
-			if linkOptions != nil {
-				if linkOptions.Type == neuronCodec.ResourceLink {
-					link := make(map[string]interface{})
-					link["self"] = path.Join(linkOptions.BaseURL, mStruct.Collection(), node.ID, "relationships", fieldName)
-					link["related"] = path.Join(linkOptions.BaseURL, mStruct.Collection(), node.ID, fieldName)
-					links := Links(link)
-					r.Links = &links
-				}
+			if linkOptions.Type == neuronCodec.ResourceLink {
+				link := make(map[string]interface{})
+				link["self"] = path.Join(linkOptions.BaseURL, mStruct.Collection(), node.ID, "relationships", fieldName)
+				link["related"] = path.Join(linkOptions.BaseURL, mStruct.Collection(), node.ID, fieldName)
+				links := Links(link)
+				r.Links = &links
 			}
 			node.Relationships[fieldName] = r
 		case mapping.KindRelationshipSingle:
@@ -266,14 +268,12 @@ func visitModelNode(mStruct *mapping.ModelStruct, model mapping.Model, linkOptio
 			}
 
 			r := &RelationshipOneNode{}
-			if linkOptions != nil {
-				if linkOptions.Type == neuronCodec.ResourceLink {
-					link := make(map[string]interface{})
-					link["self"] = path.Join(linkOptions.BaseURL, mStruct.Collection(), node.ID, "relationships", fieldName)
-					link["related"] = path.Join(linkOptions.BaseURL, mStruct.Collection(), node.ID, fieldName)
-					links := Links(link)
-					r.Links = &links
-				}
+			if linkOptions.Type == neuronCodec.ResourceLink {
+				link := make(map[string]interface{})
+				link["self"] = path.Join(linkOptions.BaseURL, mStruct.Collection(), node.ID, "relationships", fieldName)
+				link["related"] = path.Join(linkOptions.BaseURL, mStruct.Collection(), node.ID, fieldName)
+				links := Links(link)
+				r.Links = &links
 			}
 			if relation != nil {
 				id, err := relation.GetPrimaryKeyStringValue()
@@ -286,12 +286,13 @@ func visitModelNode(mStruct *mapping.ModelStruct, model mapping.Model, linkOptio
 		}
 	}
 
-	if linkOptions != nil && linkOptions.Type == neuronCodec.ResourceLink {
+	if linkOptions.Type == neuronCodec.ResourceLink {
 		links := make(map[string]interface{})
 		links["self"] = path.Join(linkOptions.BaseURL, mStruct.Collection(), node.ID)
 		linksObj := Links(links)
 		node.Links = &(linksObj)
 	}
+
 	return node, nil
 }
 
@@ -303,7 +304,7 @@ func getFieldFlags(field *mapping.StructField, model *mapping.ModelStruct) (bool
 
 	// extract jsonapi field tags if exists
 	tags := field.ExtractCustomFieldTags(neuronCodec.StructTag, mapping.AnnotationSeparator, " ")
-	// overwrite neuron marshal flags by the 'jsonapiCodec' flags
+	// overwrite neuron marshal flags by the 'Codec' flags
 	for _, tag := range tags {
 		switch tag.Key {
 		case "-":

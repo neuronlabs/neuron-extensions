@@ -29,6 +29,10 @@ github.com/neuronlabs/inflection v1.0.1/go.mod h1:gnqNj1uxAGPYT1LsHRvSyBcd57vvIK
 github.com/neuronlabs/jsonapi v0.11.2/go.mod h1:/jjyUoJJ8rDcZQCRWlaA9vQD/DL4ejqUCnnnQmt6yIE=
 github.com/neuronlabs/jsonapi-handler v0.0.1 h1:tKynqVWmY7wDPlELr6JNNaxfklz/A3uzgs2K+b2PwwY=
 github.com/neuronlabs/jsonapi-handler v0.0.1/go.mod h1:l0YxGfwaEbPWk6+dugsm7i1bzWZEyG7heU1WK1Ct93s=
+github.com/neuronlabs/neuron-core v0.11.20/go.mod h1:GtynMQn14xXjC/IS7kPXHaikT8n8dGcCQsMg9zEsTUs=
+github.com/neuronlabs/neuron-core v0.11.21/go.mod h1:GtynMQn14xXjC/IS7kPXHaikT8n8dGcCQsMg9zEsTUs=
+github.com/neuronlabs/neuron-core v0.11.22 h1:obV/bT5HLsxB5C1y5oFzXSW1q9irkvnT3DF/YAqBbYY=
+github.com/neuronlabs/neuron-core v0.11.22/go.mod h1:GtynMQn14xXjC/IS7kPXHaikT8n8dGcCQsMg9zEsTUs=
 github.com/neuronlabs/neuron-mocks v0.12.0/go.mod h1:VnwOKkVlwt4yZ5/hHnJ1AnuHBRuXcPgJQdLMJBbrKLc=
 github.com/neuronlabs/neuron-mocks v0.12.1/go.mod h1:VnwOKkVlwt4yZ5/hHnJ1AnuHBRuXcPgJQdLMJBbrKLc=
 github.com/neuronlabs/strcase v1.0.0 h1:F/7Scr7ojAL6l5g3MQiCENGlMI/NK6LwAfaURcUiI7U=
@@ -43,6 +47,8 @@ github.com/stretchr/objx v0.2.0/go.mod h1:qt09Ya8vawLte6SNmTgCsAVtYtaKzEcn8ATUoH
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
 github.com/stretchr/testify v1.4.0 h1:2E4SXV/wtOkTonXsotYi4li6zVWxYlZuYNCXe9XRJyk=
 github.com/stretchr/testify v1.4.0/go.mod h1:j7eGeouHqKxXV5pUuKE4zz7dFj8WfuZ+81PSLYec5m4=
+github.com/stretchr/testify v1.6.1 h1:hDPOHmpOpP40lSULcqw7IrRb/u7w6RpDC9399XyoNd0=
+github.com/stretchr/testify v1.6.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
 golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550/go.mod h1:yigFU9vqHzYiE8UmvKecakEJjdnWj3jj499lnFckfCI=
@@ -74,3 +80,5 @@ gopkg.in/go-playground/validator.v9 v9.30.0/go.mod h1:+c9/zcJMFNgbLvly1L1V+PpxWd
 gopkg.in/yaml.v2 v2.2.2/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=
 gopkg.in/yaml.v2 v2.2.3 h1:fvjTMHxHEw/mxHbtzPi3JCcKXQRAnQTBRo6YCJSVHKI=
 gopkg.in/yaml.v2 v2.2.3/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=
+gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c h1:dUUwHk2QECo/6vqA44rthZ8ie2QXMNeKRTHCNY2nXvo=
+gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=

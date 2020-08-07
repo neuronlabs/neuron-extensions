@@ -1,39 +1,21 @@
 package middleware
 
 import (
+	"bytes"
 	"compress/flate"
 	"compress/gzip"
 	"io"
 	"net/http"
 
 	"github.com/neuronlabs/brotli"
-	"github.com/neuronlabs/jsonapi-handler/log"
 
 	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
+	"github.com/neuronlabs/neuron-extensions/server/http/log"
 )
 
-var _ http.ResponseWriter = &responseWriter{}
-
-type responseWriter struct {
-	rw http.ResponseWriter
-	w  io.Writer
-}
-
-// Header implements http.ResponseWriter.
-func (r responseWriter) Header() http.Header {
-	return r.rw.Header()
-}
-
-// Write implements io.Writer.
-func (r responseWriter) Write(bytes []byte) (int, error) {
-	return r.w.Write(bytes)
-}
-
-// WriteHeader implements http.ResponseWriter.
-func (r responseWriter) WriteHeader(statusCode int) {
-	r.rw.WriteHeader(statusCode)
-}
-
+// ResponseWriter is a middleware that wraps the response writer into httputil.ResponseWriter.
+// If the client accepts one of the supported compressions, it would also set the compressed writer.
+// In order to set the default compression level set it to -1.
 func ResponseWriter(compressionLevel int) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
@@ -43,60 +25,82 @@ func ResponseWriter(compressionLevel int) func(next http.Handler) http.Handler {
 				return
 			}
 
-			w := io.Writer(rw)
-			var err error
-
+			buf := &bytes.Buffer{}
+			customRW := &httputil.ResponseWriter{
+				ResponseWriter: rw,
+				// If no encoders are provided the default writer would be the buffer.
+				TempWriter: buf,
+				Buffer:     buf,
+			}
 			for _, accept := range accepts {
+				thisCompression := compressionLevel
+				var (
+					w   io.Writer
+					err error
+				)
 				switch accept.Value {
 				case "gzip":
 					switch {
-					case compressionLevel > gzip.BestCompression:
-						compressionLevel = gzip.BestCompression
-					case compressionLevel < gzip.BestSpeed:
-						compressionLevel = gzip.BestSpeed
-					case compressionLevel == -1:
-						compressionLevel = gzip.DefaultCompression
+					case thisCompression == -1:
+						thisCompression = gzip.DefaultCompression
+					case thisCompression > gzip.BestCompression:
+						thisCompression = gzip.BestCompression
+					case thisCompression < gzip.BestSpeed:
+						thisCompression = gzip.BestSpeed
 					}
-					w, err = gzip.NewWriterLevel(rw, compressionLevel)
+					w, err = gzip.NewWriterLevel(buf, thisCompression)
 				case "deflate":
 					switch {
-					case compressionLevel > flate.BestCompression:
-						compressionLevel = flate.BestCompression
-					case compressionLevel < flate.BestSpeed:
-						compressionLevel = flate.BestSpeed
-					case compressionLevel == -1:
-						compressionLevel = flate.DefaultCompression
+					case thisCompression == -1:
+						thisCompression = flate.DefaultCompression
+					case thisCompression > flate.BestCompression:
+						thisCompression = flate.BestCompression
+					case thisCompression < flate.BestSpeed:
+						thisCompression = flate.BestSpeed
 					}
-					w, err = flate.NewWriter(rw, compressionLevel)
+					w, err = flate.NewWriter(buf, thisCompression)
 				case "br":
 					switch {
-					case compressionLevel > brotli.BestCompression:
-						compressionLevel = brotli.BestCompression
-					case compressionLevel < brotli.BestSpeed:
-						compressionLevel = brotli.BestSpeed
-					case compressionLevel == -1:
-						compressionLevel = brotli.DefaultCompression
+					case thisCompression == -1:
+						thisCompression = brotli.DefaultCompression
+					case thisCompression > brotli.BestCompression:
+						thisCompression = brotli.BestCompression
+					case thisCompression < brotli.BestSpeed:
+						thisCompression = brotli.BestSpeed
 					}
-					w = brotli.NewWriterLevel(rw, compressionLevel)
+					w = brotli.NewWriterLevel(buf, thisCompression)
 				default:
 					continue
 				}
 				if err != nil {
-
+					buf.Reset()
+					log.Errorf("creating new response writer io.Writer failed: %v", err)
+					continue
 				}
-				if log.Level() == log.LDEBUG3 {
-					log.Debug3f("Writer: '%s' with compression level: %d", accept.Value, compressionLevel)
+				if log.Level() == log.LevelDebug3 {
+					log.Debug3f("Writer: '%s' with compression level: %d", accept.Value, thisCompression)
 				}
 				rw.Header().Set("Content-Encoding", accept.Value)
-				next.ServeHTTP(&responseWriter{rw: rw, w: w}, req)
-				if wc, ok := w.(io.WriteCloser); ok {
-					if err = wc.Close(); err != nil {
-						log.Errorf("Closing response writer failed: %v", err)
-					}
-				}
-				return
+				customRW.TempWriter = w
+				break
 			}
-			next.ServeHTTP(rw, req)
+			// Serve next handlers with provided compressed writer.
+			next.ServeHTTP(customRW, req)
+
+			// Close the writer if required.
+			if wc, ok := customRW.TempWriter.(io.WriteCloser); ok {
+				if err := wc.Close(); err != nil {
+					log.Errorf("Closing response writer failed: %v", err)
+					rw.WriteHeader(500)
+					return
+				}
+			}
+			// Store the status
+			rw.WriteHeader(customRW.Status)
+			if _, err := buf.WriteTo(rw); err != nil {
+				log.Errorf("An error occurred while writing to response writer: %v", err)
+			}
+			return
 		})
 	}
 }

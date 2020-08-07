@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 
+	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
 
 	"github.com/neuronlabs/neuron/errors"
@@ -18,6 +19,9 @@ var _ repository.Transactioner = &Postgres{}
 // Begin starts a transaction for the given scope.
 // Implements Begin method of the query.Transactioner interface.
 func (p *Postgres) Begin(ctx context.Context, tx *query.Transaction) error {
+	if _, ok := p.checkTransaction(tx.ID); ok {
+		return nil
+	}
 	var isolation pgx.TxIsoLevel
 	txOpts := pgx.TxOptions{IsoLevel: isolation}
 	if tx.Options != nil {
@@ -44,8 +48,10 @@ func (p *Postgres) Begin(ctx context.Context, tx *query.Transaction) error {
 	if err != nil {
 		return err
 	}
-
-	p.Transactions[tx.ID] = pgxTx
+	if log.Level().IsAllowed(log.LevelDebug3) {
+		log.Debug3f("[POSTGRES:%s][TX:%s] BEGIN;", p.id, tx.ID)
+	}
+	p.setTransaction(tx.ID, pgxTx)
 	return nil
 }
 
@@ -56,14 +62,23 @@ func (p *Postgres) Commit(ctx context.Context, tx *query.Transaction) error {
 		return errors.NewDet(query.ClassTxInvalid, "scope's transaction is nil")
 	}
 
-	pgxTx, ok := p.Transactions[tx.ID]
+	pgxTx, ok := p.checkTransaction(tx.ID)
 	if !ok {
 		log.Errorf("Transaction: '%s' no mapped SQL transaction found", tx.ID)
 		return errors.NewDet(query.ClassTxInvalid, "no mapped sql transaction found for the scope")
 	}
-	defer delete(p.Transactions, tx.ID)
-
-	return pgxTx.Commit(ctx)
+	defer p.clearTransaction(tx.ID)
+	for {
+		err := pgxTx.Commit(ctx)
+		if err == nil {
+			break
+		}
+		if pgconn.SafeToRetry(err) {
+			continue
+		}
+		return errors.NewDetf(p.errorClass(err), "commit transaction: %s failed: %v", tx.ID, err)
+	}
+	return nil
 }
 
 // Rollback rolls back the transaction for given scope
@@ -71,12 +86,22 @@ func (p *Postgres) Rollback(ctx context.Context, tx *query.Transaction) error {
 	if tx == nil {
 		return errors.NewDet(query.ClassTxInvalid, "scope's transaction is nil")
 	}
-	pgxTx, ok := p.Transactions[tx.ID]
+	pgxTx, ok := p.checkTransaction(tx.ID)
 	if !ok {
 		log.Errorf("Transaction: '%s' no mapped SQL transaction found", tx.ID)
 		return errors.NewDet(query.ClassTxInvalid, "no mapped sql transaction found for the scope")
 	}
-	defer delete(p.Transactions, tx.ID)
+	defer p.clearTransaction(tx.ID)
 
-	return pgxTx.Rollback(ctx)
+	for {
+		err := pgxTx.Rollback(ctx)
+		if err == nil {
+			break
+		}
+		if pgconn.SafeToRetry(err) {
+			continue
+		}
+		return errors.NewDetf(p.errorClass(err), "rollback transaction: %s failed: %v", tx.ID, err)
+	}
+	return nil
 }

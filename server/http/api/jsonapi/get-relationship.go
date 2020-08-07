@@ -3,15 +3,15 @@ package jsonapi
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
-	"github.com/neuronlabs/neuron/codec"
-	"github.com/neuronlabs/neuron/db"
-	"github.com/neuronlabs/neuron/mapping"
-	"github.com/neuronlabs/neuron/query"
-	"github.com/neuronlabs/neuron/query/filter"
-
+	"github.com/neuronlabs/neuron-extensions/codec/jsonapi"
 	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
 	"github.com/neuronlabs/neuron-extensions/server/http/log"
+	"github.com/neuronlabs/neuron/codec"
+	"github.com/neuronlabs/neuron/mapping"
+	"github.com/neuronlabs/neuron/query"
+	"github.com/neuronlabs/neuron/server"
 )
 
 // HandleGetRelationship handles json:api get relationship endpoint for the 'model'.
@@ -27,7 +27,7 @@ func (a *API) HandleGetRelationship(model mapping.Model, relationName string) ht
 	}
 }
 
-func (a *API) handleGetRelationship(mStruct *mapping.ModelStruct, field *mapping.StructField) http.HandlerFunc {
+func (a *API) handleGetRelationship(mStruct *mapping.ModelStruct, relation *mapping.StructField) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		// Check the URL 'id' value.
@@ -48,100 +48,136 @@ func (a *API) handleGetRelationship(mStruct *mapping.ModelStruct, field *mapping
 			return
 		}
 
-		// Set preset filters.
-		s := query.NewScope(mStruct)
-		// Set the primary field value.
-		if s.Filter(filter.New(mStruct.Primary(), filter.OpEqual, model.GetPrimaryKeyValue())); err != nil {
-			log.Errorf("[GET-RELATED][%s][%s] Adding param primary filter with value: '%s' failed: %v", mStruct.Collection(), field.NeuronName(), id, err)
-			a.marshalErrors(rw, 0, httputil.ErrInternalError())
+		if model.IsPrimaryKeyZero() {
+			err := httputil.ErrInvalidQueryParameter()
+			err.Detail = "provided zero value 'id' parameter"
+			a.marshalErrors(rw, 0, err)
 			return
 		}
 
-		// Include relation.
-		if err = s.Include(field, field.Relationship().Struct().Primary()); err != nil {
-			log.Errorf("[GET-RELATED][%s][%s] Setting related field into fieldset failed: %v", mStruct.Collection(), field.NeuronName(), err)
-			a.marshalErrors(rw, 0, httputil.ErrInternalError())
-			return
-		}
+		var (
+			relatedScope  *query.Scope
+			queryIncludes []*query.IncludedRelation
+		)
+		relatedModelStruct := relation.Relationship().RelatedModelStruct()
+		if len(req.URL.Query()) > 0 {
+			// Get jsonapi codec ans parse query parameters.
+			parser, ok := jsonapi.GetCodec(a.Controller).(codec.ParameterParser)
+			if !ok {
+				log.Errorf("jsonapi codec doesn't implement ParameterParser")
+				a.marshalErrors(rw, 500, httputil.ErrInternalError())
+				return
+			}
+			relatedScope = query.NewScope(relatedModelStruct)
 
-		// Create Parameters.
-		params := &QueryParams{
-			Context:   ctx,
-			DB:        a.DB,
-			Scope:     s,
-			Relations: mapping.FieldSet{field},
-		}
-
-		for _, hook := range hooks.getPreHooksRelation(mStruct, query.GetRelationship, field.Name()) {
-			if err = hook(params); err != nil {
+			parameters := query.MakeParameters(req.URL.Query())
+			if err := parser.ParseParameters(a.Controller, relatedScope, parameters); err != nil {
 				a.marshalErrors(rw, 0, httputil.MapError(err)...)
 				return
 			}
+			if !relation.IsSlice() {
+				if len(relatedScope.SortingOrder) > 0 {
+					log.Debugf("[GET-RELATIONSHIP][%s][%s] sorting is not allowed for the GET query type", mStruct, relation)
+					err := httputil.ErrInvalidQueryParameter()
+					err.Detail = "Sorting is not allowed on GET single queries."
+					a.marshalErrors(rw, 400, err)
+					return
+				}
+				if relatedScope.Pagination != nil {
+					log.Debugf("[GET-RELATIONSHIP][%s][%s] pagination is not allowed for the GET query type", mStruct, relation)
+					err := httputil.ErrInvalidQueryParameter()
+					err.Detail = "Pagination is not allowed on GET single queries."
+					a.marshalErrors(rw, 400, err)
+					return
+				}
+				if len(relatedScope.Filters) != 0 {
+					log.Debugf("[GET-RELATIONSHIP][%s][%s] filtering is not allowed for the GET query type", mStruct, relation)
+					err := httputil.ErrInvalidQueryParameter()
+					err.Detail = "Filtering is not allowed on GET single queries."
+					a.marshalErrors(rw, 400, err)
+					return
+				}
+			}
+			if len(relatedScope.FieldSets) > 0 {
+				log.Debugf("[GET-RELATIONSHIP][%s][%s] field set is not allowed for the GET query type", mStruct, relation)
+				err := httputil.ErrInvalidQueryParameter()
+				err.Detail = "Relationship endpoint fieldset is not allowed on GET single queries."
+				a.marshalErrors(rw, 400, err)
+				return
+			}
+
+			// queryIncludes are the included fields from the url query.
+			queryIncludes = relatedScope.IncludedRelations
+			var fields mapping.FieldSet
+			for _, include := range relatedScope.IncludedRelations {
+				fields = append(fields, include.StructField)
+			}
+			// json:api fieldset is a combination of fields + relations.
+			// The same situation is with includes.
+			neuronFields, neuronIncludes := parseFieldSetAndIncludes(relatedModelStruct, fields, queryIncludes)
+			relatedScope.FieldSets = []mapping.FieldSet{neuronFields}
+			relatedScope.IncludedRelations = neuronIncludes
+
+			for _, include := range queryIncludes {
+				include.Fieldset = mapping.FieldSet{}
+			}
 		}
 
-		model, err = db.Get(params.Context, params.DB, params.Scope)
+		// Set preset filters.
+		s := query.NewScope(mStruct, model)
+		// Get only primary key.
+		s.FieldSets = []mapping.FieldSet{{mStruct.Primary()}}
+
+		// Include relation.
+		if err = s.Include(relation, relatedModelStruct.Primary()); err != nil {
+			log.Errorf("[GET-RELATIONSHIP][%s][%s] Setting related field into fieldset failed: %v", mStruct.Collection(), relation.NeuronName(), err)
+			a.marshalErrors(rw, 0, httputil.ErrInternalError())
+			return
+		}
+
+		params := &server.Params{
+			Ctx:           ctx,
+			DB:            a.DB,
+			Authorizer:    a.Authorizer,
+			Authenticator: a.Authenticator,
+		}
+
+		result, err := a.getRelationHandleChain(params, s, relatedScope, relation)
 		if err != nil {
-			log.Errorf("[GET-RELATED][%s][%s] Setting related field into fieldset failed: %v", mStruct.Collection(), field.NeuronName(), err)
 			a.marshalErrors(rw, 0, httputil.MapError(err)...)
 			return
 		}
 
-		//
-		for _, hook := range hooks.getPostHooksRelation(mStruct, query.GetRelationship, field.Name()) {
-			if err = hook(params); err != nil {
-				a.marshalErrors(rw, 0, httputil.MapError(err)...)
-				return
-			}
-		}
-
+		result.ModelStruct = relatedModelStruct
+		result.IncludedRelations = queryIncludes
+		result.FieldSets = []mapping.FieldSet{{relatedModelStruct.Primary()}}
 		linkType := codec.RelationshipLink
 		// but if the config doesn't allow that - set 'codec.NoLink'
-		if !a.MarshalLinks {
+		if !a.Options.PayloadLinks {
 			linkType = codec.NoLink
 		}
-
-		var models []mapping.Model
-		if field.Relationship().IsToMany() {
-			mr, ok := model.(mapping.MultiRelationer)
-			if !ok {
-				log.Errorf("Model: '%s' is not MultiRelationer", mStruct.Collection())
-				a.marshalErrors(rw, 500, httputil.ErrInternalError())
-				return
-			}
-			models, err = mr.GetRelationModels(field)
-			if err != nil {
-				a.marshalErrors(rw, 0, httputil.MapError(err)...)
-				return
-			}
-		} else {
-			sr, ok := model.(mapping.SingleRelationer)
-			if !ok {
-				log.Errorf("Model: '%s' is not MultiRelationer", mStruct.Collection())
-				a.marshalErrors(rw, 500, httputil.ErrInternalError())
-				return
-			}
-			relationModel, err := sr.GetRelationModel(field)
-			if err != nil {
-				a.marshalErrors(rw, 0, httputil.MapError(err)...)
-				return
-			}
-			models = append(models, relationModel)
+		result.MarshalLinks = codec.LinkOptions{
+			Type:          linkType,
+			BaseURL:       a.Options.PathPrefix,
+			RootID:        id,
+			Collection:    mStruct.Collection(),
+			RelationField: relation.NeuronName(),
 		}
-
-		// TODO: add relations.
-		payload := codec.Payload{
-			ModelStruct: field.Relationship().Struct(),
-			Data:        models,
-			FieldSets:   []mapping.FieldSet{field.Relationship().Struct().Fields()},
-			MarshalLinks: &codec.LinkOptions{
-				Type:          linkType,
-				BaseURL:       a.BasePath,
-				RootID:        id,
-				Collection:    mStruct.Collection(),
-				RelationField: field.NeuronName(),
-			},
-			MarshalSingularFormat: false,
+		result.MarshalSingularFormat = !relation.Relationship().IsToMany()
+		result.PaginationLinks = &codec.PaginationLinks{}
+		sb := strings.Builder{}
+		sb.WriteString(a.basePath())
+		sb.WriteRune('/')
+		sb.WriteString(mStruct.Collection())
+		sb.WriteRune('/')
+		sb.WriteString(id)
+		sb.WriteString("/relationships/")
+		sb.WriteString(relation.NeuronName())
+		if q := req.URL.Query(); len(q) > 0 {
+			sb.WriteRune('?')
+			sb.WriteString(q.Encode())
 		}
-		a.marshalPayload(rw, &payload, http.StatusOK)
+		result.PaginationLinks.Self = sb.String()
+		a.marshalPayload(rw, result, http.StatusOK)
 	}
 }

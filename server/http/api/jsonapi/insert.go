@@ -3,14 +3,13 @@ package jsonapi
 import (
 	"net/http"
 
-	"github.com/neuronlabs/neuron/codec"
-	"github.com/neuronlabs/neuron/db"
-	"github.com/neuronlabs/neuron/mapping"
-	"github.com/neuronlabs/neuron/query"
-
 	"github.com/neuronlabs/neuron-extensions/codec/jsonapi"
 	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
 	"github.com/neuronlabs/neuron-extensions/server/http/log"
+	"github.com/neuronlabs/neuron/codec"
+	"github.com/neuronlabs/neuron/mapping"
+	"github.com/neuronlabs/neuron/query"
+	"github.com/neuronlabs/neuron/server"
 )
 
 // HandleInsert handles json:api post endpoint for the 'model'. Panics if the model is not mapped for given API controller.
@@ -20,188 +19,180 @@ func (a *API) HandleInsert(model mapping.Model) http.HandlerFunc {
 	}
 }
 
-func (a *API) handleInsert(model *mapping.ModelStruct) http.HandlerFunc {
+func (a *API) handleInsert(mStruct *mapping.ModelStruct) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
 		// unmarshal the input from the request body.
-		pu := jsonapi.Codec().(codec.PayloadUnmarshaler)
-		payload, err := pu.UnmarshalPayload(req.Body, codec.UnmarshalOptions{StrictUnmarshal: a.StrictUnmarshal, ModelStruct: model})
+		pu := jsonapi.GetCodec(a.Controller).(codec.PayloadUnmarshaler)
+		payload, err := pu.UnmarshalPayload(req.Body, codec.UnmarshalOptions{StrictUnmarshal: a.Options.StrictUnmarshal, ModelStruct: mStruct})
 		if err != nil {
-			log.Debugf("Unmarshal scope for: '%s' failed: %v", model.Collection(), err)
+			log.Debugf("Unmarshal scope for: '%s' failed: %v", mStruct.Collection(), err)
 			a.marshalErrors(rw, 0, httputil.MapError(err)...)
 			return
 		}
 
-		if len(payload.Data) == 0 {
+		switch len(payload.Data) {
+		case 0:
 			err := httputil.ErrInvalidInput()
 			err.Detail = "nothing to insert"
 			a.marshalErrors(rw, 0, err)
 			return
+		case 1:
+		default:
+			err := httputil.ErrInvalidInput()
+			err.Detail = "bulk insert not implemented yet."
+			a.marshalErrors(rw, 0, err)
+			return
 		}
+		model := payload.Data[0]
 
 		// Divide fieldset into fields and relations.
-		relations := mapping.FieldSet{}
-		fields := mapping.FieldSet{}
-		var isPrimary bool
-		if len(payload.FieldSets) > 0 {
+		if len(payload.FieldSets) != 1 {
 			err := httputil.ErrInvalidInput()
 			err.Detail = "bulk inserted not implemented yet"
 			a.marshalErrors(rw, 0, err)
 			return
 		}
+
+		var selectedPrimary bool
+		fields := mapping.FieldSet{}
 		for _, field := range payload.FieldSets[0] {
 			switch field.Kind() {
-			case mapping.KindRelationshipMultiple, mapping.KindRelationshipSingle:
-				// If the relationship is of BelongsTo kind - set its relationship primary key value into given model's foreign key.
+			case mapping.KindRelationshipSingle, mapping.KindRelationshipMultiple:
 				if field.Relationship().Kind() == mapping.RelBelongsTo {
-					relationer, ok := payload.Data[0].(mapping.SingleRelationer)
+					relationer, ok := model.(mapping.SingleRelationer)
 					if !ok {
-						log.Errorf("Model: '%s' doesn't implement mapping.SingleRelationer interface", model.Collection())
+						log.Errorf("Model: '%s' doesn't implement mapping.SingleRelationer interface", mStruct.Collection())
 						a.marshalErrors(rw, 500, httputil.ErrInternalError())
 						return
 					}
 					relation, err := relationer.GetRelationModel(field)
 					if err != nil {
-						a.marshalErrors(rw, 0, httputil.MapError(err)...)
-						return
-					}
-					fielder, ok := payload.Data[0].(mapping.Fielder)
-					if !ok {
-						log.Errorf("Model: '%s' doesn't implement mapping.SingleRelationer interface", model.Collection())
+						log.Errorf("Getting relation model failed: %v", err)
 						a.marshalErrors(rw, 500, httputil.ErrInternalError())
 						return
 					}
-					if err = fielder.SetFieldValue(field.Relationship().ForeignKey(), relation.GetPrimaryKeyValue()); err != nil {
-						a.marshalErrors(rw, 0, httputil.MapError(err)...)
+					if relation.IsPrimaryKeyZero() {
+						a.marshalErrors(rw, http.StatusBadRequest, httputil.ErrInvalidQueryParameter())
 						return
 					}
-					fields = append(fields, field.Relationship().ForeignKey())
-					continue
+
+					fielder, ok := model.(mapping.Fielder)
+					if !ok {
+						log.Errorf("Model: '%s' doesn't implement mapping.Fielder interface", mStruct.Collection())
+						a.marshalErrors(rw, 500, httputil.ErrInternalError())
+					}
+					foreignKey := field.Relationship().ForeignKey()
+					if err = fielder.SetFieldValue(foreignKey, relation.GetPrimaryKeyValue()); err != nil {
+						log.Errorf("Setting relation foreign key value failed: %v", err)
+						a.marshalErrors(rw, 500, httputil.ErrInternalError())
+						return
+					}
+					if !fields.Contains(foreignKey) {
+						fields = append(fields, foreignKey)
+					}
 				}
-				// All the other foreign relations should be post insert.
-				relations = append(relations, field)
-				continue
+				payload.IncludedRelations = append(payload.IncludedRelations, &query.IncludedRelation{
+					StructField: field,
+				})
 			case mapping.KindPrimary:
-				isPrimary = true
+				fields = append(fields, field)
+				selectedPrimary = true
+			case mapping.KindAttribute:
+				fields = append(fields, field)
 			}
-			fields = append(fields, field)
 		}
+		payload.FieldSets = []mapping.FieldSet{fields}
 
 		// Check if a model is allowed to set it's primary key.
-		if isPrimary && !model.AllowClientID() {
-			log.Debug2f("Creating: '%s' with client-generated ID is forbidden", model.Collection())
+		if selectedPrimary && !mStruct.AllowClientID() {
+			log.Debug2f("Creating: '%s' with client-generated ID is forbidden", mStruct.Collection())
 			err := httputil.ErrInvalidJSONFieldValue()
 			err.Detail = "Client-Generated ID is not allowed for this model."
 			err.Status = "403"
 			a.marshalErrors(rw, http.StatusForbidden, err)
 			return
 		}
-		fields.Sort()
 
-		q := query.NewScope(model, payload.Data...)
-		q.FieldSets = payload.FieldSets
-
-		// Create query parameters.
-		params := &QueryParams{
-			Context:   req.Context(),
-			DB:        a.DB,
-			Scope:     q,
-			Relations: relations,
+		// Prepare parameters.
+		params := &server.Params{
+			Ctx:           req.Context(),
+			DB:            a.DB,
+			Authorizer:    a.Authorizer,
+			Authenticator: a.Authenticator,
 		}
 
-		if len(relations) > 0 {
-			params.DB, err = db.Begin(params.Context, params.DB, nil)
-			if err != nil {
-				log.Errorf("Can't begin transaction: %v", err)
-				a.marshalErrors(rw, 0, httputil.ErrInternalError())
-				return
-			}
-		}
-
-		// Rollback the transaction if it exists and is not done yet.
-		defer func() {
-			tx, ok := params.DB.(*db.Tx)
-			if ok && !tx.Transaction.State.Done() {
-				if err = tx.Rollback(); err != nil {
-					log.Errorf("Rolling back transaction failed: %v", err)
+		// Try to get model's InsertHandler.
+		modelHandler, hasModelHandler := a.handlers[mStruct]
+		if hasModelHandler {
+			beforeInserter, ok := modelHandler.(server.BeforeInsertHandler)
+			if ok {
+				if err = beforeInserter.HandleBeforeInsert(params, payload); err != nil {
+					a.marshalErrors(rw, 0, httputil.MapError(err)...)
+					return
 				}
 			}
-		}()
-
-		// Get and apply pre hook functions.
-		for _, hook := range hooks.getPreHooks(model, query.Insert) {
-			if err = hook(params); err != nil {
-				a.marshalErrors(rw, 0, httputil.MapError(err)...)
-				return
-			}
+		}
+		insertHandler, ok := modelHandler.(server.InsertHandler)
+		if !ok {
+			// If nothing is being found take the default handler.
+			insertHandler = a.defaultHandler
 		}
 
-		// Insert into database.
-		if err = db.Insert(params.Context, params.DB, params.Scope); err != nil {
+		result, err := insertHandler.HandleInsert(params.Ctx, *params, payload)
+		if err != nil {
+			log.Debugf("Handle insert failed: %v", err)
 			a.marshalErrors(rw, 0, httputil.MapError(err)...)
 			return
 		}
 
-		if len(relations) > 0 {
-			for _, relation := range relations {
-				switch relation.Relationship().Kind() {
-				case mapping.RelHasOne:
-					// SetRelations first clear the relationship and then add it - it is not required here as a hasOne
-					// only needs to add new relation to it's value.
-					if err = db.AddRelations(params.Context, params.DB, q, relation); err != nil {
-						a.marshalErrors(rw, 0, httputil.MapError(err)...)
-						return
-					}
-				default:
-					if err = db.SetRelations(params.Context, params.DB, q, relation); err != nil {
-						a.marshalErrors(rw, 0, httputil.MapError(err)...)
-						return
-					}
+		if hasModelHandler {
+			afterHandler, ok := modelHandler.(server.AfterInsertHandler)
+			if ok {
+				if err = afterHandler.HandleAfterInsert(params, result); err != nil {
+					a.marshalErrors(rw, 0, httputil.MapError(err)...)
+					return
 				}
 			}
 		}
 
-		// Get and apply pre hook functions.
-		for _, hook := range hooks.getPostHooks(model, query.Insert) {
-			if err = hook(params); err != nil {
-				a.marshalErrors(rw, 0, httputil.MapError(err)...)
-				return
-			}
-		}
 		// if the primary was provided in the input and if the config doesn't allow to return
 		// created value with given client-id - return simple status NoContent
-		if isPrimary && a.NoContentOnCreate {
+		if selectedPrimary && a.Options.NoContentOnInsert {
 			// if the primary was provided
 			rw.WriteHeader(http.StatusNoContent)
 			return
 		}
-
-		// get the primary field value so that it could be used for the jsonapi marshal process.
-		stringID, err := q.Models[0].GetPrimaryKeyStringValue()
-		if err != nil {
-			a.marshalErrors(rw, 0, httputil.MapError(err)...)
+		if len(result.Data) == 0 {
+			log.Error("No data in the result payload")
+			a.marshalErrors(rw, 500, httputil.ErrInternalError())
 			return
 		}
 
-		// By default marshal resource links
+		// get the primary field value so that it could be used for the jsonapi marshal process.
+		stringID, err := model.GetPrimaryKeyStringValue()
+		if err != nil {
+			log.Errorf("Getting primary key string value failed for the model: %v", model)
+			a.marshalErrors(rw, 500, httputil.ErrInternalError())
+			return
+		}
+
 		linkType := codec.ResourceLink
 		// but if the config doesn't allow that - set 'jsonapi.NoLink'
-		if !a.MarshalLinks {
+		if !a.Options.PayloadLinks {
 			linkType = codec.NoLink
 		}
 
-		resPayload := codec.Payload{
-			ModelStruct:       model,
-			Data:              q.Models,
-			FieldSets:         q.FieldSets,
-			IncludedRelations: q.IncludedRelations,
-			MarshalLinks: &codec.LinkOptions{
+		result.ModelStruct = mStruct
+		result.FieldSets = []mapping.FieldSet{append(mStruct.Fields(), mStruct.RelationFields()...)}
+		if result.MarshalLinks.Type == codec.NoLink {
+			result.MarshalLinks = codec.LinkOptions{
 				Type:       linkType,
-				BaseURL:    a.getBasePath(a.BasePath),
-				Collection: model.Collection(),
+				BaseURL:    a.Options.PathPrefix,
 				RootID:     stringID,
-			},
-			MarshalSingularFormat: true,
+				Collection: mStruct.Collection(),
+			}
 		}
-		a.marshalPayload(rw, &resPayload, http.StatusCreated)
+		result.MarshalSingularFormat = true
+		a.marshalPayload(rw, result, http.StatusCreated)
 	}
 }

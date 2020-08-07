@@ -12,7 +12,7 @@ import (
 	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
 	"github.com/neuronlabs/neuron-extensions/repository/postgres/migrate"
 	"github.com/neuronlabs/neuron-extensions/repository/postgres/tests"
-	"github.com/neuronlabs/neuron/db"
+	"github.com/neuronlabs/neuron/database"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/query"
 )
@@ -32,7 +32,7 @@ func TestTransactions(t *testing.T) {
 		_ = internal.DropTables(ctx, p.ConnPool, table.Name, table.Schema)
 	}()
 
-	db := db.New(c)
+	db := database.New(c)
 
 	t.Run("Commit", func(t *testing.T) {
 		// No results should return no error.
@@ -42,13 +42,13 @@ func TestTransactions(t *testing.T) {
 		err = tx.Query(mStruct, model).Insert()
 		require.NoError(t, err)
 
-		_, ok := p.Transactions[tx.Transaction.ID]
+		_, ok := p.transactions[tx.Transaction.ID]
 		assert.True(t, ok)
 
 		assert.NotEqual(t, 0, model.ID)
 		err = tx.Commit()
 		require.NoError(t, err)
-		_, ok = p.Transactions[tx.Transaction.ID]
+		_, ok = p.transactions[tx.Transaction.ID]
 		assert.False(t, ok)
 
 		res, err := db.Query(mStruct).Where("id =", model.ID).Get()
@@ -65,7 +65,7 @@ func TestTransactions(t *testing.T) {
 		err = tx.Query(mStruct, model).Insert()
 		require.NoError(t, err)
 
-		_, ok := p.Transactions[tx.Transaction.ID]
+		_, ok := p.transactions[tx.Transaction.ID]
 		assert.True(t, ok)
 
 		assert.NotEqual(t, 0, model.ID)
@@ -73,7 +73,7 @@ func TestTransactions(t *testing.T) {
 		err = tx.Rollback()
 		require.NoError(t, err)
 
-		_, ok = p.Transactions[tx.Transaction.ID]
+		_, ok = p.transactions[tx.Transaction.ID]
 		assert.False(t, ok)
 
 		_, err := db.Query(mStruct).Where("id =", model.ID).Get()

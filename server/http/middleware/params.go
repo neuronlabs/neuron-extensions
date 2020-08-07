@@ -7,10 +7,11 @@ import (
 
 	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
 	"github.com/neuronlabs/neuron-extensions/server/http/log"
+	"github.com/neuronlabs/neuron/server"
 )
 
 // StoreIDFromParams stores id parameter from the httprouter params under the key: 'idKey'.
-func StoreIDFromParams(idKey string) Middleware {
+func StoreIDFromParams(idKey string) server.Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			ctx := req.Context()

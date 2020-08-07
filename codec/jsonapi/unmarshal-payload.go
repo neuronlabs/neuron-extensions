@@ -8,10 +8,8 @@ import (
 	"github.com/neuronlabs/neuron/mapping"
 )
 
-var _ codec.PayloadUnmarshaler = c
-
 // UnmarshalPayload implements codec.PayloadUnmarshaler interface.
-func (j *jsonapiCodec) UnmarshalPayload(r io.Reader, options codec.UnmarshalOptions) (*codec.Payload, error) {
+func (c Codec) UnmarshalPayload(r io.Reader, options codec.UnmarshalOptions) (*codec.Payload, error) {
 	payloader, err := unmarshalPayload(r, options)
 	if err != nil {
 		return nil, unmarshalHandleDecodeError(err)
@@ -28,7 +26,7 @@ func (j *jsonapiCodec) UnmarshalPayload(r io.Reader, options codec.UnmarshalOpti
 	payload := &codec.Payload{ModelStruct: options.ModelStruct}
 	for _, node := range payloader.GetNodes() {
 		if options.ModelStruct == nil {
-			mStruct, ok := j.c.ModelMap.GetByCollection(node.Type)
+			mStruct, ok := c.c.ModelMap.GetByCollection(node.Type)
 			if !ok {
 				return nil, errors.NewDetf(codec.ClassUnmarshal, "provided unknown collection type: %s", node.Type)
 			}

@@ -2,6 +2,8 @@ package jsonapi
 
 import (
 	"fmt"
+	"net/url"
+	"strconv"
 	"strings"
 
 	neuronCodec "github.com/neuronlabs/neuron/codec"
@@ -14,7 +16,7 @@ import (
 )
 
 // ParseParameters implements neuronCodec.ParametersParser interface.
-func (j *jsonapiCodec) ParseParameters(ctrl *controller.Controller, q *query.Scope, parameters query.Parameters) (err error) {
+func (c Codec) ParseParameters(ctrl *controller.Controller, q *query.Scope, parameters query.Parameters) (err error) {
 	var (
 		includes             query.Parameter
 		pageSize, pageNumber int64
@@ -25,12 +27,12 @@ func (j *jsonapiCodec) ParseParameters(ctrl *controller.Controller, q *query.Sco
 	for _, parameter := range parameters {
 		switch {
 		case parameter.Key == query.ParamPageLimit:
-			if err := j.parseLimit(parameter, q); err != nil {
+			if err := c.parseLimit(parameter, q); err != nil {
 				return err
 			}
 			hasLimitOffset = true
 		case parameter.Key == query.ParamPageOffset:
-			if err := j.parseOffset(parameter, q); err != nil {
+			if err := c.parseOffset(parameter, q); err != nil {
 				return err
 			}
 			hasLimitOffset = true
@@ -53,7 +55,7 @@ func (j *jsonapiCodec) ParseParameters(ctrl *controller.Controller, q *query.Sco
 		case parameter.Key == query.ParamInclude:
 			includes = parameter
 		case strings.HasPrefix(parameter.Key, query.ParamFields):
-			if err := j.parseFieldsParameter(ctrl, q, parameter, fields); err != nil {
+			if err := c.parseFieldsParameter(ctrl, q, parameter, fields); err != nil {
 				return err
 			}
 		case strings.HasPrefix(parameter.Key, filter.ParamFilter):
@@ -65,7 +67,7 @@ func (j *jsonapiCodec) ParseParameters(ctrl *controller.Controller, q *query.Sco
 				return errors.NewDetf(query.ClassInvalidParameter, "invalid filter parameter: '%s'", parameter.Key)
 			}
 			mStruct := q.ModelStruct
-			ff, err := j.parseFilterParameter(mStruct, split, parameter)
+			ff, err := c.parseFilterParameter(mStruct, split, parameter)
 			if err != nil {
 				return err
 			}
@@ -94,7 +96,7 @@ func (j *jsonapiCodec) ParseParameters(ctrl *controller.Controller, q *query.Sco
 	}
 
 	if pageSize != 0 || pageNumber != 0 {
-		p, err := j.parsePageBasedPagination(pageSize, pageNumber, hasLimitOffset)
+		p, err := c.parsePageBasedPagination(pageSize, pageNumber, hasLimitOffset)
 		if err != nil {
 			return err
 		}
@@ -102,18 +104,17 @@ func (j *jsonapiCodec) ParseParameters(ctrl *controller.Controller, q *query.Sco
 	}
 
 	if includes != (query.Parameter{}) {
-		if err := j.parseIncludesParameter(q, includes, fields); err != nil {
+		if err := c.parseIncludesParameter(q, includes, fields); err != nil {
 			return err
 		}
 	}
-	if len(fields) != 0 {
-		// Store the fields for given query - could be used later.
-		q.StoreSet(marshalFields, fields)
+	if fieldSet, ok := fields[q.ModelStruct]; ok {
+		q.FieldSets = []mapping.FieldSet{fieldSet}
 	}
 	return nil
 }
 
-func (j *jsonapiCodec) parseOffset(parameter query.Parameter, q *query.Scope) error {
+func (c Codec) parseOffset(parameter query.Parameter, q *query.Scope) error {
 	offset, err := parameter.Int64()
 	if err != nil {
 		return err
@@ -122,7 +123,7 @@ func (j *jsonapiCodec) parseOffset(parameter query.Parameter, q *query.Scope) er
 	return nil
 }
 
-func (j *jsonapiCodec) parseLimit(parameter query.Parameter, q *query.Scope) error {
+func (c Codec) parseLimit(parameter query.Parameter, q *query.Scope) error {
 	limit, err := parameter.Int64()
 	if err != nil {
 		return err
@@ -131,10 +132,13 @@ func (j *jsonapiCodec) parseLimit(parameter query.Parameter, q *query.Scope) err
 	return nil
 }
 
-func (j *jsonapiCodec) parsePageBasedPagination(pageSize int64, pageNumber int64, hasLimitOffset bool) (query.Pagination, error) {
-	if pageSize == 0 || pageNumber == 0 {
+func (c Codec) parsePageBasedPagination(pageSize int64, pageNumber int64, hasLimitOffset bool) (query.Pagination, error) {
+	if pageNumber == 0 {
+		pageNumber = 1
+	}
+	if pageSize == 0 {
 		return query.Pagination{}, errors.NewDetf(query.ClassInvalidParameter, "provided invalid pagination").
-			WithDetail(fmt.Sprintf("Both values '%s' and '%s' must be set.", ParamPageNumber, ParamPageSize))
+			WithDetail(fmt.Sprintf("Page size parameter: '%s' not defined.", ParamPageSize))
 	}
 	if hasLimitOffset {
 		return query.Pagination{}, errors.NewDetf(query.ClassInvalidParameter, "provided invalid pagination").
@@ -146,7 +150,7 @@ func (j *jsonapiCodec) parsePageBasedPagination(pageSize int64, pageNumber int64
 	}, nil
 }
 
-func (j *jsonapiCodec) parseFilterParameter(mStruct *mapping.ModelStruct, split []string, parameter query.Parameter) (filter.Filter, error) {
+func (c Codec) parseFilterParameter(mStruct *mapping.ModelStruct, split []string, parameter query.Parameter) (filter.Filter, error) {
 	sField, ok := mStruct.FieldByName(split[0])
 	if !ok || sField.IsHidden() {
 		return nil, errors.NewDetf(query.ClassInvalidParameter, "invalid filter parameter: '%s' - invalid fields", parameter.Key)
@@ -217,7 +221,7 @@ func (j *jsonapiCodec) parseFilterParameter(mStruct *mapping.ModelStruct, split 
 		if len(split) == 1 {
 			return nil, errors.NewDetf(query.ClassInvalidParameter, "invalid filter parameter: '%s'", parameter.Key)
 		}
-		sub, err := j.parseFilterParameter(sField.Relationship().Struct(), split[1:], parameter)
+		sub, err := c.parseFilterParameter(sField.Relationship().RelatedModelStruct(), split[1:], parameter)
 		if err != nil {
 			return nil, err
 		}
@@ -227,7 +231,7 @@ func (j *jsonapiCodec) parseFilterParameter(mStruct *mapping.ModelStruct, split 
 	}
 }
 
-func (j *jsonapiCodec) parseFieldsParameter(ctrl *controller.Controller, q *query.Scope, parameter query.Parameter, fields map[*mapping.ModelStruct]mapping.FieldSet) error {
+func (c Codec) parseFieldsParameter(ctrl *controller.Controller, q *query.Scope, parameter query.Parameter, fields map[*mapping.ModelStruct]mapping.FieldSet) error {
 	split, err := query.SplitBracketParameter(parameter.Key[len(query.ParamFields):])
 	if err != nil {
 		return err
@@ -249,7 +253,7 @@ func (j *jsonapiCodec) parseFieldsParameter(ctrl *controller.Controller, q *quer
 	}
 	fs := mapping.FieldSet{}
 	for _, field := range parameter.StringSlice() {
-		sField, ok := model.FieldByName(field)
+		sField, ok := model.StructFieldByName(field)
 		if !ok || sField.IsHidden() {
 			return errors.Newf(query.ClassInvalidParameter, "field: '%s' not found for the model", field)
 		}
@@ -259,6 +263,8 @@ func (j *jsonapiCodec) parseFieldsParameter(ctrl *controller.Controller, q *quer
 				return errors.Newf(query.ClassInvalidParameter, "duplicated field '%s' in '%s' parameter", field, query.ParamFields)
 			}
 			fs = append(fs, sField)
+		case mapping.KindPrimary:
+			return errors.NewDet(query.ClassInvalidParameter, "cannot set 'id' field in the query fieldset")
 		default:
 			return errors.Newf(query.ClassInvalidParameter, "field: '%s' not found for the model", field)
 		}
@@ -267,11 +273,11 @@ func (j *jsonapiCodec) parseFieldsParameter(ctrl *controller.Controller, q *quer
 	return nil
 }
 
-func (j *jsonapiCodec) parseIncludesParameter(q *query.Scope, parameter query.Parameter, fields map[*mapping.ModelStruct]mapping.FieldSet) error {
+func (c Codec) parseIncludesParameter(q *query.Scope, parameter query.Parameter, fields map[*mapping.ModelStruct]mapping.FieldSet) error {
 	for _, field := range parameter.StringSlice() {
 		included := strings.Split(field, ".")
 
-		ir, err := j.addIncludedParameter(q.ModelStruct, included, q.IncludedRelations, fields)
+		ir, err := c.addIncludedParameter(q.ModelStruct, included, q.IncludedRelations, fields)
 		if err != nil {
 			return err
 		}
@@ -282,40 +288,58 @@ func (j *jsonapiCodec) parseIncludesParameter(q *query.Scope, parameter query.Pa
 	return nil
 }
 
-func (j *jsonapiCodec) addIncludedParameter(mStruct *mapping.ModelStruct, parameters []string, included []*query.IncludedRelation, fields map[*mapping.ModelStruct]mapping.FieldSet) (*query.IncludedRelation, error) {
+func (c Codec) addIncludedParameter(mStruct *mapping.ModelStruct, parameters []string, included []*query.IncludedRelation, fields map[*mapping.ModelStruct]mapping.FieldSet) (*query.IncludedRelation, error) {
 	field := parameters[0]
-	sField, ok := mStruct.FieldByName(field)
+	sField, ok := mStruct.RelationByName(field)
 	if !ok || sField.IsHidden() {
-		return nil, errors.Newf(query.ClassInvalidParameter, "field: '%s' not found for the model", field)
+		return nil, errors.Newf(query.ClassInvalidParameter, "relation: '%s' not found for the model", field)
 	}
-	switch sField.Kind() {
-	case mapping.KindRelationshipMultiple, mapping.KindRelationshipSingle:
-		var includedRelation *query.IncludedRelation
-		appendTop := true
-		for _, relation := range included {
-			if relation.StructField == sField {
-				includedRelation = relation
-				appendTop = false
-				break
-			}
+
+	var includedRelation *query.IncludedRelation
+	appendTop := true
+	for _, relation := range included {
+		if relation.StructField == sField {
+			includedRelation = relation
+			appendTop = false
+			break
 		}
-		if includedRelation == nil {
-			includedRelation = j.newIncludedRelation(sField, fields)
+	}
+	if includedRelation == nil {
+		includedRelation = c.newIncludedRelation(sField, fields)
+	}
+	if len(parameters) > 1 {
+		ir, err := c.addIncludedParameter(sField.Relationship().RelatedModelStruct(), parameters[1:], includedRelation.IncludedRelations, fields)
+		if err != nil {
+			return nil, err
 		}
-		if len(parameters) > 1 {
-			ir, err := j.addIncludedParameter(sField.Relationship().Struct(), parameters[1:], includedRelation.IncludedRelations, fields)
-			if err != nil {
-				return nil, err
-			}
-			if ir != nil {
-				includedRelation.IncludedRelations = append(includedRelation.IncludedRelations, ir)
-			}
+		if ir != nil {
+			includedRelation.IncludedRelations = append(includedRelation.IncludedRelations, ir)
 		}
-		if appendTop {
-			return includedRelation, nil
+	}
+	if appendTop {
+		return includedRelation, nil
+	}
+	return nil, nil
+}
+
+func FormatPagination(p *query.Pagination, temp url.Values, pageBased bool) {
+	var k, v string
+
+	if !pageBased {
+		limit, offset := p.Limit, p.Offset
+		if limit != 0 {
+			k = query.ParamPageLimit
+			v = strconv.FormatInt(limit, 10)
+			temp.Set(k, v)
 		}
-		return nil, nil
-	default:
-		return nil, errors.Newf(query.ClassInvalidParameter, "field: '%s' not found for the model", field)
+		if offset != 0 {
+			k = query.ParamPageOffset
+			v = strconv.FormatInt(offset, 10)
+			temp.Set(k, v)
+		}
+	} else {
+		pageNumber := (p.Offset + p.Limit) / p.Limit
+		temp.Set(ParamPageNumber, strconv.FormatInt(pageNumber, 10))
+		temp.Set(ParamPageSize, strconv.FormatInt(p.Limit, 10))
 	}
 }

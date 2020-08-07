@@ -12,7 +12,7 @@ import (
 	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
 	"github.com/neuronlabs/neuron-extensions/repository/postgres/migrate"
 	"github.com/neuronlabs/neuron-extensions/repository/postgres/tests"
-	"github.com/neuronlabs/neuron/db"
+	"github.com/neuronlabs/neuron/database"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/query"
 )
@@ -32,7 +32,7 @@ func TestInsertSingleModel(t *testing.T) {
 	}()
 
 	// No results should return no error.
-	db := db.New(c)
+	db := database.New(c)
 
 	newModel := func() *tests.SimpleModel {
 		return &tests.SimpleModel{
@@ -63,7 +63,9 @@ func TestInsertSingleModel(t *testing.T) {
 	t.Run("WithFieldset", func(t *testing.T) {
 		model1 := newModel()
 		model1.Attr = "something"
-		err = db.Query(mStruct, model1).Select(mStruct.MustFieldByName("Attr")).Insert()
+		err = db.Query(mStruct, model1).
+			Select(mStruct.MustFieldByName("Attr")).
+			Insert()
 		require.NoError(t, err)
 
 		assert.NotZero(t, model1.ID)

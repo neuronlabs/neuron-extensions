@@ -9,8 +9,8 @@ import (
 	"github.com/neuronlabs/neuron/mapping"
 )
 
-//go:generate neuron-generator models --format=goimports .
-//go:generate neuron-generator collections --format=goimports  .
+//go:generate neuron-generator models --format=goimports --single-file .
+//go:generate neuron-generator collections --format=goimports  --single-file .
 
 // Account is the basic model used for authentication and authorization.
 type Account struct {
@@ -25,6 +25,7 @@ type Account struct {
 	HashPassword []byte `codec:"-"`
 	// Password is the user provided password.
 	Password string `db:"-"`
+	Roles    []*Role
 }
 
 // Validate does the validation of the input account. It checks the email address as well as the

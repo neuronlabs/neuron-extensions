@@ -9,7 +9,7 @@ import (
 
 	"github.com/neuronlabs/neuron/auth"
 	"github.com/neuronlabs/neuron/controller"
-	"github.com/neuronlabs/neuron/db"
+	"github.com/neuronlabs/neuron/database"
 	"github.com/neuronlabs/neuron/errors"
 )
 
@@ -26,13 +26,13 @@ type Authenticator struct {
 	Parser        jwt.Parser
 
 	c  *controller.Controller
-	db db.DB
+	db database.DB
 }
 
 // Initialize implements initializer interface.
 func (a *Authenticator) Initialize(c *controller.Controller) error {
 	a.c = c
-	a.db = db.New(c)
+	a.db = database.New(c)
 
 	if a.SigningMethod != jwt.SigningMethodHS256 {
 		return errors.NewDet(auth.ClassInitialization, "authenticator: unsupported signing method")
@@ -43,7 +43,7 @@ func (a *Authenticator) Initialize(c *controller.Controller) error {
 // Authenticate implements auth.Authenticator interface. Does the authentication using bcrypt algorihtm.
 // Returns accountID as uuid.UUID.
 func (a *Authenticator) Authenticate(ctx context.Context, email, password string) (accountID interface{}, err error) {
-	account, err := Accounts.QueryCtx(ctx, a.db).Where("Email =", email).Get()
+	account, err := NRN_Accounts.QueryCtx(ctx, a.db).Where("Email =", email).Get()
 	if err != nil {
 		return nil, err
 	}

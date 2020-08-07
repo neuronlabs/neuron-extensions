@@ -18,9 +18,11 @@ import (
 
 type ctxKey struct{}
 
+type storeKey struct{}
+
 var (
 	marshalFields        = &ctxKey{}
-	StoreKeyMarshalLinks = &ctxKey{}
+	StoreKeyMarshalLinks = &storeKey{}
 )
 
 // ParamLinks defines the links parameter name.
@@ -30,27 +32,20 @@ const (
 	ParamPageNumber = "page[number]"
 )
 
-func (j *jsonapiCodec) newIncludedRelation(sField *mapping.StructField, fields map[*mapping.ModelStruct]mapping.FieldSet) (includedRelation *query.IncludedRelation) {
+func (c Codec) newIncludedRelation(sField *mapping.StructField, fields map[*mapping.ModelStruct]mapping.FieldSet) (includedRelation *query.IncludedRelation) {
 	includedRelation = &query.IncludedRelation{StructField: sField}
-	fs, ok := fields[sField.ModelStruct()]
+	fs, ok := fields[sField.Relationship().RelatedModelStruct()]
 	if ok {
-		includedRelation.Fieldset = append(includedRelation.Fieldset, sField.Relationship().Struct().Primary())
 		for _, field := range fs {
 			switch field.Kind() {
-			case mapping.KindAttribute:
+			case mapping.KindAttribute, mapping.KindRelationshipMultiple, mapping.KindRelationshipSingle:
 				includedRelation.Fieldset = append(includedRelation.Fieldset, field)
-			case mapping.KindRelationshipMultiple, mapping.KindRelationshipSingle:
-				includedRelation.IncludedRelations = append(includedRelation.IncludedRelations, j.newIncludedRelation(field, fields))
 			}
 		}
 	} else {
-		// By default set full fieldset and all possible relationships.
-		includedRelation.Fieldset = sField.ModelStruct().Fields()
-		for _, relation := range sField.ModelStruct().RelationFields() {
-			includedRelation.IncludedRelations = append(includedRelation.IncludedRelations, j.newIncludedRelation(relation, fields))
-		}
+		// By default set full field set with all relationships.
+		includedRelation.Fieldset = append(sField.Relationship().RelatedModelStruct().Attributes(), sField.Relationship().RelatedModelStruct().RelationFields()...)
 	}
-
 	return includedRelation
 }
 
@@ -338,7 +333,7 @@ func unmarshalNode(mStruct *mapping.ModelStruct, data *Node, model mapping.Model
 					return nil, err
 				}
 
-				relStruct := relationshipStructField.Relationship().Struct()
+				relStruct := relationshipStructField.Relationship().RelatedModelStruct()
 				for _, n := range relationship.Data {
 					relModel := mapping.NewModel(relStruct)
 					if _, err := unmarshalNode(relStruct, fullNode(n, included), relModel, included, options); err != nil {
@@ -375,7 +370,7 @@ func unmarshalNode(mStruct *mapping.ModelStruct, data *Node, model mapping.Model
 					continue
 				}
 
-				relStruct := relationshipStructField.Relationship().Struct()
+				relStruct := relationshipStructField.Relationship().RelatedModelStruct()
 				relModel := mapping.NewModel(relStruct)
 
 				if _, err := unmarshalNode(relStruct, fullNode(relationship.Data, included), relModel, included, options); err != nil {

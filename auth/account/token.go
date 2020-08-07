@@ -47,7 +47,7 @@ func (a *Authenticator) InspectToken(token string) (interface{}, error) {
 }
 
 // RefreshToken generates new auth.Token based on provided refresh token.
-func (a *Authenticator) RefreshToken(ctx context.Context, refreshToken string) (*auth.Token, error) {
+func (a *Authenticator) RefreshToken(ctx context.Context, refreshToken string) (auth.Token, error) {
 	claims := &refreshClaims{}
 	_, err := a.Parser.ParseWithClaims(refreshToken, claims, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -56,16 +56,16 @@ func (a *Authenticator) RefreshToken(ctx context.Context, refreshToken string) (
 		return a.Options.Secret, nil
 	})
 	if err != nil {
-		return nil, err
+		return auth.Token{}, err
 	}
 	if err = claims.Valid(); err != nil {
-		return nil, err
+		return auth.Token{}, err
 	}
 	return a.Token(ctx, auth.TokenAccountID(claims.AccountID))
 }
 
 // Token creates an auth.Token from provided options.
-func (a *Authenticator) Token(ctx context.Context, options ...auth.TokenOption) (*auth.Token, error) {
+func (a *Authenticator) Token(ctx context.Context, options ...auth.TokenOption) (auth.Token, error) {
 	o := &auth.TokenOptions{
 		ExpirationTime: a.Options.TokenExpiration,
 	}
@@ -81,7 +81,7 @@ func (a *Authenticator) Token(ctx context.Context, options ...auth.TokenOption) 
 	account, ok := CtxGetAccount(ctx)
 	if !ok {
 		if o.AccountID == nil {
-			return nil, errors.NewDetf(auth.ClassNoRequiredOption, "provided nil account id")
+			return auth.Token{}, errors.NewDetf(auth.ClassNoRequiredOption, "provided nil account id")
 		}
 		var (
 			id  uuid.UUID
@@ -93,17 +93,17 @@ func (a *Authenticator) Token(ctx context.Context, options ...auth.TokenOption) 
 		case string:
 			id, err = uuid.Parse(accountID)
 			if err != nil {
-				return nil, errors.NewDetf(auth.ClassNoRequiredOption, "provided invalid uuid in the account id option")
+				return auth.Token{}, errors.NewDetf(auth.ClassNoRequiredOption, "provided invalid uuid in the account id option")
 			}
 		default:
-			return nil, errors.NewDetf(auth.ClassNoRequiredOption, "provided invalid account id type: %T", accountID)
+			return auth.Token{}, errors.NewDetf(auth.ClassNoRequiredOption, "provided invalid account id type: %T", accountID)
 		}
 		// Get the account with provided id.
-		account, err = Accounts.QueryCtx(ctx, a.db).
+		account, err = NRN_Accounts.QueryCtx(ctx, a.db).
 			Where("ID = ?", id).
 			Get()
 		if err != nil {
-			return nil, errors.NewDetf(auth.ClassAccountNotFound, "the account with provided id is not found")
+			return auth.Token{}, errors.NewDetf(auth.ClassAccountNotFound, "the account with provided id is not found")
 		}
 	}
 	claimsWithAccount(claims, account)
@@ -111,7 +111,7 @@ func (a *Authenticator) Token(ctx context.Context, options ...auth.TokenOption) 
 	token := jwt.NewWithClaims(a.SigningMethod, claims)
 	tokenString, err := token.SignedString(a.Options.Secret)
 	if err != nil {
-		return nil, errors.NewDetf(auth.ClassInternal, "writing signed string failed: %v", err)
+		return auth.Token{}, errors.NewDetf(auth.ClassInternal, "writing signed string failed: %v", err)
 	}
 
 	refClaims := refreshClaims{
@@ -124,12 +124,9 @@ func (a *Authenticator) Token(ctx context.Context, options ...auth.TokenOption) 
 	refreshToken := jwt.NewWithClaims(a.SigningMethod, refClaims)
 	refreshTokenString, err := refreshToken.SignedString(a.Options.Secret)
 	if err != nil {
-		return nil, errors.NewDetf(auth.ClassInternal, "writing signed string failed: %v", err)
+		return auth.Token{}, errors.NewDetf(auth.ClassInternal, "writing signed string failed: %v", err)
 	}
-	return &auth.Token{
-		AccessToken:  tokenString,
-		RefreshToken: refreshTokenString,
-	}, nil
+	return auth.Token{AccessToken: tokenString, RefreshToken: refreshTokenString}, nil
 }
 
 func claimsWithAccount(claims *Claims, account *Account) {

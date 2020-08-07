@@ -5,7 +5,7 @@ import (
 
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/query"
-	"github.com/neuronlabs/neuron/service"
+	"github.com/neuronlabs/neuron/repository"
 )
 
 var pqMapping = map[string]errors.Class{
@@ -14,7 +14,7 @@ var pqMapping = map[string]errors.Class{
 	"P0002": query.ClassNoResult,
 
 	// Class 08 - Connection Exception
-	"08": service.ClassConnection,
+	"08": repository.ClassConnection,
 
 	"0B000": query.ClassTxState,
 
@@ -37,8 +37,8 @@ var pqMapping = map[string]errors.Class{
 	"25": query.ClassTxState,
 
 	// Class 28 Invalid Authorization Specification
-	"28000": service.ClassAuthorization,
-	"28P01": service.ClassAuthorization,
+	"28000": repository.ClassAuthorization,
+	"28P01": repository.ClassAuthorization,
 
 	// Class 2D Invalid Transaction Termination
 	"2D000": query.ClassTxState,
@@ -54,7 +54,7 @@ var pqMapping = map[string]errors.Class{
 
 	// Class 42 - Invalid Syntax
 	"42":    query.ClassInternal,
-	"42939": service.ClassReservedName,
+	"42939": repository.ClassReservedName,
 	"42804": query.ClassViolationDataType,
 	"42703": query.ClassInternal,
 	"42883": query.ClassInternal,
@@ -62,19 +62,19 @@ var pqMapping = map[string]errors.Class{
 	"42701": query.ClassInternal,
 	"42P06": query.ClassInternal,
 	"42P07": query.ClassInternal,
-	"42501": service.ClassAuthorization,
+	"42501": repository.ClassAuthorization,
 
 	// Class 53 - Insufficient Resources
-	"53": service.ClassService,
+	"53": repository.ClassService,
 
 	// Class 54 - Program Limit Exceeded
-	"54": service.ClassService,
+	"54": repository.ClassService,
 
 	// Class 58 - System Errors
-	"58": service.ClassService,
+	"58": repository.ClassService,
 
 	// Class XX - Internal Error
-	"XX": service.ClassService,
+	"XX": repository.ClassService,
 }
 
 // Get gets the mapped postgres pq.Error to the neuron error class.

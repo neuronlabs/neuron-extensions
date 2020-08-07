@@ -12,8 +12,8 @@ import (
 )
 
 // MarshalPayload implements codec.PayloadMarshaler interface.
-func (j *jsonapiCodec) MarshalPayload(w io.Writer, payload *codec.Payload) error {
-	nodes, err := j.visitPayloadModels(payload)
+func (c Codec) MarshalPayload(w io.Writer, payload *codec.Payload) error {
+	nodes, err := c.visitPayloadModels(payload)
 	if err != nil {
 		log.Debug2f("visitModels failed: %v", err)
 		return err
@@ -27,6 +27,9 @@ func (j *jsonapiCodec) MarshalPayload(w io.Writer, payload *codec.Payload) error
 		topLinks = &TopLinks{}
 		topLinks.SetPaginationLinks(payload.PaginationLinks)
 		if payload.PaginationLinks.Total != 0 {
+			if payload.Meta == nil {
+				payload.Meta = codec.Meta{}
+			}
 			payload.Meta[KeyTotal] = payload.PaginationLinks.Total
 		}
 	}
@@ -36,7 +39,7 @@ func (j *jsonapiCodec) MarshalPayload(w io.Writer, payload *codec.Payload) error
 		payloader = &ManyPayload{Data: nodes, Meta: payload.Meta, Links: topLinks}
 	}
 	if len(payload.IncludedRelations) != 0 {
-		included, err := j.extractIncludedNodes(payload)
+		included, err := c.extractIncludedNodes(payload)
 		if err != nil {
 			return err
 		}
@@ -49,12 +52,12 @@ func (j *jsonapiCodec) MarshalPayload(w io.Writer, payload *codec.Payload) error
 
 }
 
-func (j *jsonapiCodec) extractIncludedNodes(payload *codec.Payload) ([]*Node, error) {
+func (c Codec) extractIncludedNodes(payload *codec.Payload) ([]*Node, error) {
 	collectionUniqueNodes := map[*mapping.ModelStruct]map[interface{}]*Node{}
 	var nodes []*Node
 	for _, included := range payload.IncludedRelations {
 		for _, model := range payload.Data {
-			err := j.extractIncludedModelNode(collectionUniqueNodes, included, model, payload.MarshalLinks)
+			err := c.extractIncludedModelNode(collectionUniqueNodes, included, model, payload.MarshalLinks)
 			if err != nil {
 				return nil, err
 			}
@@ -68,7 +71,7 @@ func (j *jsonapiCodec) extractIncludedNodes(payload *codec.Payload) ([]*Node, er
 	return nodes, nil
 }
 
-func (j *jsonapiCodec) extractIncludedModelNode(collectionUniqueNodes map[*mapping.ModelStruct]map[interface{}]*Node, included *query.IncludedRelation, model mapping.Model, marshalLinks *codec.LinkOptions) error {
+func (c Codec) extractIncludedModelNode(collectionUniqueNodes map[*mapping.ModelStruct]map[interface{}]*Node, included *query.IncludedRelation, model mapping.Model, marshalLinks codec.LinkOptions) error {
 	switch included.StructField.Kind() {
 	case mapping.KindRelationshipMultiple:
 		mr, ok := model.(mapping.MultiRelationer)
@@ -79,7 +82,7 @@ func (j *jsonapiCodec) extractIncludedModelNode(collectionUniqueNodes map[*mappi
 		if err != nil {
 			return err
 		}
-		relationStruct := included.StructField.ModelStruct()
+		relationStruct := included.StructField.Relationship().RelatedModelStruct()
 		thisNodes := collectionUniqueNodes[relationStruct]
 		if thisNodes == nil {
 			thisNodes = map[interface{}]*Node{}
@@ -87,11 +90,19 @@ func (j *jsonapiCodec) extractIncludedModelNode(collectionUniqueNodes map[*mappi
 		}
 
 		for _, relation := range relations {
+			if relation == nil {
+				continue
+			}
+			for _, subIncluded := range included.IncludedRelations {
+				if err = c.extractIncludedModelNode(collectionUniqueNodes, subIncluded, relation, marshalLinks); err != nil {
+					return err
+				}
+			}
 			id := relation.GetPrimaryKeyHashableValue()
 			if _, ok = thisNodes[id]; ok {
 				continue
 			}
-			node, err := visitModelNode(relationStruct, relation, marshalLinks, included.Fieldset)
+			node, err := visitModelNode(relationStruct, relation, marshalLinks, included.Fieldset...)
 			if err != nil {
 				return err
 			}
@@ -106,7 +117,10 @@ func (j *jsonapiCodec) extractIncludedModelNode(collectionUniqueNodes map[*mappi
 		if err != nil {
 			return err
 		}
-		relationStruct := included.StructField.ModelStruct()
+		if relation == nil {
+			return nil
+		}
+		relationStruct := included.StructField.Relationship().RelatedModelStruct()
 		thisNodes := collectionUniqueNodes[relationStruct]
 		if thisNodes == nil {
 			thisNodes = map[interface{}]*Node{}
@@ -116,11 +130,17 @@ func (j *jsonapiCodec) extractIncludedModelNode(collectionUniqueNodes map[*mappi
 		if _, ok = thisNodes[id]; ok {
 			return nil
 		}
-		node, err := visitModelNode(relationStruct, relation, marshalLinks, included.Fieldset)
+		node, err := visitModelNode(relationStruct, relation, marshalLinks, included.Fieldset...)
 		if err != nil {
 			return err
 		}
 		thisNodes[id] = node
+
+		for _, subIncluded := range included.IncludedRelations {
+			if err = c.extractIncludedModelNode(collectionUniqueNodes, subIncluded, relation, marshalLinks); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }

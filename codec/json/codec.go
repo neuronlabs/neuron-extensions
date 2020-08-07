@@ -9,30 +9,24 @@ import (
 	"github.com/neuronlabs/neuron/errors"
 )
 
-var c *jsonCodec
-
+// MimeType defines the default mime type for the json codec.
 const MimeType = "application/json"
 
-func init() {
-	c = &jsonCodec{Mime: MimeType}
-	codec.RegisterCodec(MimeType, c)
+// Compile time check if Codec implements codec.Codec.
+var _ codec.Codec = &Codec{}
+
+// Codec is a json codec.Codec implementation.
+type Codec struct {
+	c *controller.Controller
 }
 
-var _ codec.Codec = &jsonCodec{}
-
-type jsonCodec struct {
-	Mime string
-	c    *controller.Controller
-}
-
-// Initialize implements core.Initializer interface.
-func (j *jsonCodec) Initialize(c *controller.Controller) error {
-	j.c = c
-	return nil
+// GetCodec gets the codec with provided controller 'c'.
+func GetCodec(c *controller.Controller) Codec {
+	return Codec{c: c}
 }
 
 // MarshalErrors implements codec.Codec interface.
-func (j jsonCodec) MarshalErrors(w io.Writer, errs ...*codec.Error) error {
+func (c Codec) MarshalErrors(w io.Writer, errs ...*codec.Error) error {
 	data, err := json.Marshal(errs)
 	if err != nil {
 		return errors.Newf(codec.ClassMarshal, "marshaling errors failed: %v", err)
@@ -45,7 +39,7 @@ func (j jsonCodec) MarshalErrors(w io.Writer, errs ...*codec.Error) error {
 }
 
 // UnmarshalErrors implements codec.Codec interface.
-func (j jsonCodec) UnmarshalErrors(r io.Reader) (codec.MultiError, error) {
+func (c Codec) UnmarshalErrors(r io.Reader) (codec.MultiError, error) {
 	errs := []*codec.Error{}
 	if err := json.NewDecoder(r).Decode(&errs); err != nil {
 		return nil, errors.NewDetf(codec.ClassUnmarshal, "unmarshal errors failed: %v", err)
@@ -54,6 +48,6 @@ func (j jsonCodec) UnmarshalErrors(r io.Reader) (codec.MultiError, error) {
 }
 
 // MimeType implements codec.Codec interface.
-func (j jsonCodec) MimeType() string {
-	return j.Mime
+func (c Codec) MimeType() string {
+	return MimeType
 }

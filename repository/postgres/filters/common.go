@@ -9,15 +9,9 @@ import (
 	"github.com/neuronlabs/neuron-extensions/repository/postgres/log"
 )
 
-func init() {
-	ClassInternal = errors.MustNewMajorClass(errors.MjrInternal)
-}
-
 var (
 	operatorSQL      []string
 	operatorSQLizers []SQLizer
-	// ClassInternal defines internal filters error.
-	ClassInternal errors.Class
 )
 
 func init() {

@@ -7,10 +7,11 @@ import (
 	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
 	"github.com/neuronlabs/neuron/auth"
 	"github.com/neuronlabs/neuron/log"
+	"github.com/neuronlabs/neuron/server"
 )
 
 // BearerAuthenticate gets the Authorization Header from http request, and checks if given Authorization header is valid.
-func BearerAuthenticate(tokener auth.Tokener) Middleware {
+func BearerAuthenticate(tokener auth.Tokener) server.Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			ah := req.Header.Get("Authorization")

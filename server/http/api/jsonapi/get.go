@@ -2,16 +2,14 @@ package jsonapi
 
 import (
 	"net/http"
+	"strings"
 
+	"github.com/neuronlabs/neuron-extensions/codec/jsonapi"
 	"github.com/neuronlabs/neuron/codec"
-	"github.com/neuronlabs/neuron/db"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/query"
-	"github.com/neuronlabs/neuron/query/filter"
 	"github.com/neuronlabs/neuron/server"
-
-	"github.com/neuronlabs/neuron-extensions/codec/jsonapi"
 
 	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
 	"github.com/neuronlabs/neuron-extensions/server/http/log"
@@ -24,96 +22,162 @@ func (a *API) HandleGet(model mapping.Model) http.HandlerFunc {
 	}
 }
 
-func (a *API) handleGet(model *mapping.ModelStruct) http.HandlerFunc {
+func (a *API) handleGet(mStruct *mapping.ModelStruct) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
-		s, err := a.createGetScope(req, model)
-		if err != nil {
+		id := httputil.CtxMustGetID(req.Context())
+		if id == "" {
+			log.Errorf("ID value stored in the context is empty.")
+			err := errors.NewDet(server.ClassURIParameter, "invalid 'id' url parameter").
+				WithDetail("Provided empty ID in query url")
 			a.marshalErrors(rw, 0, httputil.MapError(err)...)
 			return
 		}
 
-		params := &QueryParams{
-			Context: req.Context(),
-			Scope:   s,
-			DB:      a.DB,
-		}
-
-		// Get and apply hook functions.
-		for _, hook := range hooks.getPreHooks(model, query.Get) {
-			if err = hook(params); err != nil {
-				a.marshalErrors(rw, 0, httputil.MapError(err)...)
-				return
-			}
-		}
-
-		_, err = db.Get(params.Context, params.DB, params.Scope)
-		if err != nil {
+		// Create new model and set it's primary key from the url parameter.
+		model := mapping.NewModel(mStruct)
+		if err := model.SetPrimaryKeyStringValue(id); err != nil {
+			log.Debug2f("[GET][%s] Invalid URL id value: '%s': '%v'", mStruct.Collection(), id, err)
+			err := errors.NewDet(server.ClassURIParameter, "invalid query id parameter")
 			a.marshalErrors(rw, 0, httputil.MapError(err)...)
 			return
 		}
 
-		for _, hook := range hooks.getPostHooks(model, query.Get) {
-			if err = hook(params); err != nil {
-				a.marshalErrors(rw, 0, httputil.MapError(err)...)
-				return
-			}
+		// Disallow zero value ID.
+		if model.IsPrimaryKeyZero() {
+			err := errors.NewDet(server.ClassURIParameter, "provided zero value 'id' parameter")
+			a.marshalErrors(rw, 0, httputil.MapError(err)...)
+			return
+		}
+
+		// Create a query scope and parse url parameters.
+		s := query.NewScope(mStruct, model)
+
+		// Get jsonapi codec ans parse query parameters.
+		parser, ok := jsonapi.GetCodec(a.Controller).(codec.ParameterParser)
+		if !ok {
+			log.Errorf("jsonapi codec doesn't implement ParameterParser")
+			a.marshalErrors(rw, 500, httputil.ErrInternalError())
+			return
+		}
+
+		parameters := query.MakeParameters(req.URL.Query())
+		if err := parser.ParseParameters(a.Controller, s, parameters); err != nil {
+			log.Debugf("[GET][%s] parsing parameters: '%s' failed: '%v'", mStruct, req.URL.RawQuery, err)
+			a.marshalErrors(rw, 0, httputil.MapError(err)...)
+			return
+		}
+		if len(s.SortingOrder) > 0 {
+			log.Debugf("[GET][%s] sorting is not allowed for the GET query type", mStruct)
+			err := httputil.ErrInvalidQueryParameter()
+			err.Detail = "Sorting is not allowed on GET single queries."
+			a.marshalErrors(rw, 400, err)
+			return
+		}
+		if s.Pagination != nil {
+			log.Debugf("[GET][%s] pagination is not allowed for the GET query type", mStruct)
+			err := httputil.ErrInvalidQueryParameter()
+			err.Detail = "Pagination is not allowed on GET single queries."
+			a.marshalErrors(rw, 400, err)
+			return
+		}
+		if len(s.Filters) != 0 {
+			log.Debugf("[GET][%s] filtering is not allowed for the GET query type", mStruct)
+			err := httputil.ErrInvalidQueryParameter()
+			err.Detail = "Filtering is not allowed on GET single queries."
+			a.marshalErrors(rw, 400, err)
+			return
+		}
+
+		// queryIncludes are the included fields from the url query.
+		queryIncludes := s.IncludedRelations
+		var queryFieldSet mapping.FieldSet
+		var fields mapping.FieldSet
+		if len(s.FieldSets) == 0 {
+			fields = append(s.ModelStruct.Attributes(), s.ModelStruct.RelationFields()...)
+			queryFieldSet = fields
+		} else {
+			fields = s.FieldSets[0]
+			queryFieldSet = s.FieldSets[0]
+		}
+		// json:api fieldset is a combination of fields + relations.
+		// The same situation is with includes.
+		neuronFields, neuronIncludes := parseFieldSetAndIncludes(mStruct, fields, queryIncludes)
+		s.FieldSets = []mapping.FieldSet{neuronFields}
+		s.IncludedRelations = neuronIncludes
+
+		params := a.params(req)
+
+		// Handle get query.
+		result, err := a.getHandleChain(params, s)
+		if err != nil {
+			log.Debugf("[GET][%s] getting result failed: %v", mStruct, err)
+			a.marshalErrors(rw, 0, httputil.MapError(err)...)
+			return
 		}
 
 		linkType := codec.ResourceLink
 		// but if the config doesn't allow that - set 'jsonapi.NoLink'
-		if !a.MarshalLinks {
+		if !a.Options.PayloadLinks {
 			linkType = codec.NoLink
 		}
-
-		// TODO: add relations.
-		payload := codec.Payload{
-			ModelStruct:       s.ModelStruct,
-			Data:              s.Models,
-			FieldSets:         s.FieldSets,
-			IncludedRelations: s.IncludedRelations,
-			MarshalLinks: &codec.LinkOptions{
-				Type:       linkType,
-				BaseURL:    a.BasePath,
-				RootID:     httputil.CtxMustGetID(params.Context),
-				Collection: model.Collection(),
-			},
-			MarshalSingularFormat: true,
+		if result.ModelStruct == nil {
+			result.ModelStruct = mStruct
 		}
-		a.marshalPayload(rw, &payload, http.StatusOK)
+		result.FieldSets = []mapping.FieldSet{queryFieldSet}
+		result.IncludedRelations = queryIncludes
+
+		if result.MarshalLinks.Type == codec.NoLink {
+			result.MarshalLinks = codec.LinkOptions{
+				Type:       linkType,
+				BaseURL:    a.Options.PathPrefix,
+				RootID:     id,
+				Collection: mStruct.Collection(),
+			}
+		}
+		result.MarshalSingularFormat = true
+		result.PaginationLinks = &codec.PaginationLinks{}
+		sb := strings.Builder{}
+		sb.WriteString(a.basePath())
+		sb.WriteRune('/')
+		sb.WriteString(mStruct.Collection())
+		sb.WriteRune('/')
+		sb.WriteString(id)
+		if q := req.URL.Query(); len(q) > 0 {
+			sb.WriteRune('?')
+			sb.WriteString(q.Encode())
+		}
+		result.PaginationLinks.Self = sb.String()
+		a.marshalPayload(rw, result, http.StatusOK)
 	}
 }
 
-func (a *API) createGetScope(req *http.Request, mStruct *mapping.ModelStruct) (*query.Scope, error) {
-	id := httputil.CtxMustGetID(req.Context())
-	if id == "" {
-		log.Errorf("ID value stored in the context is empty.")
-		return nil, errors.NewDet(server.ClassURIParameter, "invalid 'id' url parameter").
-			WithDetail("Provided empty ID in query url")
+func (a *API) getHandleChain(params *server.Params, q *query.Scope) (*codec.Payload, error) {
+	modelHandler, hasModelHandler := a.handlers[q.ModelStruct]
+	if hasModelHandler {
+		beforeHandler, ok := modelHandler.(server.BeforeGetHandler)
+		if ok {
+			if err := beforeHandler.HandleBeforeGet(params, q); err != nil {
+				return nil, err
+			}
+		}
 	}
 
-	// Create new model and set it's primary key from the url parameter.
-	model := mapping.NewModel(mStruct)
-	if err := model.SetPrimaryKeyStringValue(id); err != nil {
-		log.Debugf("[GET][%s] Invalid URL id value: '%s': '%v'", mStruct.Collection(), id, err)
-		return nil, errors.NewDet(server.ClassURIParameter, "invalid query id parameter")
-	}
-
-	// Create a query scope and parse url parameters.
-	s := query.NewScope(mStruct)
-
-	// Set primary key filter for given model.
-	s.Filter(filter.New(mStruct.Primary(), filter.OpEqual, model.GetPrimaryKeyValue()))
-
-	// Get jsonapi codec ans parse query parameters.
-	parser, ok := jsonapi.Codec().(codec.ParameterParser)
+	getHandler, ok := modelHandler.(server.GetHandler)
 	if !ok {
-		log.Errorf("jsonapi codec doesn't implement ParameterParser")
-		return nil, errors.NewDet(codec.ClassInternal, "jsonapi codec doesn't implement ParameterParser")
+		getHandler = a.defaultHandler
 	}
-
-	parameters := query.MakeParameters(req.URL.Query())
-	if err := parser.ParseParameters(a.Controller, s, parameters); err != nil {
+	result, err := getHandler.HandleGet(params.Ctx, *params, q)
+	if err != nil {
 		return nil, err
 	}
-	return s, nil
+
+	if hasModelHandler {
+		afterHandler, ok := modelHandler.(server.AfterGetHandler)
+		if ok {
+			if err := afterHandler.HandleAfterGet(params, result); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return result, err
 }

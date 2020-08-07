@@ -10,52 +10,10 @@ import (
 	"github.com/neuronlabs/neuron/codec"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/mapping"
-	"github.com/neuronlabs/neuron/query"
 )
 
-type payloader interface {
-	nodes() []modelNode
-	pagination() *codec.PaginationLinks
-}
-
-type singlePayload struct {
-	Pagination *codec.PaginationLinks
-	Data       modelNode `json:"data"`
-}
-
-func (s singlePayload) nodes() []modelNode {
-	return []modelNode{s.Data}
-}
-func (s singlePayload) pagination() *codec.PaginationLinks {
-	return s.Pagination
-}
-
-type multiPayload struct {
-	Pagination *codec.PaginationLinks
-	Data       []modelNode `json:"data"`
-}
-
-func (m multiPayload) nodes() []modelNode {
-	return m.Data
-}
-
-func (m multiPayload) pagination() *codec.PaginationLinks {
-	return m.Pagination
-}
-
-type modelNode map[string]interface{}
-
 // UnmarshalModels implements codec.Codec interface.
-func (j *jsonCodec) UnmarshalModels(r io.Reader, modelStruct *mapping.ModelStruct, options *codec.UnmarshalOptions) ([]mapping.Model, error) {
-	if options == nil {
-		options = &codec.UnmarshalOptions{}
-	}
-	// Unmarshall all the data and store it in the bytes.Reader.
-	data, err := ioutil.ReadAll(r)
-	if err != nil {
-		return nil, err
-	}
-
+func (c Codec) UnmarshalModels(data []byte, options codec.UnmarshalOptions) ([]mapping.Model, error) {
 	// get the payload.
 	payload, err := getPayload(data)
 	if err != nil {
@@ -63,7 +21,7 @@ func (j *jsonCodec) UnmarshalModels(r io.Reader, modelStruct *mapping.ModelStruc
 	}
 	var models []mapping.Model
 	for _, n := range payload.nodes() {
-		model, _, err := unmarshalNode(modelStruct, n, options)
+		model, _, err := c.unmarshalNode(options.ModelStruct, n, options)
 		if err != nil {
 			return nil, err
 		}
@@ -72,43 +30,30 @@ func (j *jsonCodec) UnmarshalModels(r io.Reader, modelStruct *mapping.ModelStruc
 	return models, nil
 }
 
-var _ codec.QueryUnmarshaler = c
-
-// UnmarshalQuery implements codec.QueryUnmarshaler.
-func (j *jsonCodec) UnmarshalQuery(r io.Reader, modelStruct *mapping.ModelStruct, options *codec.UnmarshalOptions) (*query.Scope, error) {
-	if options == nil {
-		options = &codec.UnmarshalOptions{}
-	}
-	// Unmarshall all the data and store it in the bytes.Reader.
+// UnmarshalPayload implements codec.PayloadMarshaler interface.
+func (c Codec) UnmarshalPayload(r io.Reader, options codec.UnmarshalOptions) (*codec.Payload, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
-		return nil, err
+		return nil, errors.NewDetf(codec.ClassUnmarshal, "reading input failed: %v", err)
 	}
 
-	// get the payload.
-	payload, err := getPayload(data)
+	inputPayload, err := getPayload(data)
 	if err != nil {
 		return nil, err
 	}
-	q := query.NewScope(modelStruct)
-	var models []mapping.Model
-	nodes := payload.nodes()
-	for i, n := range nodes {
-		model, fieldSet, err := unmarshalNode(modelStruct, n, options)
+	payload := codec.Payload{
+		Meta:            inputPayload.meta(),
+		PaginationLinks: inputPayload.pagination(),
+	}
+	for _, n := range inputPayload.nodes() {
+		model, fieldSet, err := c.unmarshalNode(options.ModelStruct, n, options)
 		if err != nil {
 			return nil, err
 		}
-		if len(nodes) == 1 {
-			q.FieldSet = fieldSet
-		} else {
-			if q.BulkFieldSets == nil {
-				q.BulkFieldSets = &mapping.BulkFieldSet{}
-			}
-			q.BulkFieldSets.Add(fieldSet, i)
-		}
-		models = append(models, model)
+		payload.Data = append(payload.Data, model)
+		payload.FieldSets = append(payload.FieldSets, fieldSet)
 	}
-	return nil, nil
+	return &payload, nil
 }
 
 func getPayload(data []byte) (payloader, error) {
@@ -136,14 +81,14 @@ func getPayload(data []byte) (payloader, error) {
 	}
 }
 
-func unmarshalNode(mStruct *mapping.ModelStruct, node modelNode, options *codec.UnmarshalOptions) (mapping.Model, mapping.FieldSet, error) {
+func (c Codec) unmarshalNode(mStruct *mapping.ModelStruct, node modelNode, options codec.UnmarshalOptions) (mapping.Model, mapping.FieldSet, error) {
 	if !options.StrictUnmarshal {
-		return unmarshalNodeNonStrict(mStruct, node, options)
+		return c.unmarshalNodeNonStrict(mStruct, node, options)
 	}
-	return unmarshalNodeStrict(mStruct, node, options)
+	return c.unmarshalNodeStrict(mStruct, node, options)
 }
 
-func unmarshalNodeNonStrict(mStruct *mapping.ModelStruct, n modelNode, options *codec.UnmarshalOptions) (mapping.Model, mapping.FieldSet, error) {
+func (c Codec) unmarshalNodeNonStrict(mStruct *mapping.ModelStruct, n modelNode, options codec.UnmarshalOptions) (mapping.Model, mapping.FieldSet, error) {
 	model := mapping.NewModel(mStruct)
 	var (
 		sField   *mapping.StructField
@@ -182,14 +127,14 @@ func unmarshalNodeNonStrict(mStruct *mapping.ModelStruct, n modelNode, options *
 			if value == nil {
 				continue
 			}
-			if err = setRelationshipMany(mStruct, model, sField, value, options, fieldAnnotation.Name); err != nil {
+			if err = c.setRelationshipMany(mStruct, model, sField, value, options, fieldAnnotation.Name); err != nil {
 				return nil, nil, err
 			}
 		case mapping.KindRelationshipSingle:
 			if value == nil {
 				continue
 			}
-			if err = setRelationshipSingle(mStruct, model, sField, value, options, fieldAnnotation.Name); err != nil {
+			if err = c.setRelationshipSingle(mStruct, model, sField, value, options, fieldAnnotation.Name); err != nil {
 				return nil, nil, err
 			}
 		}
@@ -197,7 +142,7 @@ func unmarshalNodeNonStrict(mStruct *mapping.ModelStruct, n modelNode, options *
 	return model, fieldSet, nil
 }
 
-func unmarshalNodeStrict(mStruct *mapping.ModelStruct, node modelNode, options *codec.UnmarshalOptions) (mapping.Model, mapping.FieldSet, error) {
+func (c Codec) unmarshalNodeStrict(mStruct *mapping.ModelStruct, node modelNode, options codec.UnmarshalOptions) (mapping.Model, mapping.FieldSet, error) {
 	model := mapping.NewModel(mStruct)
 	var (
 		sField   *mapping.StructField
@@ -244,14 +189,14 @@ func unmarshalNodeStrict(mStruct *mapping.ModelStruct, node modelNode, options *
 			if value == nil {
 				continue
 			}
-			if err = setRelationshipMany(mStruct, model, sField, value, options, fieldAnnotation.Name); err != nil {
+			if err = c.setRelationshipMany(mStruct, model, sField, value, options, fieldAnnotation.Name); err != nil {
 				return nil, nil, err
 			}
 		case mapping.KindRelationshipSingle:
 			if value == nil {
 				continue
 			}
-			if err = setRelationshipSingle(mStruct, model, sField, value, options, fieldAnnotation.Name); err != nil {
+			if err = c.setRelationshipSingle(mStruct, model, sField, value, options, fieldAnnotation.Name); err != nil {
 				return nil, nil, err
 			}
 		}
@@ -259,12 +204,12 @@ func unmarshalNodeStrict(mStruct *mapping.ModelStruct, node modelNode, options *
 	return model, fieldSet, nil
 }
 
-func setRelationshipSingle(mStruct *mapping.ModelStruct, model mapping.Model, sField *mapping.StructField, value interface{}, options *codec.UnmarshalOptions, name string) error {
+func (c Codec) setRelationshipSingle(mStruct *mapping.ModelStruct, model mapping.Model, sField *mapping.StructField, value interface{}, options codec.UnmarshalOptions, name string) error {
 	v, ok := value.(map[string]interface{})
 	if !ok {
 		return errors.NewDetf(codec.ClassUnmarshal, "provided invalid model relation: '%s' field", name)
 	}
-	relationNode, _, err := unmarshalNode(sField.Relationship().Struct(), v, options)
+	relationNode, _, err := c.unmarshalNode(sField.Relationship().RelatedModelStruct(), v, options)
 	if err != nil {
 		return err
 	}
@@ -275,7 +220,7 @@ func setRelationshipSingle(mStruct *mapping.ModelStruct, model mapping.Model, sF
 	return sr.SetRelationModel(sField, relationNode)
 }
 
-func setRelationshipMany(mStruct *mapping.ModelStruct, model mapping.Model, sField *mapping.StructField, value interface{}, options *codec.UnmarshalOptions, name string) error {
+func (c Codec) setRelationshipMany(mStruct *mapping.ModelStruct, model mapping.Model, sField *mapping.StructField, value interface{}, options codec.UnmarshalOptions, name string) error {
 	values, ok := value.([]interface{})
 	if !ok {
 		return errors.NewDetf(codec.ClassUnmarshal, "provided invalid model relation: '%s' field value", name)
@@ -286,7 +231,7 @@ func setRelationshipMany(mStruct *mapping.ModelStruct, model mapping.Model, sFie
 		if !ok {
 			return errors.NewDetf(codec.ClassUnmarshal, "provided invalid model relation: '%s' field value", name)
 		}
-		model, _, err := unmarshalNode(sField.Relationship().Struct(), node, options)
+		model, _, err := c.unmarshalNode(sField.Relationship().RelatedModelStruct(), node, options)
 		if err != nil {
 			return err
 		}

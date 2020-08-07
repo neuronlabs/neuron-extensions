@@ -12,7 +12,7 @@ import (
 	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
 	"github.com/neuronlabs/neuron-extensions/repository/postgres/migrate"
 	"github.com/neuronlabs/neuron-extensions/repository/postgres/tests"
-	"github.com/neuronlabs/neuron/db"
+	"github.com/neuronlabs/neuron/database"
 )
 
 // TestRepositoryFind tests the repository list method.
@@ -32,7 +32,7 @@ func TestRepositoryFind(t *testing.T) {
 	}()
 
 	// No results should return no error.
-	db := db.New(c)
+	db := database.New(c)
 
 	models, err := db.Query(mStruct).Find()
 	require.NoError(t, err)

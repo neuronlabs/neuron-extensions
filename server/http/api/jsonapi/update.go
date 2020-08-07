@@ -3,15 +3,15 @@ package jsonapi
 import (
 	"net/http"
 
-	"github.com/neuronlabs/neuron/codec"
-	"github.com/neuronlabs/neuron/db"
-	"github.com/neuronlabs/neuron/mapping"
-	"github.com/neuronlabs/neuron/query"
-	"github.com/neuronlabs/neuron/query/filter"
-
 	"github.com/neuronlabs/neuron-extensions/codec/jsonapi"
 	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
 	"github.com/neuronlabs/neuron-extensions/server/http/log"
+	"github.com/neuronlabs/neuron/codec"
+	"github.com/neuronlabs/neuron/database"
+	"github.com/neuronlabs/neuron/mapping"
+	"github.com/neuronlabs/neuron/query"
+	"github.com/neuronlabs/neuron/query/filter"
+	"github.com/neuronlabs/neuron/server"
 )
 
 // HandleUpdate handles json:api list endpoint for the 'model'. Panics if the model is not mapped for given API controller.
@@ -33,22 +33,22 @@ func (a *API) handleUpdate(mStruct *mapping.ModelStruct) http.HandlerFunc {
 			return
 		}
 		// unmarshal the input from the request body.
-		pu := jsonapi.Codec().(codec.PayloadUnmarshaler)
-		payload, err := pu.UnmarshalPayload(req.Body, codec.UnmarshalOptions{StrictUnmarshal: a.StrictUnmarshal, ModelStruct: mStruct})
+		pu := jsonapi.GetCodec(a.Controller).(codec.PayloadUnmarshaler)
+		payload, err := pu.UnmarshalPayload(req.Body, codec.UnmarshalOptions{StrictUnmarshal: a.Options.StrictUnmarshal, ModelStruct: mStruct})
 		if err != nil {
 			log.Debugf("Unmarshal scope for: '%s' failed: %v", mStruct.Collection(), err)
 			a.marshalErrors(rw, 0, httputil.MapError(err)...)
 			return
 		}
 
-		if len(payload.Data) == 0 {
+		switch len(payload.Data) {
+		case 0:
 			err := httputil.ErrInvalidInput()
 			err.Detail = "no models found in the input"
 			a.marshalErrors(rw, 0, err)
 			return
-		}
-
-		if len(payload.Data) > 1 {
+		case 1:
+		default:
 			err := httputil.ErrInvalidInput()
 			err.Detail = "bulk update is not implemented yet"
 			a.marshalErrors(rw, 0, err)
@@ -73,9 +73,10 @@ func (a *API) handleUpdate(mStruct *mapping.ModelStruct) http.HandlerFunc {
 			}
 		}
 
+		unmarshaledFieldset := payload.FieldSets[0]
 		relations := mapping.FieldSet{}
 		fields := mapping.FieldSet{}
-		for _, field := range payload.FieldSets[0] {
+		for _, field := range unmarshaledFieldset {
 			switch field.Kind() {
 			case mapping.KindRelationshipMultiple, mapping.KindRelationshipSingle:
 				// If the relationship is of BelongsTo kind - set its relationship primary key value into given model's foreign key.
@@ -110,20 +111,15 @@ func (a *API) handleUpdate(mStruct *mapping.ModelStruct) http.HandlerFunc {
 			}
 			fields = append(fields, field)
 		}
-
-		fields.Sort()
-		s := query.NewScope(mStruct)
-		s.FieldSets = []mapping.FieldSet{fields}
-
-		params := &QueryParams{
-			Context:   req.Context(),
-			DB:        a.DB,
-			Scope:     s,
-			Relations: relations,
+		payload.FieldSets[0] = fields
+		for _, relation := range relations {
+			payload.IncludedRelations = append(payload.IncludedRelations, &query.IncludedRelation{StructField: relation})
 		}
 
+		ctx := req.Context()
+		db := a.DB
 		if len(relations) > 0 {
-			params.DB, err = db.Begin(params.Context, params.DB, nil)
+			db, err = database.Begin(ctx, db, nil)
 			if err != nil {
 				log.Errorf("Can't begin transaction: %v", err)
 				a.marshalErrors(rw, 0, httputil.ErrInternalError())
@@ -133,7 +129,7 @@ func (a *API) handleUpdate(mStruct *mapping.ModelStruct) http.HandlerFunc {
 
 		// Rollback the transaction if it exists and is not done yet.
 		defer func() {
-			tx, ok := params.DB.(*db.Tx)
+			tx, ok := db.(*database.Tx)
 			if ok && !tx.Transaction.State.Done() {
 				if err = tx.Rollback(); err != nil {
 					log.Errorf("Rolling back transaction failed: %v", err)
@@ -141,44 +137,46 @@ func (a *API) handleUpdate(mStruct *mapping.ModelStruct) http.HandlerFunc {
 			}
 		}()
 
+		params := &server.Params{
+			DB:            db,
+			Ctx:           ctx,
+			Authenticator: a.Authenticator,
+			Authorizer:    a.Authorizer,
+		}
+
 		// Get and apply pre hook functions.
-		for _, hook := range hooks.getPreHooks(mStruct, query.Update) {
-			if err = hook(params); err != nil {
-				a.marshalErrors(rw, 0, httputil.MapError(err)...)
-				return
-			}
-		}
+		modelHandler, hasModelHandler := a.handlers[mStruct]
 
-		// Insert into database.
-		if _, err = db.Update(params.Context, params.DB, params.Scope); err != nil {
-			a.marshalErrors(rw, 0, httputil.MapError(err)...)
-			return
-		}
-
-		if len(relations) > 0 {
-			for _, relation := range relations {
-				switch relation.Relationship().Kind() {
-				case mapping.RelHasOne:
-					// SetRelations first clear the relationship and then add it - it is not required here as a hasOne
-					// only needs to add new relation to it's value.
-					if err = db.AddRelations(params.Context, params.DB, s, relation); err != nil {
-						a.marshalErrors(rw, 0, httputil.MapError(err)...)
-						return
-					}
-				default:
-					if err = db.SetRelations(params.Context, params.DB, s, relation); err != nil {
-						a.marshalErrors(rw, 0, httputil.MapError(err)...)
-						return
-					}
+		// Execute before update hook.
+		if hasModelHandler {
+			beforeUpdateHandler, ok := modelHandler.(server.BeforeUpdateHandler)
+			if ok {
+				if err := beforeUpdateHandler.HandleBeforeUpdate(params, payload); err != nil {
+					a.marshalErrors(rw, 0, httputil.MapError(err)...)
+					return
 				}
 			}
 		}
 
-		// Get and apply pre hook functions.
-		for _, hook := range hooks.getPostHooks(mStruct, query.Update) {
-			if err = hook(params); err != nil {
-				a.marshalErrors(rw, 0, httputil.MapError(err)...)
-				return
+		updateHandler, ok := modelHandler.(server.UpdateHandler)
+		if !ok {
+			// If no update handler is found execute default handler.
+			updateHandler = a.defaultHandler
+		}
+		// Execute update handler.
+		result, err := updateHandler.HandleUpdate(params.Ctx, *params, payload)
+		if err != nil {
+			a.marshalErrors(rw, 0, httputil.MapError(err)...)
+			return
+		}
+
+		if hasModelHandler {
+			afterHandler, ok := modelHandler.(server.AfterUpdateHandler)
+			if ok {
+				if err = afterHandler.HandleAfterUpdate(params, result); err != nil {
+					a.marshalErrors(rw, 0, httputil.MapError(err)...)
+					return
+				}
 			}
 		}
 
@@ -190,54 +188,53 @@ func (a *API) handleUpdate(mStruct *mapping.ModelStruct) http.HandlerFunc {
 			}
 		}
 
+		// TODO: get metadata from result payload.
 		if !hasJsonapiMimeType {
-			log.Debug3f("[PATCH][%s][%s] No 'Accept' Header - returning HTTP Status: No Content - 204", mStruct.Collection(), s.ID)
+			log.Debug3f("[PATCH][%s] No 'Accept' Header - returning HTTP Status: No Content - 204", mStruct.Collection())
 			rw.WriteHeader(http.StatusNoContent)
 			return
 		}
 
+		// Prepare the scope for the api.GetHandler.
 		getScope := query.NewScope(mStruct)
 		getScope.FieldSets = []mapping.FieldSet{mStruct.Fields()}
-		if getScope.Filter(filter.New(mStruct.Primary(), filter.OpEqual, model.GetPrimaryKeyValue())); err != nil {
-			log.Errorf("[PATCH][SCOPE][%s] Adding param primary filter to return content scope failed: %v", err)
-			a.marshalErrors(rw, 0, httputil.ErrInternalError())
-			return
-		}
+		getScope.Filter(filter.New(mStruct.Primary(), filter.OpEqual, model.GetPrimaryKeyValue()))
 
 		for _, relation := range mStruct.RelationFields() {
-			if err = getScope.Include(relation, relation.Relationship().Struct().Primary()); err != nil {
+			if err = getScope.Include(relation, relation.Relationship().RelatedModelStruct().Primary()); err != nil {
 				log.Errorf("Can't include relation field to the get scope: %v", err)
 				a.marshalErrors(rw, 0, httputil.ErrInternalError())
 				return
 			}
 		}
 
-		if _, err := db.Get(params.Context, a.DB, getScope); err != nil {
-			log.Debugf("[PATCH][%s][%s] Getting resource after patching failed: %v", mStruct.Collection(), s.ID, err)
-			rw.WriteHeader(http.StatusNoContent)
+		// If a user had closed the transaction
+		if tx, ok := params.DB.(*database.Tx); ok && tx.State().Done() {
+			params.DB = a.DB
+		}
+		getResult, err := a.getHandleChain(params, getScope)
+		if err != nil {
+			a.marshalErrors(rw, 0, httputil.MapError(err)...)
 			return
 		}
 
 		linkType := codec.ResourceLink
 		// but if the config doesn't allow that - set 'jsonapi.NoLink'
-		if !a.MarshalLinks {
+		if !a.Options.PayloadLinks {
 			linkType = codec.NoLink
 		}
 
-		// TODO: add relations.
-		resPayload := codec.Payload{
-			ModelStruct:       mStruct,
-			Data:              getScope.Models,
-			FieldSets:         getScope.FieldSets,
-			IncludedRelations: getScope.IncludedRelations,
-			MarshalLinks: &codec.LinkOptions{
+		getResult.ModelStruct = mStruct
+		getResult.FieldSets = []mapping.FieldSet{append(getScope.FieldSets[0], mStruct.RelationFields()...)}
+		if getResult.MarshalLinks.Type == codec.NoLink {
+			getResult.MarshalLinks = codec.LinkOptions{
 				Type:       linkType,
-				BaseURL:    a.BasePath,
-				RootID:     httputil.CtxMustGetID(params.Context),
+				BaseURL:    a.Options.PathPrefix,
+				RootID:     httputil.CtxMustGetID(ctx),
 				Collection: mStruct.Collection(),
-			},
-			MarshalSingularFormat: true,
+			}
 		}
-		a.marshalPayload(rw, &resPayload, http.StatusOK)
+		getResult.MarshalSingularFormat = true
+		a.marshalPayload(rw, getResult, http.StatusOK)
 	}
 }

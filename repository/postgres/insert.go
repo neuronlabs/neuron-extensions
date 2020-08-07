@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v4"
 
 	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/log"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/query"
@@ -31,11 +32,18 @@ func (p *Postgres) Insert(ctx context.Context, s *query.Scope) error {
 func (p *Postgres) insertWithCommonFieldSet(ctx context.Context, s *query.Scope) error {
 	q, err := p.parseInsertWithCommonFieldSet(s)
 	if err != nil {
+		log.Debug2f("parsing insert query failed: %v", err)
 		return err
 	}
+
+	if log.Level().IsAllowed(log.LevelDebug3) {
+		log.Debug3f("%s", q.query)
+	}
+
 	if q.primarySelected {
 		_, err := p.connection(s).Exec(ctx, q.query, q.values...)
 		if err != nil {
+			log.Debugf("insert query failed: %v", err)
 			return errors.NewDetf(p.errorClass(err), "inserting failed: %v", err)
 		}
 		return nil
@@ -43,11 +51,13 @@ func (p *Postgres) insertWithCommonFieldSet(ctx context.Context, s *query.Scope)
 
 	rows, err := p.connection(s).Query(ctx, q.query, q.values...)
 	if err != nil {
-		return errors.NewDetf(p.errorClass(err), "creating query failed")
+		log.Debugf("Insert query failed: %v", err)
+		return errors.NewDetf(p.errorClass(err), "insert query failed")
 	}
 	var i int
 	for rows.Next() {
 		if err = rows.Scan(s.Models[i].GetPrimaryKeyAddress()); err != nil {
+			log.Debugf("Scanning failed: %v", err)
 			return errors.NewDetf(p.errorClass(err), "inserting failed: %v", err)
 		}
 		i++
@@ -70,19 +80,19 @@ func (p *Postgres) insertWithBulkFieldSet(ctx context.Context, s *query.Scope) e
 		switch len(indices) {
 		case 0:
 			if _, err = br.Exec(); err != nil {
-				return err
+				return errors.NewDetf(p.errorClass(err), "insert failed: %v", err)
 			}
 		default:
 			rows, err := br.Query()
 			if err != nil {
-				return err
+				return errors.NewDetf(p.errorClass(err), "insert failed: %v", err)
 			}
 
 			var i int
 			for rows.Next() {
 				if err = rows.Scan(s.Models[indices[i]].GetPrimaryKeyAddress()); err != nil {
 					rows.Close()
-					return err
+					return errors.NewDetf(p.errorClass(err), "insert failed: %v", err)
 				}
 				i++
 			}
@@ -207,7 +217,7 @@ func (p *Postgres) parseInsertBulkFieldsetQuery(s *query.Scope, batch internal.B
 	if err != nil {
 		return nil, err
 	}
-	primaryKeyName = migrate.GetQuotedWord(primaryKeyName, p.PostgresVersion)
+	primaryKeyName = migrate.GetQuotedWord(primaryKeyName, p.postgresVersion)
 
 	var (
 		sb           strings.Builder

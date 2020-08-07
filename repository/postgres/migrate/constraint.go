@@ -55,7 +55,7 @@ var (
 
 	// CForeignKey is the Foreign key constraint.
 	CForeignKey = &Constraint{Name: "foreign", SQLName: func(t *Table, c *Column) (string, error) {
-		relatedField := c.Field().Relationship().Struct().Primary()
+		relatedField := c.Field().Relationship().RelatedModelStruct().Primary()
 
 		relatedTable, err := modelsTable(relatedField.ModelStruct())
 		if err != nil {

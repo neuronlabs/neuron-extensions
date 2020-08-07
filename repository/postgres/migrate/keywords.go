@@ -3,6 +3,7 @@ package migrate
 import (
 	"context"
 	"strings"
+	"sync"
 
 	"github.com/neuronlabs/neuron/errors"
 
@@ -36,7 +37,27 @@ const (
 	KWReservedT
 )
 
-var keyWords = map[int]map[string]KeyWordType{}
+type keyWordMap struct {
+	keyWords map[int]map[string]KeyWordType
+	sync.Mutex
+}
+
+// Get gets the keyword map for provided version.
+func (k *keyWordMap) Get(version int) (map[string]KeyWordType, bool) {
+	k.Lock()
+	defer k.Unlock()
+	m, ok := k.keyWords[version]
+	return m, ok
+}
+
+// Set sets the keyword versioned map.
+func (k *keyWordMap) Set(version int, m map[string]KeyWordType) {
+	k.Lock()
+	defer k.Unlock()
+	k.keyWords[version] = m
+}
+
+var keyWordsVersions = &keyWordMap{keyWords: map[int]map[string]KeyWordType{}}
 
 // GetQuotedWord gets the quoted 'word' if it is on the lists of the keywords.
 // The postgres version 'pgVersion' is the numeric version of the postgres server.
@@ -58,7 +79,7 @@ func GetKeyWordType(word string, pgVersion int) KeyWordType {
 
 // GetKeyWords gets and stores the keywords for the provided postgres 'version' from the current database 'db' connection.
 func GetKeyWords(ctx context.Context, conn internal.Connection, version int) (map[string]KeyWordType, error) {
-	kwMap, ok := keyWords[version]
+	kwMap, ok := keyWordsVersions.Get(version)
 	if ok && kwMap != nil {
 		return kwMap, nil
 	}
@@ -96,7 +117,7 @@ func GetKeyWords(ctx context.Context, conn internal.Connection, version int) (ma
 		}
 		keywords[word] = kwt
 	}
-	keyWords[version] = keywords
+	keyWordsVersions.Set(version, keywords)
 	return keywords, nil
 }
 
@@ -116,7 +137,7 @@ func WriteQuotedWord(b *strings.Builder, word string, pgVersion int) {
 }
 
 func getKeyWordType(word string, pgVersion int) KeyWordType {
-	kw, ok := keyWords[pgVersion]
+	kw, ok := keyWordsVersions.Get(pgVersion)
 	if !ok {
 		log.Debugf("No keywords set for the postgres version: '%d'", pgVersion)
 		return KWUnknown

@@ -22,21 +22,20 @@ func (t *TopLinks) SetPaginationLinks(o *codec.PaginationLinks) {
 	if o == nil {
 		return
 	}
-	base := t.Self
 	if o.Self != "" {
-		t.Self += "?" + o.Self
+		t.Self = o.Self
 	}
 	if o.First != "" {
-		t.First = base + "?" + o.First
+		t.First = o.First
 	}
 	if o.Last != "" {
-		t.Last = base + "?" + o.Last
+		t.Last = o.Last
 	}
 	if o.Next != "" {
-		t.Next = base + "?" + o.Next
+		t.Next = o.Next
 	}
 	if o.Prev != "" {
-		t.Prev = base + "?" + o.Prev
+		t.Prev = o.Prev
 	}
 }
 

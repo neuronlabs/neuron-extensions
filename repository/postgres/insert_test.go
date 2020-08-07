@@ -57,7 +57,7 @@ func TestParseWithDefault(t *testing.T) {
 		CreatedAt:  time.Now(),
 	}
 
-	p.AutoSelectNotNulls = false
+	p.SelectNotNullsOnInsert = false
 	s := query.NewScope(m, model)
 	s.FieldSets = append(s.FieldSets, mapping.FieldSet{})
 
