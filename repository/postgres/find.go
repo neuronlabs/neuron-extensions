@@ -36,7 +36,7 @@ func (p *Postgres) Find(ctx context.Context, s *query.Scope) error {
 
 	for rows.Next() {
 		if err := p.scanRow(s, q, rows); err != nil {
-			return errors.Newf(p.errorClass(err), "scanning row failed: %v", err)
+			return errors.Wrapf(p.neuronError(err), "scanning row failed: %v", err)
 		}
 	}
 	return nil
@@ -51,7 +51,7 @@ func (p *Postgres) scanRow(s *query.Scope, q *selectQuery, rows pgx.Rows) (err e
 	)
 	fielder, ok := model.(mapping.Fielder)
 	if !ok {
-		return errors.Newf(mapping.ClassModelNotImplements, "Model: '%s' doesn't implement Fielder interface", s.ModelStruct)
+		return errors.Wrapf(mapping.ErrModelNotImplements, "Model: '%s' doesn't implement Fielder interface", s.ModelStruct)
 	}
 
 	// get the field values with the provided order
@@ -108,7 +108,7 @@ type selectQuery struct {
 func (p *Postgres) parseSelectQuery(s *query.Scope) (*selectQuery, error) {
 	commonFieldSet, hasCommonFieldset := s.CommonFieldSet()
 	if !hasCommonFieldset {
-		return nil, errors.New(query.ClassNoFieldsInFieldSet, "no fieldset found for the list/get type query")
+		return nil, errors.Wrap(query.ErrNoFieldsInFieldSet, "no fieldset found for the list/get type query")
 	}
 
 	t, err := migrate.ModelsTable(s.ModelStruct)
@@ -140,7 +140,7 @@ func (p *Postgres) parseSelectQuery(s *query.Scope) (*selectQuery, error) {
 	fields = sb.String()
 	if fields == "" {
 		// All the fields had to be omitted.
-		return nil, errors.New(query.ClassNoFieldsInFieldSet, "provided empty fieldset for the list/get query")
+		return nil, errors.Wrap(query.ErrNoFieldsInFieldSet, "provided empty fieldset for the list/get query")
 	}
 	sb.Reset()
 

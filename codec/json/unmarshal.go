@@ -34,7 +34,7 @@ func (c Codec) UnmarshalModels(data []byte, options codec.UnmarshalOptions) ([]m
 func (c Codec) UnmarshalPayload(r io.Reader, options codec.UnmarshalOptions) (*codec.Payload, error) {
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
-		return nil, errors.NewDetf(codec.ClassUnmarshal, "reading input failed: %v", err)
+		return nil, errors.WrapDetf(codec.ErrUnmarshal, "reading input failed: %v", err)
 	}
 
 	inputPayload, err := getPayload(data)
@@ -60,7 +60,7 @@ func getPayload(data []byte) (payloader, error) {
 	br := bytes.NewReader(data)
 	rn, _, err := br.ReadRune()
 	if err != nil {
-		return nil, errors.New(codec.ClassUnmarshalDocument, "provided invalid document")
+		return nil, errors.Wrap(codec.ErrUnmarshalDocument, "provided invalid document")
 	}
 	br.Seek(0, io.SeekStart)
 	switch rn {
@@ -77,7 +77,7 @@ func getPayload(data []byte) (payloader, error) {
 		}
 		return payload, nil
 	default:
-		return nil, errors.New(codec.ClassUnmarshalDocument, "provided invalid document")
+		return nil, errors.Wrap(codec.ErrUnmarshalDocument, "provided invalid document")
 	}
 }
 
@@ -117,7 +117,7 @@ func (c Codec) unmarshalNodeNonStrict(mStruct *mapping.ModelStruct, n modelNode,
 			if fielder == nil {
 				fielder, ok = model.(mapping.Fielder)
 				if !ok {
-					return nil, nil, errors.NewDetf(mapping.ClassModelNotImplements, "model: '%s' doesn't implement mapping.Fielder interface", mStruct.String())
+					return nil, nil, errors.WrapDetf(mapping.ErrModelNotImplements, "model: '%s' doesn't implement mapping.Fielder interface", mStruct.String())
 				}
 			}
 			if err = setAttribute(sField, value, fielder); err != nil {
@@ -166,7 +166,7 @@ func (c Codec) unmarshalNodeStrict(mStruct *mapping.ModelStruct, node modelNode,
 			fieldAnnotation = codec.ExtractFieldAnnotations(sField, "codec")
 		}
 		if sField == nil || fieldAnnotation.IsHidden {
-			return nil, nil, errors.NewDetf(codec.ClassUnmarshal, "provided invalid field: '%s'", field)
+			return nil, nil, errors.WrapDetf(codec.ErrUnmarshal, "provided invalid field: '%s'", field)
 		}
 
 		fieldSet = append(fieldSet, sField)
@@ -179,7 +179,7 @@ func (c Codec) unmarshalNodeStrict(mStruct *mapping.ModelStruct, node modelNode,
 			if fielder == nil {
 				fielder, ok = model.(mapping.Fielder)
 				if !ok {
-					return nil, nil, errors.NewDetf(mapping.ClassModelNotImplements, "model: '%s' doesn't implement mapping.Fielder interface", mStruct.String())
+					return nil, nil, errors.WrapDetf(mapping.ErrModelNotImplements, "model: '%s' doesn't implement mapping.Fielder interface", mStruct.String())
 				}
 			}
 			if err = setAttribute(sField, value, fielder); err != nil {
@@ -207,7 +207,7 @@ func (c Codec) unmarshalNodeStrict(mStruct *mapping.ModelStruct, node modelNode,
 func (c Codec) setRelationshipSingle(mStruct *mapping.ModelStruct, model mapping.Model, sField *mapping.StructField, value interface{}, options codec.UnmarshalOptions, name string) error {
 	v, ok := value.(map[string]interface{})
 	if !ok {
-		return errors.NewDetf(codec.ClassUnmarshal, "provided invalid model relation: '%s' field", name)
+		return errors.WrapDetf(codec.ErrUnmarshal, "provided invalid model relation: '%s' field", name)
 	}
 	relationNode, _, err := c.unmarshalNode(sField.Relationship().RelatedModelStruct(), v, options)
 	if err != nil {
@@ -215,7 +215,7 @@ func (c Codec) setRelationshipSingle(mStruct *mapping.ModelStruct, model mapping
 	}
 	sr, ok := model.(mapping.SingleRelationer)
 	if !ok {
-		return errors.NewDetf(mapping.ClassModelNotImplements, "model: '%s' doesn't implement mapping.SingleRelationer interface", mStruct.String())
+		return errors.WrapDetf(mapping.ErrModelNotImplements, "model: '%s' doesn't implement mapping.SingleRelationer interface", mStruct.String())
 	}
 	return sr.SetRelationModel(sField, relationNode)
 }
@@ -223,13 +223,13 @@ func (c Codec) setRelationshipSingle(mStruct *mapping.ModelStruct, model mapping
 func (c Codec) setRelationshipMany(mStruct *mapping.ModelStruct, model mapping.Model, sField *mapping.StructField, value interface{}, options codec.UnmarshalOptions, name string) error {
 	values, ok := value.([]interface{})
 	if !ok {
-		return errors.NewDetf(codec.ClassUnmarshal, "provided invalid model relation: '%s' field value", name)
+		return errors.WrapDetf(codec.ErrUnmarshal, "provided invalid model relation: '%s' field value", name)
 	}
 	var models []mapping.Model
 	for _, single := range values {
 		node, ok := single.(map[string]interface{})
 		if !ok {
-			return errors.NewDetf(codec.ClassUnmarshal, "provided invalid model relation: '%s' field value", name)
+			return errors.WrapDetf(codec.ErrUnmarshal, "provided invalid model relation: '%s' field value", name)
 		}
 		model, _, err := c.unmarshalNode(sField.Relationship().RelatedModelStruct(), node, options)
 		if err != nil {
@@ -239,7 +239,7 @@ func (c Codec) setRelationshipMany(mStruct *mapping.ModelStruct, model mapping.M
 	}
 	mr, ok := model.(mapping.MultiRelationer)
 	if !ok {
-		return errors.NewDetf(mapping.ClassModelNotImplements, "model: '%s' doesn't implement mapping.SingleRelationer interface", mStruct.String())
+		return errors.WrapDetf(mapping.ErrModelNotImplements, "model: '%s' doesn't implement mapping.SingleRelationer interface", mStruct.String())
 	}
 	return mr.SetRelationModels(sField, models...)
 }
@@ -249,12 +249,12 @@ func setAttribute(sField *mapping.StructField, value interface{}, fielder mappin
 		if sField.IsISO8601() {
 			strVal, ok := value.(string)
 			if !ok {
-				return errors.NewDet(mapping.ClassFieldValue, "invalid ISO8601 time field").
+				return errors.WrapDet(mapping.ErrFieldValue, "invalid ISO8601 time field").
 					WithDetailf("Time field: '%s' has invalid formatting.", sField.NeuronName())
 			}
 			t, err := time.Parse(strVal, codec.ISO8601TimeFormat)
 			if err != nil {
-				return errors.NewDet(mapping.ClassFieldValue, "invalid ISO8601 time field").
+				return errors.WrapDet(mapping.ErrFieldValue, "invalid ISO8601 time field").
 					WithDetailf("Time field: '%s' has invalid formatting.", sField.NeuronName())
 			}
 			if sField.IsTimePointer() {
@@ -272,7 +272,7 @@ func setAttribute(sField *mapping.StructField, value interface{}, fielder mappin
 			case int:
 				at = int64(av)
 			default:
-				return errors.NewDet(mapping.ClassFieldValue, "invalid time field value").
+				return errors.WrapDet(mapping.ErrFieldValue, "invalid time field value").
 					WithDetailf("Time field: '%s' has invalid value.", sField.NeuronName())
 			}
 			t := time.Unix(at, 0)

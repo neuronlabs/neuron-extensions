@@ -59,17 +59,17 @@ func RegisterSQLizer(o *filter.Operator, sqlizer SQLizer, raw ...string) {
 func getSQLOperator(o *filter.Operator) (string, error) {
 	if o == nil {
 		log.Errorf("Provided nil filter operator.")
-		return "", errors.NewDet(filter.ClassFilterFormat, "provided nil operator")
+		return "", errors.WrapDet(filter.ErrFilterFormat, "provided nil operator")
 	}
 	if int(o.ID) > len(operatorSQL)-1 {
 		log.Errorf("Cannot get filter operator: '%s' SQL ", o.Name)
-		return "", errors.NewDet(filter.ClassFilterFormat, "unsupported filter operator")
+		return "", errors.WrapDet(filter.ErrFilterFormat, "unsupported filter operator")
 	}
 
 	sql := operatorSQL[o.ID]
 	if sql == "" {
 		log.Errorf("Operator: '%s' has SQL value ", o.Name)
-		return "", errors.NewDetf(filter.ClassFilterFormat, "filter operator: '%v' hase no SQL value", o.Name)
+		return "", errors.WrapDetf(filter.ErrFilterFormat, "filter operator: '%v' hase no SQL value", o.Name)
 	}
 
 	return sql, nil
@@ -77,7 +77,7 @@ func getSQLOperator(o *filter.Operator) (string, error) {
 
 func getOperatorSQLizer(o *filter.Operator) (SQLizer, error) {
 	if int(o.ID) > len(operatorSQLizers)-1 {
-		return nil, errors.NewDet(filter.ClassFilterFormat, "unsupported filter operator")
+		return nil, errors.WrapDet(filter.ErrFilterFormat, "unsupported filter operator")
 	}
 
 	return operatorSQLizers[o.ID], nil

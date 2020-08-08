@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"time"
 
-	neuronCodec "github.com/neuronlabs/neuron/codec"
+	codec "github.com/neuronlabs/neuron/codec"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/log"
 	"github.com/neuronlabs/neuron/mapping"
@@ -49,7 +49,7 @@ func (c Codec) newIncludedRelation(sField *mapping.StructField, fields map[*mapp
 	return includedRelation
 }
 
-func unmarshalPayload(in io.Reader, options neuronCodec.UnmarshalOptions) (Payloader, error) {
+func unmarshalPayload(in io.Reader, options codec.UnmarshalOptions) (Payloader, error) {
 	data, err := ioutil.ReadAll(in)
 	if err != nil {
 		return nil, err
@@ -63,10 +63,10 @@ func unmarshalPayload(in io.Reader, options neuronCodec.UnmarshalOptions) (Paylo
 	}
 
 	if t != json.Delim('{') {
-		return nil, errors.New(neuronCodec.ClassUnmarshalDocument, "invalid document")
+		return nil, errors.Wrap(codec.ErrUnmarshalDocument, "invalid document")
 	}
 	if err := unmarshalPayloadFindData(dec); err != nil {
-		return nil, errors.New(neuronCodec.ClassUnmarshalDocument, "invalid input")
+		return nil, errors.Wrap(codec.ErrUnmarshalDocument, "invalid input")
 	}
 
 	t, err = dec.Token()
@@ -80,7 +80,7 @@ func unmarshalPayload(in io.Reader, options neuronCodec.UnmarshalOptions) (Paylo
 	case json.Delim('['), nil:
 		payloader = &ManyPayload{}
 	default:
-		return nil, errors.New(neuronCodec.ClassUnmarshalDocument, "invalid input")
+		return nil, errors.Wrap(codec.ErrUnmarshalDocument, "invalid input")
 	}
 	r.Seek(0, io.SeekStart)
 	dec = json.NewDecoder(r)
@@ -128,18 +128,16 @@ var (
 func unmarshalHandleDecodeError(err error) error {
 	// handle the incoming error
 	switch e := err.(type) {
-	case errors.ClassError:
-		return err
 	case *json.SyntaxError:
-		err := errors.NewDet(neuronCodec.ClassUnmarshalDocument, "syntax error").
+		err := errors.WrapDet(codec.ErrUnmarshalDocument, "syntax error").
 			WithDetailf("Document syntax error: '%s'. At data offset: '%d'", e.Error(), e.Offset)
 		return err
 	case *json.UnmarshalTypeError:
 		switch e.Type {
 		case singlePayloadType, manyPayloadType:
-			return errors.NewDet(neuronCodec.ClassUnmarshalDocument, "invalid jsonapi document syntax")
+			return errors.WrapDet(codec.ErrUnmarshalDocument, "invalid jsonapi document syntax")
 		}
-		err := errors.NewDet(neuronCodec.ClassUnmarshal, "invalid field type")
+		err := errors.WrapDet(codec.ErrUnmarshal, "invalid field type")
 		var fieldType string
 		switch e.Field {
 		case "id", "type", "client-id":
@@ -150,17 +148,17 @@ func unmarshalHandleDecodeError(err error) error {
 		return err.WithDetailf("Invalid type for: '%s' field. Required type '%s' but is: '%v'", e.Field, fieldType, e.Value)
 	default:
 		if e == io.EOF || e == io.ErrUnexpectedEOF {
-			err := errors.NewDet(neuronCodec.ClassUnmarshalDocument, "unexpected end of file occurred").
+			err := errors.WrapDet(codec.ErrUnmarshalDocument, "unexpected end of file occurred").
 				WithDetailf("invalid document syntax")
 			return err
 		}
-		return errors.NewDetf(neuronCodec.ClassUnmarshal, "unknown unmarshal error: %s", e.Error())
+		return errors.WrapDetf(codec.ErrUnmarshal, "unknown unmarshal error: %s", e.Error())
 	}
 }
 
-func unmarshalNode(mStruct *mapping.ModelStruct, data *Node, model mapping.Model, included map[string]*Node, options neuronCodec.UnmarshalOptions) (fieldSet mapping.FieldSet, err error) {
+func unmarshalNode(mStruct *mapping.ModelStruct, data *Node, model mapping.Model, included map[string]*Node, options codec.UnmarshalOptions) (fieldSet mapping.FieldSet, err error) {
 	if data.Type != model.NeuronCollectionName() {
-		err := errors.NewDet(neuronCodec.ClassUnmarshal, "unmarshal collection name doesn't match the root struct").
+		err := errors.WrapDet(codec.ErrUnmarshal, "unmarshal collection name doesn't match the root struct").
 			WithDetailf("unmarshal collection: '%s' doesn't match root collection:'%s'", data.Type, model.NeuronCollectionName())
 		return nil, err
 	}
@@ -168,6 +166,10 @@ func unmarshalNode(mStruct *mapping.ModelStruct, data *Node, model mapping.Model
 	if data.ID != "" {
 		fieldSet = append(fieldSet, mStruct.Primary())
 		if err := model.SetPrimaryKeyStringValue(data.ID); err != nil {
+			if errors.Is(err, mapping.ErrFieldValue) {
+				return nil, errors.WrapDet(codec.ErrUnmarshalFieldValue, "provided invalid id value").
+					WithDetail("provided invalid 'id' value")
+			}
 			return nil, err
 		}
 	}
@@ -177,9 +179,9 @@ func unmarshalNode(mStruct *mapping.ModelStruct, data *Node, model mapping.Model
 		fielder, isFielder := model.(mapping.Fielder)
 		if !isFielder {
 			if len(mStruct.Attributes()) > 0 {
-				return nil, errors.New(neuronCodec.ClassInternal, "provided model is not a Fielder")
+				return nil, errors.Wrap(errors.ErrInternal, "provided model is not a Fielder")
 			} else if options.StrictUnmarshal {
-				return nil, errors.New(neuronCodec.ClassUnmarshal, "provided model doesn't have any attributes")
+				return nil, errors.Wrap(codec.ErrUnmarshal, "provided model doesn't have any attributes")
 			}
 		} else {
 			// Iterate over the data attributes
@@ -215,9 +217,8 @@ func unmarshalNode(mStruct *mapping.ModelStruct, data *Node, model mapping.Model
 
 				if !ok || (ok && isHidden) {
 					if options.StrictUnmarshal {
-						err := errors.NewDet(neuronCodec.ClassUnmarshal, "unknown field name")
-						err.Details = fmt.Sprintf("provided unknown field name: '%s', for the collection: '%s'.", attrName, data.Type)
-						return nil, err
+						return nil, errors.WrapDet(codec.ErrUnmarshalFieldName, "unknown field name").
+							WithDetailf("provided unknown field name: '%s', for the collection: '%s'.", attrName, data.Type)
 					}
 					continue
 				}
@@ -227,12 +228,12 @@ func unmarshalNode(mStruct *mapping.ModelStruct, data *Node, model mapping.Model
 					if modelAttr.IsISO8601() {
 						strVal, ok := attrValue.(string)
 						if !ok {
-							return nil, errors.NewDet(mapping.ClassFieldValue, "invalid ISO8601 time field").
+							return nil, errors.WrapDet(codec.ErrUnmarshalFieldValue, "invalid ISO8601 time field").
 								WithDetailf("Time field: '%s' has invalid formatting.", modelAttr.NeuronName())
 						}
-						t, err := time.Parse(strVal, neuronCodec.ISO8601TimeFormat)
+						t, err := time.Parse(strVal, codec.ISO8601TimeFormat)
 						if err != nil {
-							return nil, errors.NewDet(mapping.ClassFieldValue, "invalid ISO8601 time field").
+							return nil, errors.WrapDet(codec.ErrUnmarshalFieldValue, "invalid ISO8601 time field").
 								WithDetailf("Time field: '%s' has invalid formatting.", modelAttr.NeuronName())
 						}
 						if modelAttr.IsTimePointer() {
@@ -250,7 +251,7 @@ func unmarshalNode(mStruct *mapping.ModelStruct, data *Node, model mapping.Model
 						case int:
 							at = int64(av)
 						default:
-							return nil, errors.NewDet(mapping.ClassFieldValue, "invalid time field value").
+							return nil, errors.WrapDet(codec.ErrUnmarshalFieldValue, "invalid time field value").
 								WithDetailf("Time field: '%s' has invalid value.", modelAttr.NeuronName())
 						}
 						t := time.Unix(at, 0)
@@ -262,6 +263,10 @@ func unmarshalNode(mStruct *mapping.ModelStruct, data *Node, model mapping.Model
 					}
 				}
 				if err := fielder.SetFieldValue(modelAttr, attrValue); err != nil {
+					if errors.Is(err, mapping.ErrFieldValue) {
+						return nil, errors.WrapDet(codec.ErrUnmarshalFieldValue, "provided invalid field value").
+							WithDetailf("provided invalid field: '%s' value", modelAttr.NeuronName())
+					}
 					return nil, err
 				}
 			}
@@ -302,9 +307,8 @@ func unmarshalNode(mStruct *mapping.ModelStruct, data *Node, model mapping.Model
 
 			if !ok || (ok && isHidden) {
 				if options.StrictUnmarshal {
-					err := errors.NewDet(neuronCodec.ClassUnmarshal, "unknown field name")
-					err.Details = fmt.Sprintf("Provided unknown field name: '%s', for the collection: '%s'.", relName, data.Type)
-					return nil, err
+					return nil, errors.WrapDet(codec.ErrUnmarshalFieldName, "unknown field name").
+						WithDetailf("Provided unknown field name: '%s', for the collection: '%s'.", relName, data.Type)
 				}
 				continue
 			}
@@ -313,7 +317,7 @@ func unmarshalNode(mStruct *mapping.ModelStruct, data *Node, model mapping.Model
 			if relationshipStructField.Kind() == mapping.KindRelationshipMultiple {
 				mr, ok := model.(mapping.MultiRelationer)
 				if !ok {
-					return nil, errors.New(neuronCodec.ClassInternal, "model is not a multi relationer")
+					return nil, errors.Wrap(errors.ErrInternal, "model is not a multi relationer")
 				}
 				// to-many relationship
 				relationship := new(RelationshipManyNode)
@@ -321,16 +325,14 @@ func unmarshalNode(mStruct *mapping.ModelStruct, data *Node, model mapping.Model
 				buf := bytes.NewBuffer(nil)
 				if err := json.NewEncoder(buf).Encode(data.Relationships[relName]); err != nil {
 					log.Debug2f("Controller.UnmarshalNode.relationshipMultiple json.Encode failed. %v", err)
-					err := errors.NewDet(neuronCodec.ClassUnmarshal, "invalid relationship format")
-					err.Details = fmt.Sprintf("The value for the relationship: '%s' is of invalid form.", relName)
-					return nil, err
+					return nil, errors.WrapDet(codec.ErrUnmarshalFieldValue, "invalid relationship format").
+						WithDetailf("The value for the relationship: '%s' is of invalid form.", relName)
 				}
 
 				if err := json.NewDecoder(buf).Decode(relationship); err != nil {
 					log.Debug2f("Controller.UnmarshalNode.relationshipMultiple json.Encode failed. %v", err)
-					err := errors.NewDet(neuronCodec.ClassUnmarshal, "invalid relationship format")
-					err.Details = fmt.Sprintf("The value for the relationship: '%s' is of invalid form.", relName)
-					return nil, err
+					return nil, errors.WrapDet(codec.ErrUnmarshal, "invalid relationship format").
+						WithDetailf("The value for the relationship: '%s' is of invalid form.", relName)
 				}
 
 				relStruct := relationshipStructField.Relationship().RelatedModelStruct()
@@ -341,29 +343,31 @@ func unmarshalNode(mStruct *mapping.ModelStruct, data *Node, model mapping.Model
 						return nil, err
 					}
 					if err := mr.AddRelationModel(relationshipStructField, relModel); err != nil {
+						if errors.Is(err, mapping.ErrInvalidRelationValue) {
+							return nil, errors.WrapDet(codec.ErrUnmarshalFieldValue, "provided invalid relation value").
+								WithDetailf("provided invalid relation '%s' value", relationshipStructField.NeuronName())
+						}
 						return nil, err
 					}
 				}
 			} else if relationshipStructField.Kind() == mapping.KindRelationshipSingle {
 				sr, ok := model.(mapping.SingleRelationer)
 				if !ok {
-					return nil, errors.New(neuronCodec.ClassInternal, "provided model is not a single relationer")
+					return nil, errors.Wrap(errors.ErrInternal, "provided model is not a single relationer")
 				}
 				relationship := new(RelationshipOneNode)
 				buf := bytes.NewBuffer(nil)
 
 				if err := json.NewEncoder(buf).Encode(relValue); err != nil {
 					log.Debug2f("Controller.UnmarshalNode.relationshipSingle json.Encode failed. %v", err)
-					err := errors.NewDet(neuronCodec.ClassUnmarshal, "invalid relationship format")
-					err.Details = fmt.Sprintf("The value for the relationship: '%s' is of invalid form.", relName)
-					return nil, err
+					return nil, errors.WrapDet(codec.ErrUnmarshalFieldValue, "invalid relationship format").
+						WithDetailf("The value for the relationship: '%s' is of invalid form.", relName)
 				}
 
 				if err := json.NewDecoder(buf).Decode(relationship); err != nil {
 					log.Debug2f("Controller.UnmarshalNode.RelationshipSingle json.Decode failed. %v", err)
-					err := errors.NewDet(neuronCodec.ClassUnmarshal, "invalid relationship format")
-					err.Details = fmt.Sprintf("The value for the relationship: '%s' is of invalid form.", relName)
-					return nil, err
+					return nil, errors.WrapDet(codec.ErrUnmarshalFieldValue, "invalid relationship format").
+						WithDetailf("The value for the relationship: '%s' is of invalid form.", relName)
 				}
 
 				if relationship.Data == nil {
@@ -377,6 +381,10 @@ func unmarshalNode(mStruct *mapping.ModelStruct, data *Node, model mapping.Model
 					return nil, err
 				}
 				if err := sr.SetRelationModel(relationshipStructField, relModel); err != nil {
+					if errors.Is(err, mapping.ErrInvalidRelationValue) {
+						return nil, errors.WrapDet(codec.ErrUnmarshalFieldValue, "provided invalid relation value").
+							WithDetailf("provided invalid relation '%s' value", relationshipStructField.NeuronName())
+					}
 					return nil, err
 				}
 			}

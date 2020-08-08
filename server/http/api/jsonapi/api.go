@@ -79,12 +79,12 @@ func (a *API) InitializeAPI(options server.Options) error {
 
 	// Check if there are any models registered for given API.
 	if len(a.Options.DefaultHandlerModels) == 0 && len(a.Options.ModelHandlers) == 0 {
-		return errors.NewDetf(server.ClassOptions, "no models provided for the json:api")
+		return errors.WrapDetf(server.ErrServerOptions, "no models provided for the json:api")
 	}
 
 	// Check the default page size.
 	if a.Options.DefaultPageSize < 0 {
-		return errors.NewDetf(server.ClassOptions, "provided default page size with negative value: %d", a.Options.DefaultPageSize)
+		return errors.WrapDetf(server.ErrServerOptions, "provided default page size with negative value: %d", a.Options.DefaultPageSize)
 	}
 
 	// Check if the base path has absolute value - if not add the leading slash to the BasePath.
@@ -94,7 +94,7 @@ func (a *API) InitializeAPI(options server.Options) error {
 
 	// Check the path prefix if it is valid url path.
 	if _, err := url.Parse(a.Options.PathPrefix); err != nil {
-		return errors.NewDetf(server.ClassOptions, "provided invalid path prefix: %v - %v", a.Options.PathPrefix, err)
+		return errors.WrapDetf(server.ErrServerOptions, "provided invalid path prefix: %v - %v", a.Options.PathPrefix, err)
 	}
 
 	if err := a.defaultHandler.Initialize(a.Controller); err != nil {
@@ -114,7 +114,7 @@ func (a *API) InitializeAPI(options server.Options) error {
 			}
 		}
 		if _, ok = a.handlers[mStruct]; ok {
-			return errors.NewDetf(server.ClassOptions, "duplicated json:api model handler for model: '%s'", mStruct)
+			return errors.WrapDetf(server.ErrServerOptions, "duplicated json:api model handler for model: '%s'", mStruct)
 		}
 		a.handlers[mStruct] = modelHandler.Handler
 	}
@@ -439,7 +439,7 @@ func (a *API) createListScope(model *mapping.ModelStruct, req *http.Request) (*q
 	parser, ok := jsonapi.GetCodec(a.Controller).(codec.ParameterParser)
 	if !ok {
 		log.Errorf("jsonapi codec doesn't implement ParameterParser")
-		return nil, errors.NewDet(codec.ClassInternal, "jsonapi codec doesn't implement ParameterParser")
+		return nil, errors.WrapDet(errors.ErrInternal, "jsonapi codec doesn't implement ParameterParser")
 	}
 
 	parameters := query.MakeParameters(req.URL.Query())

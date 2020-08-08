@@ -32,7 +32,7 @@ func (a *Authorizer) Initialize(c *controller.Controller) error {
 
 func (a *Authorizer) SetRoles(ctx context.Context, db database.DB, accountID interface{}, roles ...string) error {
 	if len(roles) == 0 {
-		return errors.NewDetf(query.ClassInvalidInput, "provided no roles to set")
+		return errors.WrapDetf(query.ErrInvalidInput, "provided no roles to set")
 	}
 	acc, err := NRN_Accounts.QueryCtx(ctx, db).Where("ID = ?", accountID).Get()
 	if err != nil {
@@ -49,7 +49,7 @@ func (a *Authorizer) SetRoles(ctx context.Context, db database.DB, accountID int
 		return err
 	}
 	if len(roleModels) != len(roles) {
-		return errors.NewDetf(query.ClassInvalidInput, "one of provided roles doesn't exists: %v", roles)
+		return errors.WrapDetf(query.ErrInvalidInput, "one of provided roles doesn't exists: %v", roles)
 	}
 
 	return NRN_Accounts.SetRoles(ctx, db, acc, roleModels...)
@@ -220,7 +220,7 @@ func (a *Authorizer) RemoveRole(ctx context.Context, db database.DB, accountID i
 // Provided account must be authorized for ALL provided scopes.
 func (a *Authorizer) Authorize(ctx context.Context, accountID interface{}, scopes ...string) error {
 	if len(scopes) == 0 {
-		return errors.NewDetf(auth.ClassScope, "provided no authorization scope")
+		return errors.WrapDetf(auth.ErrAuthorizationScope, "provided no authorization scope")
 	}
 
 	roles, err := NRN_Roles.QueryCtx(ctx, a.DB).
@@ -232,7 +232,7 @@ func (a *Authorizer) Authorize(ctx context.Context, accountID interface{}, scope
 		return err
 	}
 	if len(roles) == 0 {
-		return errors.NewDetf(auth.ClassForbidden, "not authorized")
+		return errors.WrapDetf(auth.ErrForbidden, "not authorized")
 	}
 
 	mapped := map[string]bool{}
@@ -258,5 +258,5 @@ checkLoop:
 	if count == 0 {
 		return nil
 	}
-	return errors.NewDetf(auth.ClassForbidden, "not authorized for all provided scopes")
+	return errors.WrapDetf(auth.ErrForbidden, "not authorized for all provided scopes")
 }

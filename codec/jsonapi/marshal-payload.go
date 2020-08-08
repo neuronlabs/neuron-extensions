@@ -76,7 +76,7 @@ func (c Codec) extractIncludedModelNode(collectionUniqueNodes map[*mapping.Model
 	case mapping.KindRelationshipMultiple:
 		mr, ok := model.(mapping.MultiRelationer)
 		if !ok {
-			return errors.NewDetf(mapping.ClassModelNotImplements, "model: %T doesn't implement MultiRelationer", model)
+			return errors.WrapDetf(mapping.ErrModelNotImplements, "model: %T doesn't implement MultiRelationer", model)
 		}
 		relations, err := mr.GetRelationModels(included.StructField)
 		if err != nil {
@@ -111,7 +111,7 @@ func (c Codec) extractIncludedModelNode(collectionUniqueNodes map[*mapping.Model
 	case mapping.KindRelationshipSingle:
 		sr, ok := model.(mapping.SingleRelationer)
 		if !ok {
-			return errors.NewDetf(mapping.ClassModelNotImplements, "model: %T doesn't implement SingleRelationer", model)
+			return errors.WrapDetf(mapping.ErrModelNotImplements, "model: %T doesn't implement SingleRelationer", model)
 		}
 		relation, err := sr.GetRelationModel(included.StructField)
 		if err != nil {

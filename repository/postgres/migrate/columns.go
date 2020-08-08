@@ -101,14 +101,14 @@ func fieldsColumn(field *mapping.StructField) (*Column, error) {
 	col, ok := field.StoreGet(ColumnKey)
 	if !ok {
 		log.Debugf("No column found in the field: %s store.", field.NeuronName())
-		return nil, errors.NewDetf(errors.ClassInternal, "no column found in the field's '%s' store", field.Name())
+		return nil, errors.WrapDetf(errors.ErrInternal, "no column found in the field's '%s' store", field.Name())
 	}
 
 	// parse the column
 	c, ok := col.(*Column)
 	if !ok {
 		log.Errorf("Column in the field's store is not a '*migrate.Column' : '%T'", col)
-		return nil, errors.NewDetf(errors.ClassInternal, "stored column for field: '%s' is not a *migrate.Column", field.Name())
+		return nil, errors.WrapDetf(errors.ErrInternal, "stored column for field: '%s' is not a *migrate.Column", field.Name())
 	}
 
 	return c, nil

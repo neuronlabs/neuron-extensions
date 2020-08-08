@@ -86,7 +86,7 @@ func GetKeyWords(ctx context.Context, conn internal.Connection, version int) (ma
 
 	rows, err := conn.Query(ctx, "SELECT word, catcode FROM pg_get_keywords()")
 	if err != nil {
-		return nil, errors.NewDetf(errors.ClassInternal, "can't get query postgres key words: %v", err.Error())
+		return nil, errors.WrapDetf(errors.ErrInternal, "can't get query postgres key words: %v", err.Error())
 	}
 	defer rows.Close()
 

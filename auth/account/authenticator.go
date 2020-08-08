@@ -35,7 +35,7 @@ func (a *Authenticator) Initialize(c *controller.Controller) error {
 	a.db = database.New(c)
 
 	if a.SigningMethod != jwt.SigningMethodHS256 {
-		return errors.NewDet(auth.ClassInitialization, "authenticator: unsupported signing method")
+		return errors.WrapDet(auth.ErrInitialization, "authenticator: unsupported signing method")
 	}
 	return nil
 }
@@ -48,7 +48,7 @@ func (a *Authenticator) Authenticate(ctx context.Context, email, password string
 		return nil, err
 	}
 	if err := bcrypt.CompareHashAndPassword(account.HashPassword, []byte(password)); err != nil {
-		return nil, errors.NewDetf(auth.ClassInvalidSecret, "password doesn't match")
+		return nil, errors.WrapDetf(auth.ErrInvalidSecret, "password doesn't match")
 	}
 	return account.ID, nil
 }
@@ -77,10 +77,10 @@ func New(options ...auth.Option) (*Authenticator, error) {
 
 func (a *Authenticator) validate() error {
 	if a.Options.PasswordCost < bcrypt.MinCost || a.Options.PasswordCost > bcrypt.MaxCost {
-		return errors.Newf(auth.ClassInitialization, "provided cost is out of possible values range <%d, %d>}", bcrypt.MinCost, bcrypt.MaxCost)
+		return errors.Wrapf(auth.ErrInitialization, "provided cost is out of possible values range <%d, %d>}", bcrypt.MinCost, bcrypt.MaxCost)
 	}
 	if a.Options.Secret == "" {
-		return errors.Newf(auth.ClassInitialization, "no secret provided for the authenticator")
+		return errors.Wrapf(auth.ErrInitialization, "no secret provided for the authenticator")
 	}
 	return nil
 }

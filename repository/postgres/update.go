@@ -31,12 +31,12 @@ func (p *Postgres) Update(ctx context.Context, s *query.Scope) (int64, error) {
 func (p *Postgres) updateModels(ctx context.Context, s *query.Scope) (affected int64, err error) {
 	switch len(s.FieldSets) {
 	case 0:
-		return 0, errors.New(query.ClassInvalidFieldSet, "no fields to update")
+		return 0, errors.Wrap(query.ErrInvalidFieldSet, "no fields to update")
 	case 1:
 		fieldSet := s.FieldSets[0]
 		switch len(s.Models) {
 		case 0:
-			return 0, errors.New(query.ClassNoModels, "no models to update")
+			return 0, errors.Wrap(query.ErrNoModels, "no models to update")
 		case 1:
 			model := s.Models[0]
 			// Check if this is about to update all models.
@@ -81,7 +81,7 @@ func (p *Postgres) updateModelsWithBulkFieldSet(ctx context.Context, s *query.Sc
 			models = append(models, s.Models[index])
 		}
 		if err = p.updateBatchModelsWithFieldSet(s, b, fieldSet, models...); err != nil {
-			if !errors.IsClass(err, query.ClassNoFieldsInFieldSet) {
+			if !errors.Is(err, query.ErrNoFieldsInFieldSet) {
 				return affected, err
 			}
 		}
@@ -112,7 +112,7 @@ func (p *Postgres) updatedModelWithFieldset(ctx context.Context, s *query.Scope,
 	}
 	fielder, ok := model.(mapping.Fielder)
 	if !ok {
-		return 0, errors.Newf(mapping.ClassModelNotImplements, "model: '%s' doesn't implement Fielder interface", s.ModelStruct)
+		return 0, errors.Wrapf(mapping.ErrModelNotImplements, "model: '%s' doesn't implement Fielder interface", s.ModelStruct)
 	}
 
 	var (
@@ -132,7 +132,7 @@ func (p *Postgres) updatedModelWithFieldset(ctx context.Context, s *query.Scope,
 
 	tag, err := p.connection(s).Exec(ctx, q, modelValues...)
 	if err != nil {
-		return affected, errors.NewDetf(p.errorClass(err), "update failed: %v", err)
+		return affected, errors.WrapDetf(p.neuronError(err), "update failed: %v", err)
 	}
 
 	return tag.RowsAffected(), nil
@@ -152,7 +152,7 @@ func (p *Postgres) updateBatchModelsWithFieldSet(s *query.Scope, b internal.Batc
 	for _, model := range models {
 		fielder, ok := model.(mapping.Fielder)
 		if !ok {
-			return errors.Newf(mapping.ClassModelNotImplements, "model: '%s' doesn't implement Fielder interface", s.ModelStruct)
+			return errors.Wrapf(mapping.ErrModelNotImplements, "model: '%s' doesn't implement Fielder interface", s.ModelStruct)
 		}
 		var (
 			modelValues []interface{}
@@ -220,17 +220,17 @@ func (p *Postgres) buildUpdateQuery(s *query.Scope, fieldSet mapping.FieldSet, s
 func (p *Postgres) updateWithFilters(ctx context.Context, s *query.Scope) (int64, error) {
 	// Check if there is anything to update.
 	if len(s.FieldSets) != 1 {
-		return 0, errors.New(query.ClassInvalidFieldSet, "provided empty fieldset length - update with filters")
+		return 0, errors.Wrap(query.ErrInvalidFieldSet, "provided empty fieldset length - update with filters")
 	}
 
 	fieldSet := s.FieldSets[0]
 	if len(fieldSet) == 0 {
-		return 0, errors.New(query.ClassInvalidFieldSet, "provided empty fieldset - update with filters")
+		return 0, errors.Wrap(query.ErrInvalidFieldSet, "provided empty fieldset - update with filters")
 	}
 
 	// Check if there is exactly one model.
 	if len(s.Models) != 1 {
-		return 0, errors.New(query.ClassInvalidModels, "update with filters require exactly one model")
+		return 0, errors.Wrap(query.ErrInvalidModels, "update with filters require exactly one model")
 	}
 
 	sb := &strings.Builder{}
@@ -243,7 +243,7 @@ func (p *Postgres) updateWithFilters(ctx context.Context, s *query.Scope) (int64
 	var values []interface{}
 	fielder, ok := s.Models[0].(mapping.Fielder)
 	if !ok {
-		return 0, errors.New(mapping.ClassModelNotImplements, "model doesn't implement Fielder interface")
+		return 0, errors.Wrap(mapping.ErrModelNotImplements, "model doesn't implement Fielder interface")
 	}
 
 	for _, field := range fieldSet {
@@ -273,7 +273,7 @@ func (p *Postgres) updateWithFilters(ctx context.Context, s *query.Scope) (int64
 
 	tag, err := p.connection(s).Exec(ctx, sb.String(), values...)
 	if err != nil {
-		return 0, errors.NewDetf(p.errorClass(err), "update failed: %v", err)
+		return 0, errors.WrapDetf(p.neuronError(err), "update failed: %v", err)
 	}
 	return tag.RowsAffected(), nil
 }

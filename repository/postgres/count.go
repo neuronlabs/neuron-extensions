@@ -26,7 +26,7 @@ func (p *Postgres) Count(ctx context.Context, s *query.Scope) (int64, error) {
 	var count int64
 	if err := row.Scan(&count); err != nil {
 		log.Debug2f("Scanning count value failed: %v", err)
-		return 0, errors.NewDetf(p.errorClass(err), "Scanning count failed - %v", err)
+		return 0, errors.WrapDetf(p.neuronError(err), "Scanning count failed - %v", err)
 	}
 	return count, nil
 }

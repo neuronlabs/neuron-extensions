@@ -11,7 +11,6 @@ import (
 	"github.com/neuronlabs/neuron/codec"
 	"github.com/neuronlabs/neuron/controller"
 	"github.com/neuronlabs/neuron/errors"
-	"github.com/neuronlabs/neuron/mapping"
 )
 
 // TestUnmarshalScopeOne tests unmarshal scope one function.
@@ -80,10 +79,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 		in := strings.NewReader(`"data":{"type":"blogs","id":"1"}`)
 		_, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
 		require.Error(t, err)
-		e, ok := err.(errors.ClassError)
-		if assert.True(t, ok) {
-			assert.Equal(t, codec.ClassUnmarshal, e.Class())
-		}
+		assert.True(t, errors.Is(err, codec.ErrUnmarshal))
 	})
 
 	// Case 3 :
@@ -92,10 +88,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 		in := strings.NewReader(`{"data":{"type":"unrecognized","id":"1"}}`)
 		_, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
 		require.Error(t, err)
-		e, ok := err.(errors.ClassError)
-		if assert.True(t, ok) {
-			assert.Equal(t, codec.ClassUnmarshal, e.Class())
-		}
+		assert.True(t, errors.Is(err, codec.ErrUnmarshal))
 	})
 
 	// Case 4
@@ -104,10 +97,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 		in := strings.NewReader(`{"data":{"type":"blogs","id":"1",}}`)
 		_, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
 		require.Error(t, err)
-		e, ok := err.(errors.ClassError)
-		if assert.True(t, ok) {
-			assert.Equal(t, codec.ClassUnmarshal, e.Class())
-		}
+		assert.True(t, errors.Is(err, codec.ErrUnmarshal))
 	})
 
 	// Case 5:
@@ -117,10 +107,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 		in := strings.NewReader(`{"data":{"type":"blogs","id":1.03}}`)
 		_, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
 		require.Error(t, err)
-		e, ok := err.(errors.ClassError)
-		if assert.True(t, ok) {
-			assert.Equal(t, codec.ClassUnmarshal, e.Class())
-		}
+		assert.True(t, errors.Is(err, codec.ErrUnmarshal))
 	})
 
 	t.Run("invalid_relationship_type", func(t *testing.T) {
@@ -128,10 +115,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 		in := strings.NewReader(`{"data":{"type":"blogs","id":"1", "relationships":"invalid"}}`)
 		_, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
 		require.Error(t, err)
-		e, ok := err.(errors.ClassError)
-		if assert.True(t, ok) {
-			assert.Equal(t, codec.ClassUnmarshal, e.Class())
-		}
+		assert.True(t, errors.Is(err, codec.ErrUnmarshal))
 	})
 
 	// array
@@ -139,10 +123,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 		in := strings.NewReader(`{"data":{"type":"blogs","id":{"1":"2"}}}`)
 		_, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
 		require.Error(t, err)
-		e, ok := err.(errors.ClassError)
-		if assert.True(t, ok) {
-			assert.Equal(t, codec.ClassUnmarshal, e.Class())
-		}
+		assert.True(t, errors.Is(err, codec.ErrUnmarshal))
 	})
 
 	// array
@@ -150,10 +131,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 		in := strings.NewReader(`{"data":{"type":"blogs","id":"1", "relationships":["invalid"]}}`)
 		_, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
 		require.Error(t, err)
-		e, ok := err.(errors.ClassError)
-		if assert.True(t, ok) {
-			assert.Equal(t, codec.ClassUnmarshal, e.Class())
-		}
+		assert.True(t, errors.Is(err, codec.ErrUnmarshal))
 	})
 
 	// bool
@@ -161,10 +139,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 		in := strings.NewReader(`{"data":{"type":"blogs","id":"1", "relationships":true}}`)
 		_, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
 		require.Error(t, err)
-		e, ok := err.(errors.ClassError)
-		if assert.True(t, ok) {
-			assert.Equal(t, codec.ClassUnmarshal, e.Class())
-		}
+		assert.True(t, errors.Is(err, codec.ErrUnmarshal))
 	})
 
 	// Case 6:
@@ -173,10 +148,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 		in := strings.NewReader(`{"data":{"type":"blogs","id":"1", "attributes":{"title":1.02}}}`)
 		_, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
 		require.Error(t, err)
-		e, ok := err.(errors.ClassError)
-		if assert.True(t, ok) {
-			assert.Equal(t, mapping.ClassFieldValue, e.Class())
-		}
+		assert.True(t, errors.Is(err, codec.ErrUnmarshalFieldValue))
 	})
 
 	t.Run("invalid_field_strict_mode", func(t *testing.T) {
@@ -186,10 +158,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 			StrictUnmarshal: true,
 		})
 		require.Error(t, err)
-		e, ok := err.(*errors.DetailedError)
-		if assert.True(t, ok) {
-			assert.Equal(t, codec.ClassUnmarshal, e.Class())
-		}
+		assert.True(t, errors.Is(err, codec.ErrUnmarshalFieldName))
 	})
 
 	t.Run("nil_ptr_attributes", func(t *testing.T) {

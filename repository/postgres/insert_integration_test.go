@@ -80,7 +80,7 @@ func TestInsertSingleModel(t *testing.T) {
 		assert.NotZero(t, model1.ID)
 		err = db.Query(mStruct, model1).Insert()
 		if assert.Error(t, err) {
-			assert.True(t, errors.IsClass(err, query.ClassViolationUnique), err)
+			assert.True(t, errors.IsClass(err, query.ErrViolationUnique), err)
 		}
 	})
 }

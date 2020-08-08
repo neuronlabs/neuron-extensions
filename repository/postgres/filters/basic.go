@@ -112,7 +112,7 @@ func StringOperatorsSQLizer(s *query.Scope, quotedWriter internal.QuotedWordWrit
 	for _, v := range simple.Values {
 		strValue, ok := v.(string)
 		if !ok {
-			return nil, errors.NewDetf(filter.ClassFilterValues, "operator: '%s' requires string filter values", simple.Operator.Name)
+			return nil, errors.WrapDetf(filter.ErrFilterValues, "operator: '%s' requires string filter values", simple.Operator.Name)
 		}
 
 		switch simple.Operator {

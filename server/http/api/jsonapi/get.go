@@ -27,7 +27,7 @@ func (a *API) handleGet(mStruct *mapping.ModelStruct) http.HandlerFunc {
 		id := httputil.CtxMustGetID(req.Context())
 		if id == "" {
 			log.Errorf("ID value stored in the context is empty.")
-			err := errors.NewDet(server.ClassURIParameter, "invalid 'id' url parameter").
+			err := errors.WrapDet(server.ErrURIParameter, "invalid 'id' url parameter").
 				WithDetail("Provided empty ID in query url")
 			a.marshalErrors(rw, 0, httputil.MapError(err)...)
 			return
@@ -37,14 +37,14 @@ func (a *API) handleGet(mStruct *mapping.ModelStruct) http.HandlerFunc {
 		model := mapping.NewModel(mStruct)
 		if err := model.SetPrimaryKeyStringValue(id); err != nil {
 			log.Debug2f("[GET][%s] Invalid URL id value: '%s': '%v'", mStruct.Collection(), id, err)
-			err := errors.NewDet(server.ClassURIParameter, "invalid query id parameter")
+			err := errors.WrapDet(server.ErrURIParameter, "invalid query id parameter")
 			a.marshalErrors(rw, 0, httputil.MapError(err)...)
 			return
 		}
 
 		// Disallow zero value ID.
 		if model.IsPrimaryKeyZero() {
-			err := errors.NewDet(server.ClassURIParameter, "provided zero value 'id' parameter")
+			err := errors.WrapDet(server.ErrURIParameter, "provided zero value 'id' parameter")
 			a.marshalErrors(rw, 0, httputil.MapError(err)...)
 			return
 		}

@@ -52,7 +52,7 @@ func (p *Postgres) prepareUpdateModelFieldSet(set mapping.FieldSet) (fieldSet ma
 	}
 
 	if len(fieldSet) == 0 {
-		return nil, errors.New(query.ClassNoFieldsInFieldSet, "nothing to insert")
+		return nil, errors.Wrap(query.ErrNoFieldsInFieldSet, "nothing to insert")
 	}
 	fieldSet.Sort()
 

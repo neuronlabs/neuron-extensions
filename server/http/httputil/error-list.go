@@ -121,6 +121,14 @@ func ErrInvalidJSONFieldValue() *codec.Error {
 	}
 }
 
+// ErrInvalidJSONFieldName error returned when one or more of the specified JSON fields was not in a correct format.
+func ErrInvalidJSONFieldName() *codec.Error {
+	return &codec.Error{
+		Title:  "One of provided model fields doesn't exists",
+		Status: "400",
+	}
+}
+
 // ErrHashMismatch returns when the hash value specified in the request didn't match the one stored/computed by the server.
 func ErrHashMismatch() *codec.Error {
 	return &codec.Error{

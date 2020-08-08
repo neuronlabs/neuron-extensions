@@ -68,7 +68,7 @@ func (c Codec) visitPayloadModels(payload *neuronCodec.Payload) (nodes []*Node, 
 		}
 	case len(payload.Data):
 	default:
-		return nil, errors.NewDetf(neuronCodec.ClassMarshalPayload, "provided invalid payload fieldset number")
+		return nil, errors.WrapDetf(neuronCodec.ErrMarshalPayload, "provided invalid payload fieldset number")
 	}
 
 	for i, model := range payload.Data {
@@ -89,7 +89,7 @@ func (c Codec) visitPayloadModels(payload *neuronCodec.Payload) (nodes []*Node, 
 		}
 
 		if mStruct != payload.ModelStruct {
-			return nil, errors.NewDet(neuronCodec.ClassMarshal, "expecting payload with single model type - provided multiple type models")
+			return nil, errors.WrapDet(neuronCodec.ErrMarshal, "expecting payload with single model type - provided multiple type models")
 		}
 		node, err := visitModelNode(mStruct, model, payload.MarshalLinks, fieldSet...)
 		if err != nil {
@@ -145,7 +145,7 @@ func visitModelNode(mStruct *mapping.ModelStruct, model mapping.Model, linkOptio
 			if fielder == nil {
 				fielder, ok = model.(mapping.Fielder)
 				if !ok {
-					return nil, errors.New(mapping.ClassModelNotImplements, "model doesn't implement fielder interface")
+					return nil, errors.Wrap(mapping.ErrModelNotImplements, "model doesn't implement fielder interface")
 				}
 			}
 
@@ -202,7 +202,7 @@ func visitModelNode(mStruct *mapping.ModelStruct, model mapping.Model, linkOptio
 			if multiRelationer == nil {
 				multiRelationer, ok = model.(mapping.MultiRelationer)
 				if !ok {
-					return nil, errors.New(mapping.ClassModelNotImplements, "model doesn't implement MultiRelationer")
+					return nil, errors.Wrap(mapping.ErrModelNotImplements, "model doesn't implement MultiRelationer")
 				}
 			}
 
@@ -249,7 +249,7 @@ func visitModelNode(mStruct *mapping.ModelStruct, model mapping.Model, linkOptio
 			if singleRelationer == nil {
 				singleRelationer, ok = model.(mapping.SingleRelationer)
 				if !ok {
-					return nil, errors.New(mapping.ClassModelNotImplements, "model doesn't implement SingleRelationer")
+					return nil, errors.Wrap(mapping.ErrModelNotImplements, "model doesn't implement SingleRelationer")
 				}
 			}
 			relation, err := singleRelationer.GetRelationModel(field)

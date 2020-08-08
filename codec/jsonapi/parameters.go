@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	neuronCodec "github.com/neuronlabs/neuron/codec"
 	"github.com/neuronlabs/neuron/controller"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/log"
@@ -42,7 +41,7 @@ func (c Codec) ParseParameters(ctrl *controller.Controller, q *query.Scope, para
 				return err
 			}
 			if pageSize <= 0 {
-				return errors.NewDetf(query.ClassInvalidParameter, "invalid %s parameter value", parameter.Key).WithDetail("page number cannot be lower or equal to 0")
+				return errors.WrapDetf(query.ErrInvalidParameter, "invalid %s parameter value", parameter.Key).WithDetail("page number cannot be lower or equal to 0")
 			}
 		case parameter.Key == ParamPageNumber:
 			pageNumber, err = parameter.Int64()
@@ -50,7 +49,7 @@ func (c Codec) ParseParameters(ctrl *controller.Controller, q *query.Scope, para
 				return err
 			}
 			if pageNumber <= 0 {
-				return errors.NewDetf(query.ClassInvalidParameter, "invalid %s parameter value", parameter.Key).WithDetail("page number cannot be lower than 0")
+				return errors.WrapDetf(query.ErrInvalidParameter, "invalid %s parameter value", parameter.Key).WithDetail("page number cannot be lower than 0")
 			}
 		case parameter.Key == query.ParamInclude:
 			includes = parameter
@@ -64,7 +63,7 @@ func (c Codec) ParseParameters(ctrl *controller.Controller, q *query.Scope, para
 				return err
 			}
 			if len(split) == 1 {
-				return errors.NewDetf(query.ClassInvalidParameter, "invalid filter parameter: '%s'", parameter.Key)
+				return errors.WrapDetf(query.ErrInvalidParameter, "invalid filter parameter: '%s'", parameter.Key)
 			}
 			mStruct := q.ModelStruct
 			ff, err := c.parseFilterParameter(mStruct, split, parameter)
@@ -91,7 +90,7 @@ func (c Codec) ParseParameters(ctrl *controller.Controller, q *query.Scope, para
 			q.StoreSet(StoreKeyMarshalLinks, marshalLinksValue)
 		default:
 			// TODO: provide a way to use custom query parameters - for registered key values.
-			return errors.NewDetf(query.ClassInvalidParameter, "provided invalid query parameter: %s", parameter.Key)
+			return errors.WrapDetf(query.ErrInvalidParameter, "provided invalid query parameter: %s", parameter.Key)
 		}
 	}
 
@@ -137,11 +136,11 @@ func (c Codec) parsePageBasedPagination(pageSize int64, pageNumber int64, hasLim
 		pageNumber = 1
 	}
 	if pageSize == 0 {
-		return query.Pagination{}, errors.NewDetf(query.ClassInvalidParameter, "provided invalid pagination").
+		return query.Pagination{}, errors.WrapDetf(query.ErrInvalidParameter, "provided invalid pagination").
 			WithDetail(fmt.Sprintf("Page size parameter: '%s' not defined.", ParamPageSize))
 	}
 	if hasLimitOffset {
-		return query.Pagination{}, errors.NewDetf(query.ClassInvalidParameter, "provided invalid pagination").
+		return query.Pagination{}, errors.WrapDetf(query.ErrInvalidParameter, "provided invalid pagination").
 			WithDetail(fmt.Sprintf("Cannot use both page and limit/offset based pagination at the same time."))
 	}
 	return query.Pagination{
@@ -153,17 +152,17 @@ func (c Codec) parsePageBasedPagination(pageSize int64, pageNumber int64, hasLim
 func (c Codec) parseFilterParameter(mStruct *mapping.ModelStruct, split []string, parameter query.Parameter) (filter.Filter, error) {
 	sField, ok := mStruct.FieldByName(split[0])
 	if !ok || sField.IsHidden() {
-		return nil, errors.NewDetf(query.ClassInvalidParameter, "invalid filter parameter: '%s' - invalid fields", parameter.Key)
+		return nil, errors.WrapDetf(query.ErrInvalidParameter, "invalid filter parameter: '%s' - invalid fields", parameter.Key)
 	}
 	model := mapping.NewModel(mStruct)
 	switch sField.Kind() {
 	case mapping.KindPrimary:
 		if len(split) != 2 {
-			return nil, errors.NewDetf(query.ClassInvalidParameter, "invalid filter parameter: '%s'", parameter.Key)
+			return nil, errors.WrapDetf(query.ErrInvalidParameter, "invalid filter parameter: '%s'", parameter.Key)
 		}
 		o, ok := filter.Operators.Get(split[1])
 		if !ok {
-			return nil, errors.NewDetf(query.ClassInvalidParameter, "provided invalid query operator: %s", split[1])
+			return nil, errors.WrapDetf(query.ErrInvalidParameter, "provided invalid query operator: %s", split[1])
 		}
 		var values []interface{}
 		// Parse filter values.
@@ -185,15 +184,15 @@ func (c Codec) parseFilterParameter(mStruct *mapping.ModelStruct, split []string
 		return f, nil
 	case mapping.KindAttribute:
 		if len(split) != 2 {
-			return nil, errors.NewDetf(query.ClassInvalidParameter, "invalid filter parameter: '%s'", parameter.Key)
+			return nil, errors.WrapDetf(query.ErrInvalidParameter, "invalid filter parameter: '%s'", parameter.Key)
 		}
 		o, ok := filter.Operators.Get(split[1])
 		if !ok {
-			return nil, errors.NewDetf(query.ClassInvalidParameter, "provided invalid query operator: %s", split[1])
+			return nil, errors.WrapDetf(query.ErrInvalidParameter, "provided invalid query operator: %s", split[1])
 		}
 		fielder, ok := model.(mapping.Fielder)
 		if !ok {
-			return nil, errors.NewDetf(neuronCodec.ClassInternal, "provided model is not a mapping.Fielder")
+			return nil, errors.WrapDetf(errors.ErrInternal, "provided model is not a mapping.Fielder")
 		}
 		var values []interface{}
 		// Parse attribute filter values.
@@ -219,7 +218,7 @@ func (c Codec) parseFilterParameter(mStruct *mapping.ModelStruct, split []string
 		return filter.New(sField, o, values...), nil
 	case mapping.KindRelationshipSingle, mapping.KindRelationshipMultiple:
 		if len(split) == 1 {
-			return nil, errors.NewDetf(query.ClassInvalidParameter, "invalid filter parameter: '%s'", parameter.Key)
+			return nil, errors.WrapDetf(query.ErrInvalidParameter, "invalid filter parameter: '%s'", parameter.Key)
 		}
 		sub, err := c.parseFilterParameter(sField.Relationship().RelatedModelStruct(), split[1:], parameter)
 		if err != nil {
@@ -227,7 +226,7 @@ func (c Codec) parseFilterParameter(mStruct *mapping.ModelStruct, split []string
 		}
 		return filter.Relation{StructField: sField, Nested: []filter.Filter{sub}}, nil
 	default:
-		return nil, errors.NewDetf(query.ClassInvalidParameter, "invalid filter parameter: '%s' - invalid filter fields", parameter.Key)
+		return nil, errors.WrapDetf(query.ErrInvalidParameter, "invalid filter parameter: '%s' - invalid filter fields", parameter.Key)
 	}
 }
 
@@ -238,7 +237,7 @@ func (c Codec) parseFieldsParameter(ctrl *controller.Controller, q *query.Scope,
 	}
 
 	if len(split) != 1 {
-		err := errors.NewDetf(query.ClassInvalidParameter, "invalid fields parameter")
+		err := errors.WrapDetf(query.ErrInvalidParameter, "invalid fields parameter")
 		err.Details = fmt.Sprintf("The fields parameter has invalid form. %s", parameter.Key)
 		return err
 	}
@@ -247,7 +246,7 @@ func (c Codec) parseFieldsParameter(ctrl *controller.Controller, q *query.Scope,
 		if log.CurrentLevel() == log.LevelDebug3 {
 			log.Debug3f("[%s] invalid fieldset model: '%s'", q.ID, split[0])
 		}
-		err := errors.NewDetf(query.ClassInvalidParameter, "invalid query parameter")
+		err := errors.WrapDetf(query.ErrInvalidParameter, "invalid query parameter")
 		err.Details = fmt.Sprintf("Fields query parameter contains invalid collection name: '%s'", split[0])
 		return err
 	}
@@ -255,18 +254,18 @@ func (c Codec) parseFieldsParameter(ctrl *controller.Controller, q *query.Scope,
 	for _, field := range parameter.StringSlice() {
 		sField, ok := model.StructFieldByName(field)
 		if !ok || sField.IsHidden() {
-			return errors.Newf(query.ClassInvalidParameter, "field: '%s' not found for the model", field)
+			return errors.Wrapf(query.ErrInvalidParameter, "field: '%s' not found for the model", field)
 		}
 		switch sField.Kind() {
 		case mapping.KindAttribute, mapping.KindRelationshipSingle, mapping.KindRelationshipMultiple:
 			if fs.Contains(sField) {
-				return errors.Newf(query.ClassInvalidParameter, "duplicated field '%s' in '%s' parameter", field, query.ParamFields)
+				return errors.Wrapf(query.ErrInvalidParameter, "duplicated field '%s' in '%s' parameter", field, query.ParamFields)
 			}
 			fs = append(fs, sField)
 		case mapping.KindPrimary:
-			return errors.NewDet(query.ClassInvalidParameter, "cannot set 'id' field in the query fieldset")
+			return errors.WrapDet(query.ErrInvalidParameter, "cannot set 'id' field in the query fieldset")
 		default:
-			return errors.Newf(query.ClassInvalidParameter, "field: '%s' not found for the model", field)
+			return errors.Wrapf(query.ErrInvalidParameter, "field: '%s' not found for the model", field)
 		}
 	}
 	fields[model] = fs
@@ -292,7 +291,7 @@ func (c Codec) addIncludedParameter(mStruct *mapping.ModelStruct, parameters []s
 	field := parameters[0]
 	sField, ok := mStruct.RelationByName(field)
 	if !ok || sField.IsHidden() {
-		return nil, errors.Newf(query.ClassInvalidParameter, "relation: '%s' not found for the model", field)
+		return nil, errors.Wrapf(query.ErrInvalidParameter, "relation: '%s' not found for the model", field)
 	}
 
 	var includedRelation *query.IncludedRelation

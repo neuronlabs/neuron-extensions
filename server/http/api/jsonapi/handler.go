@@ -77,7 +77,7 @@ func (d *DefaultHandler) HandleInsert(ctx context.Context, params server.Params,
 			// only needs to add new relation to it's value.
 			single, ok := model.(mapping.SingleRelationer)
 			if !ok {
-				return nil, errors.NewDetf(mapping.ClassModelNotImplements, "model: '%s' doesn't implement SingleRelationer interface", payload.ModelStruct)
+				return nil, errors.WrapDetf(mapping.ErrModelNotImplements, "model: '%s' doesn't implement SingleRelationer interface", payload.ModelStruct)
 			}
 			// querySetRelations first clear the relationship and then add it - it is not required here as a hasOne
 			// only needs to add new relation to it's value.
@@ -92,7 +92,7 @@ func (d *DefaultHandler) HandleInsert(ctx context.Context, params server.Params,
 		default:
 			multi, ok := model.(mapping.MultiRelationer)
 			if !ok {
-				err = errors.NewDetf(mapping.ClassModelNotImplements, "model: '%s' doesn't implement MultiRelationer interface", payload.ModelStruct)
+				err = errors.WrapDetf(mapping.ErrModelNotImplements, "model: '%s' doesn't implement MultiRelationer interface", payload.ModelStruct)
 				return nil, err
 			}
 			var relationModels []mapping.Model
@@ -122,7 +122,7 @@ func (d *DefaultHandler) HandleDelete(ctx context.Context, params server.Params,
 		return nil, err
 	}
 	if deleted == 0 {
-		return nil, errors.NewDetf(query.ClassNoResult, "nothing to delete")
+		return nil, errors.WrapDetf(query.ErrQueryNoResult, "nothing to delete")
 	}
 	return nil, nil
 }
@@ -168,7 +168,7 @@ func (d *DefaultHandler) HandleUpdate(ctx context.Context, params server.Params,
 		case mapping.RelHasOne:
 			single, ok := model.(mapping.SingleRelationer)
 			if !ok {
-				err = errors.NewDetf(mapping.ClassModelNotImplements, "model: '%s' doesn't implement SingleRelationer interface", input.ModelStruct)
+				err = errors.WrapDetf(mapping.ErrModelNotImplements, "model: '%s' doesn't implement SingleRelationer interface", input.ModelStruct)
 				return nil, err
 			}
 			// querySetRelations first clear the relationship and then add it - it is not required here as a hasOne
@@ -184,7 +184,7 @@ func (d *DefaultHandler) HandleUpdate(ctx context.Context, params server.Params,
 		default:
 			multi, ok := model.(mapping.MultiRelationer)
 			if !ok {
-				err = errors.NewDetf(mapping.ClassModelNotImplements, "model: '%s' doesn't implement MultiRelationer interface", input.ModelStruct)
+				err = errors.WrapDetf(mapping.ErrModelNotImplements, "model: '%s' doesn't implement MultiRelationer interface", input.ModelStruct)
 				return nil, err
 			}
 			var relationModels []mapping.Model
@@ -210,7 +210,7 @@ func (d *DefaultHandler) HandleUpdate(ctx context.Context, params server.Params,
 func (d *DefaultHandler) HandleGet(ctx context.Context, params server.Params, q *query.Scope) (*codec.Payload, error) {
 	getter, ok := params.DB.(database.QueryGetter)
 	if !ok {
-		return nil, errors.NewDetf(query.ClassInternal, "DB doesn't implement QueryGetter interface: %T", params.DB)
+		return nil, errors.WrapDetf(query.ErrInternal, "DB doesn't implement QueryGetter interface: %T", params.DB)
 	}
 	model, err := getter.QueryGet(ctx, q)
 	if err != nil {
@@ -223,7 +223,7 @@ func (d *DefaultHandler) HandleGet(ctx context.Context, params server.Params, q 
 func (d *DefaultHandler) HandleList(ctx context.Context, params server.Params, q *query.Scope) (*codec.Payload, error) {
 	finder, ok := params.DB.(database.QueryFinder)
 	if !ok {
-		return nil, errors.NewDetf(query.ClassInternal, "DB doesn't implement QueryFinder interface: %T", params.DB)
+		return nil, errors.WrapDetf(query.ErrInternal, "DB doesn't implement QueryFinder interface: %T", params.DB)
 	}
 	models, err := finder.QueryFind(ctx, q)
 	if err != nil {
@@ -235,7 +235,7 @@ func (d *DefaultHandler) HandleList(ctx context.Context, params server.Params, q
 func (d *DefaultHandler) HandleGetRelation(ctx context.Context, params server.Params, q, relatedScope *query.Scope, relation *mapping.StructField) (*codec.Payload, error) {
 	getter, ok := params.DB.(database.QueryGetter)
 	if !ok {
-		return nil, errors.NewDetf(query.ClassInternal, "DB doesn't implement QueryGetter interface")
+		return nil, errors.WrapDetf(query.ErrInternal, "DB doesn't implement QueryGetter interface")
 	}
 	model, err := getter.QueryGet(ctx, q)
 	if err != nil {
@@ -250,7 +250,7 @@ func (d *DefaultHandler) HandleGetRelation(ctx context.Context, params server.Pa
 	case mapping.KindRelationshipMultiple:
 		mr, ok := model.(mapping.MultiRelationer)
 		if !ok {
-			return nil, errors.NewDetf(mapping.ClassModelNotImplements, "model: '%s' doesn't implement MultiRelationer", q.ModelStruct.String())
+			return nil, errors.WrapDetf(mapping.ErrModelNotImplements, "model: '%s' doesn't implement MultiRelationer", q.ModelStruct.String())
 		}
 		relatedModels, err = mr.GetRelationModels(relation)
 		if err != nil {
@@ -259,7 +259,7 @@ func (d *DefaultHandler) HandleGetRelation(ctx context.Context, params server.Pa
 	case mapping.KindRelationshipSingle:
 		sr, ok := model.(mapping.SingleRelationer)
 		if !ok {
-			return nil, errors.NewDetf(mapping.ClassModelNotImplements, "model: '%s' doesn't implement SingleRelationer", q.ModelStruct.String())
+			return nil, errors.WrapDetf(mapping.ErrModelNotImplements, "model: '%s' doesn't implement SingleRelationer", q.ModelStruct.String())
 		}
 		relatedModel, err := sr.GetRelationModel(relation)
 		if err != nil {
@@ -269,7 +269,7 @@ func (d *DefaultHandler) HandleGetRelation(ctx context.Context, params server.Pa
 			relatedModels = []mapping.Model{relatedModel}
 		}
 	default:
-		return nil, errors.NewDetf(mapping.ClassInternal, "provided field: '%s' is not a relation", relation.String())
+		return nil, errors.WrapDetf(mapping.ErrInternal, "provided field: '%s' is not a relation", relation.String())
 	}
 
 	// Check if there is anything to get from the related scope, or if there are any fields required to be taken from the repository.
@@ -282,7 +282,7 @@ func (d *DefaultHandler) HandleGetRelation(ctx context.Context, params server.Pa
 	relatedScope.Models = relatedModels
 	refresher, ok := params.DB.(database.QueryRefresher)
 	if !ok {
-		return nil, errors.NewDetf(query.ClassInternal, "DB doesn't implement QueryRefresher: %T", params.DB)
+		return nil, errors.WrapDetf(query.ErrInternal, "DB doesn't implement QueryRefresher: %T", params.DB)
 	}
 	if err = refresher.QueryRefresh(ctx, relatedScope); err != nil {
 		return nil, err
@@ -295,7 +295,7 @@ func (d *DefaultHandler) HandleGetRelation(ctx context.Context, params server.Pa
 func (d *DefaultHandler) HandleGetRelationship(ctx context.Context, params server.Params, q *query.Scope, relation *mapping.StructField) (*codec.Payload, error) {
 	getter, ok := params.DB.(database.QueryGetter)
 	if !ok {
-		return nil, errors.NewDetf(query.ClassInternal, "DB doesn't implement QueryGetter interface: %T", params.DB)
+		return nil, errors.WrapDetf(query.ErrInternal, "DB doesn't implement QueryGetter interface: %T", params.DB)
 	}
 	model, err := getter.QueryGet(ctx, q)
 	if err != nil {
@@ -307,7 +307,7 @@ func (d *DefaultHandler) HandleGetRelationship(ctx context.Context, params serve
 	case mapping.KindRelationshipMultiple:
 		mr, ok := model.(mapping.MultiRelationer)
 		if !ok {
-			return nil, errors.NewDetf(mapping.ClassModelNotImplements, "model: '%s' doesn't implement MultiRelationer", q.ModelStruct.String())
+			return nil, errors.WrapDetf(mapping.ErrModelNotImplements, "model: '%s' doesn't implement MultiRelationer", q.ModelStruct.String())
 		}
 		payload.Data, err = mr.GetRelationModels(relation)
 		if err != nil {
@@ -316,7 +316,7 @@ func (d *DefaultHandler) HandleGetRelationship(ctx context.Context, params serve
 	case mapping.KindRelationshipSingle:
 		sr, ok := model.(mapping.SingleRelationer)
 		if !ok {
-			return nil, errors.NewDetf(mapping.ClassModelNotImplements, "model: '%s' doesn't implement SingleRelationer", q.ModelStruct.String())
+			return nil, errors.WrapDetf(mapping.ErrModelNotImplements, "model: '%s' doesn't implement SingleRelationer", q.ModelStruct.String())
 		}
 		relatedModel, err := sr.GetRelationModel(relation)
 		if err != nil {
@@ -326,7 +326,7 @@ func (d *DefaultHandler) HandleGetRelationship(ctx context.Context, params serve
 			payload.Data = []mapping.Model{relatedModel}
 		}
 	default:
-		return nil, errors.NewDetf(mapping.ClassInternal, "provided field: '%s' is not a relation", relation.String())
+		return nil, errors.WrapDetf(mapping.ErrInternal, "provided field: '%s' is not a relation", relation.String())
 	}
 	return &payload, nil
 }
@@ -337,7 +337,7 @@ func (d *DefaultHandler) HandleSetRelations(ctx context.Context, params server.P
 	if len(relationsToSet) == 0 {
 		qrc, ok := params.DB.(database.QueryRelationClearer)
 		if !ok {
-			return nil, errors.Newf(query.ClassInternal, "db doesn't implement QueryRelationClearer: %T", params.DB)
+			return nil, errors.Wrapf(query.ErrInternal, "db doesn't implement QueryRelationClearer: %T", params.DB)
 		}
 		if _, err := qrc.QueryClearRelations(ctx, q, relation); err != nil {
 			return nil, err
@@ -346,7 +346,7 @@ func (d *DefaultHandler) HandleSetRelations(ctx context.Context, params server.P
 	}
 	qrs, ok := params.DB.(database.QueryRelationSetter)
 	if !ok {
-		return nil, errors.Newf(query.ClassInternal, "db doesn't implement QueryRelationSetter: %T", params.DB)
+		return nil, errors.Wrapf(query.ErrInternal, "db doesn't implement QueryRelationSetter: %T", params.DB)
 	}
 	if err := qrs.QuerySetRelations(ctx, q, relation, relationsToSet...); err != nil {
 		return nil, err

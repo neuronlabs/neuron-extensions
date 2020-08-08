@@ -26,7 +26,7 @@ func ParseFilters(s *query.Scope, writer internal.QuotedWordWriteFunc) (SQLQueri
 			}
 			sqlizer, err := getOperatorSQLizer(ft.Operator)
 			if err != nil {
-				err := errors.NewDet(filter.ClassFilterFormat, "unsupported filter operator").
+				err := errors.WrapDet(filter.ErrFilterFormat, "unsupported filter operator").
 					WithDetailf("Provided unsupported operator: '%s' for given query.", ft.Operator.Name)
 				return nil, err
 			}
@@ -47,7 +47,7 @@ func ParseFilters(s *query.Scope, writer internal.QuotedWordWriteFunc) (SQLQueri
 				}
 				sqlizer, err := getOperatorSQLizer(elem.Operator)
 				if err != nil {
-					err := errors.NewDet(filter.ClassFilterFormat, "unsupported filter operator").
+					err := errors.WrapDet(filter.ErrFilterFormat, "unsupported filter operator").
 						WithDetailf("Provided unsupported operator: '%s' for given query.", elem.Operator.Name)
 					return nil, err
 				}

@@ -29,11 +29,11 @@ func GetCodec(c *controller.Controller) Codec {
 func (c Codec) MarshalErrors(w io.Writer, errs ...*codec.Error) error {
 	data, err := json.Marshal(errs)
 	if err != nil {
-		return errors.Newf(codec.ClassMarshal, "marshaling errors failed: %v", err)
+		return errors.Wrapf(codec.ErrMarshal, "marshaling errors failed: %v", err)
 	}
 	_, err = w.Write(data)
 	if err != nil {
-		return errors.Newf(codec.ClassMarshal, "writing marshaled errors failed: %v", err)
+		return errors.Wrapf(codec.ErrMarshal, "writing marshaled errors failed: %v", err)
 	}
 	return nil
 }
@@ -42,7 +42,7 @@ func (c Codec) MarshalErrors(w io.Writer, errs ...*codec.Error) error {
 func (c Codec) UnmarshalErrors(r io.Reader) (codec.MultiError, error) {
 	errs := []*codec.Error{}
 	if err := json.NewDecoder(r).Decode(&errs); err != nil {
-		return nil, errors.NewDetf(codec.ClassUnmarshal, "unmarshal errors failed: %v", err)
+		return nil, errors.WrapDetf(codec.ErrUnmarshal, "unmarshal errors failed: %v", err)
 	}
 	return errs, nil
 }

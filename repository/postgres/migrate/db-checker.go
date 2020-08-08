@@ -17,12 +17,12 @@ func GetVersion(ctx context.Context, conn internal.Connection) (int, error) {
 	err := conn.QueryRow(ctx, "SHOW server_version_num;").Scan(&version)
 	if err != nil {
 		log.Debug("Querying server version failed: %v", err)
-		return 0, errors.NewDetf(errors.ClassInternal, "Can't obtain pq server version: %v", err.Error())
+		return 0, errors.WrapDetf(errors.ErrInternal, "Can't obtain pq server version: %v", err.Error())
 	}
 
 	v, err := strconv.Atoi(version)
 	if err != nil {
-		return 0, errors.NewDetf(errors.ClassInternal, "Can't get postgres integer version: %v", err.Error())
+		return 0, errors.WrapDetf(errors.ErrInternal, "Can't get postgres integer version: %v", err.Error())
 	}
 	return v, nil
 }

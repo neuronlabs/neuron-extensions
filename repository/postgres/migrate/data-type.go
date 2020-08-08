@@ -122,7 +122,7 @@ func findDataType(field *mapping.StructField) (DataTyper, error) {
 		}
 		dt, ok = defaultKindDT[k]
 		if !ok {
-			err := errors.NewDet(errors.ClassInternal, "postgres field type not found.")
+			err := errors.WrapDet(errors.ErrInternal, "postgres field type not found.")
 			err.WithDetailf("Can't find the field type. Model: '%s', Field: '%s'", field.ModelStruct().Type().Name(), field.Name())
 			return nil, err
 		}
@@ -244,7 +244,7 @@ func registerDataType(dt DataTyper) error {
 	// check it the data type exists
 	_, ok := dataTypes[dt.KeyName()]
 	if ok {
-		return errors.NewDetf(errors.ClassInternal, "postgres data type: '%s' is already registered", dt.KeyName())
+		return errors.WrapDetf(errors.ErrInternal, "postgres data type: '%s' is already registered", dt.KeyName())
 	}
 
 	// set the data type at index
@@ -265,7 +265,7 @@ func registerRefTypeDT(t reflect.Type, dt DataTyper, override ...bool) error {
 	}
 	_, ok := defaultTypeDT[t]
 	if ok && !ov {
-		return errors.NewDetf(errors.ClassInternal, "default data typer is already set for given type: '%s'", t.Name())
+		return errors.WrapDetf(errors.ErrInternal, "default data typer is already set for given type: '%s'", t.Name())
 	}
 
 	defaultTypeDT[t] = dt

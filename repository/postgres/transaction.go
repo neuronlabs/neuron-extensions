@@ -36,7 +36,7 @@ func (p *Postgres) Begin(ctx context.Context, tx *query.Transaction) error {
 		case query.LevelRepeatableRead, query.LevelSnapshot:
 			isolation = pgx.RepeatableRead
 		default:
-			return errors.NewDetf(query.ClassTxState, "unsupported isolation level: %s", tx.Options.Isolation.String())
+			return errors.WrapDetf(query.ErrTxState, "unsupported isolation level: %s", tx.Options.Isolation.String())
 		}
 		txOpts.IsoLevel = isolation
 		if tx.Options.ReadOnly {
@@ -59,13 +59,13 @@ func (p *Postgres) Begin(ctx context.Context, tx *query.Transaction) error {
 // Implements Commit method from the query.Commiter interface
 func (p *Postgres) Commit(ctx context.Context, tx *query.Transaction) error {
 	if tx == nil {
-		return errors.NewDet(query.ClassTxInvalid, "scope's transaction is nil")
+		return errors.WrapDet(query.ErrTxInvalid, "scope's transaction is nil")
 	}
 
 	pgxTx, ok := p.checkTransaction(tx.ID)
 	if !ok {
 		log.Errorf("Transaction: '%s' no mapped SQL transaction found", tx.ID)
-		return errors.NewDet(query.ClassTxInvalid, "no mapped sql transaction found for the scope")
+		return errors.WrapDet(query.ErrTxInvalid, "no mapped sql transaction found for the scope")
 	}
 	defer p.clearTransaction(tx.ID)
 	for {
@@ -76,7 +76,7 @@ func (p *Postgres) Commit(ctx context.Context, tx *query.Transaction) error {
 		if pgconn.SafeToRetry(err) {
 			continue
 		}
-		return errors.NewDetf(p.errorClass(err), "commit transaction: %s failed: %v", tx.ID, err)
+		return errors.WrapDetf(p.neuronError(err), "commit transaction: %s failed: %v", tx.ID, err)
 	}
 	return nil
 }
@@ -84,12 +84,12 @@ func (p *Postgres) Commit(ctx context.Context, tx *query.Transaction) error {
 // Rollback rolls back the transaction for given scope
 func (p *Postgres) Rollback(ctx context.Context, tx *query.Transaction) error {
 	if tx == nil {
-		return errors.NewDet(query.ClassTxInvalid, "scope's transaction is nil")
+		return errors.WrapDet(query.ErrTxInvalid, "scope's transaction is nil")
 	}
 	pgxTx, ok := p.checkTransaction(tx.ID)
 	if !ok {
 		log.Errorf("Transaction: '%s' no mapped SQL transaction found", tx.ID)
-		return errors.NewDet(query.ClassTxInvalid, "no mapped sql transaction found for the scope")
+		return errors.WrapDet(query.ErrTxInvalid, "no mapped sql transaction found for the scope")
 	}
 	defer p.clearTransaction(tx.ID)
 
@@ -101,7 +101,7 @@ func (p *Postgres) Rollback(ctx context.Context, tx *query.Transaction) error {
 		if pgconn.SafeToRetry(err) {
 			continue
 		}
-		return errors.NewDetf(p.errorClass(err), "rollback transaction: %s failed: %v", tx.ID, err)
+		return errors.WrapDetf(p.neuronError(err), "rollback transaction: %s failed: %v", tx.ID, err)
 	}
 	return nil
 }

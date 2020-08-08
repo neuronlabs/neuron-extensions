@@ -21,7 +21,7 @@ func RegisterTagSetter(key string, setter TagSetterFunc) error {
 	_, ok := TagSetterFunctions[key]
 	if ok {
 		log.Errorf("The TagSetter function for the key: '%s' already registered.", key)
-		return errors.NewDet(errors.ClassInternal, "tag setter function is already stored")
+		return errors.WrapDet(errors.ErrInternal, "tag setter function is already stored")
 	}
 	TagSetterFunctions[key] = setter
 	return nil
@@ -157,7 +157,7 @@ func parseDataType(v string) ([]string, error) {
 	if i == -1 {
 		return []string{v}, nil
 	} else if v[len(v)-1] != ')' {
-		return nil, errors.NewDetf(errors.ClassInternal, "invalid postgres DataType value: '%s'", v)
+		return nil, errors.WrapDetf(errors.ErrInternal, "invalid postgres DataType value: '%s'", v)
 	}
 
 	return append([]string{v[:i]}, strings.Split(v[i+1:len(v)-1], ",")...), nil

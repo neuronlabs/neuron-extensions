@@ -250,13 +250,13 @@ func ModelsTableName(m *mapping.ModelStruct) (string, error) {
 func modelsTable(m *mapping.ModelStruct) (*Table, error) {
 	t, ok := m.StoreGet(TableKey)
 	if !ok {
-		return nil, errors.NewDetf(errors.ClassInternal, "model's: '%s' doesn't have table stored", m.Type().Name())
+		return nil, errors.WrapDetf(errors.ErrInternal, "model's: '%s' doesn't have table stored", m.Type().Name())
 	}
 
 	tb, ok := t.(*Table)
 	if !ok {
 		log.Errorf("The table stored within model's: '%s' Store is not a '*migrate.Table' - '%T'", m.Collection(), t)
-		return nil, errors.NewDetf(errors.ClassInternal, "stored table for model: '%s' is not a *migrate.Table", m.Type().Name())
+		return nil, errors.WrapDetf(errors.ErrInternal, "stored table for model: '%s' is not a *migrate.Table", m.Type().Name())
 	}
 	return tb, nil
 }

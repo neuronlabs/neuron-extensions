@@ -82,7 +82,7 @@ func (m *Model) SetPrimaryKeyValue(value interface{}) error {
 	case float64:
 		m.ID = int(valueType)
 	default:
-		return errors.Newf(mapping.ClassFieldValue, "provided invalid value: '%T' for the primary field for model: 'Model'", value)
+		return errors.Wrapf(mapping.ErrFieldValue, "provided invalid value: '%T' for the primary field for model: 'Model'", value)
 	}
 	return nil
 }
@@ -116,7 +116,7 @@ func (m *Model) GetFieldsAddress(field *mapping.StructField) (interface{}, error
 	case 5: // DeletedAt
 		return &m.DeletedAt, nil
 	}
-	return nil, errors.Newf(mapping.ClassInvalidModelField, "provided invalid field: '%s' for given model: Model'", field.Name())
+	return nil, errors.Wrapf(mapping.ErrInvalidModelField, "provided invalid field: '%s' for given model: Model'", field.Name())
 }
 
 // GetFieldZeroValue implements mapping.Fielder interface.s
@@ -135,7 +135,7 @@ func (m *Model) GetFieldZeroValue(field *mapping.StructField) (interface{}, erro
 	case 5: // DeletedAt
 		return nil, nil
 	default:
-		return nil, errors.Newf(mapping.ClassInvalidModelField, "provided invalid field name: '%s'", field.Name())
+		return nil, errors.Wrapf(mapping.ErrInvalidModelField, "provided invalid field name: '%s'", field.Name())
 	}
 }
 
@@ -155,7 +155,7 @@ func (m *Model) IsFieldZero(field *mapping.StructField) (bool, error) {
 	case 5: // DeletedAt
 		return m.DeletedAt == nil, nil
 	}
-	return false, errors.Newf(mapping.ClassInvalidModelField, "provided invalid field name: '%s'", field.Name())
+	return false, errors.Wrapf(mapping.ErrInvalidModelField, "provided invalid field name: '%s'", field.Name())
 }
 
 // SetFieldZeroValue implements mapping.Fielder interface.s
@@ -174,7 +174,7 @@ func (m *Model) SetFieldZeroValue(field *mapping.StructField) error {
 	case 5: // DeletedAt
 		m.DeletedAt = nil
 	default:
-		return errors.Newf(mapping.ClassInvalidModelField, "provided invalid field name: '%s'", field.Name())
+		return errors.Wrapf(mapping.ErrInvalidModelField, "provided invalid field name: '%s'", field.Name())
 	}
 	return nil
 }
@@ -198,7 +198,7 @@ func (m *Model) GetHashableFieldValue(field *mapping.StructField) (interface{}, 
 		}
 		return *m.DeletedAt, nil
 	}
-	return nil, errors.Newf(mapping.ClassInvalidModelField, "provided invalid field: '%s' for given model: 'Model'", field.Name())
+	return nil, errors.Wrapf(mapping.ErrInvalidModelField, "provided invalid field: '%s' for given model: 'Model'", field.Name())
 }
 
 // GetFieldValue implements mapping.Fielder interface.
@@ -217,7 +217,7 @@ func (m *Model) GetFieldValue(field *mapping.StructField) (interface{}, error) {
 	case 5: // DeletedAt
 		return m.DeletedAt, nil
 	}
-	return nil, errors.Newf(mapping.ClassInvalidModelField, "provided invalid field: '%s' for given model: Model'", field.Name())
+	return nil, errors.Wrapf(mapping.ErrInvalidModelField, "provided invalid field: '%s' for given model: Model'", field.Name())
 }
 
 // SetFieldValue implements mapping.Fielder interface.
@@ -253,7 +253,7 @@ func (m *Model) SetFieldValue(field *mapping.StructField, value interface{}) (er
 		case float64:
 			m.ID = int(v)
 		default:
-			return errors.Newf(mapping.ClassFieldValue, "provided invalid field type: '%T' for the field: %s", value, field.Name())
+			return errors.Wrapf(mapping.ErrFieldValue, "provided invalid field type: '%T' for the field: %s", value, field.Name())
 		}
 		return nil
 	case 1: // Attr
@@ -267,7 +267,7 @@ func (m *Model) SetFieldValue(field *mapping.StructField, value interface{}) (er
 			m.Attr = string(v)
 			return nil
 		}
-		return errors.Newf(mapping.ClassFieldValue, "provided invalid field type: '%T' for the field: %s", value, field.Name())
+		return errors.Wrapf(mapping.ErrFieldValue, "provided invalid field type: '%T' for the field: %s", value, field.Name())
 	case 2: // SnakeCased
 		if v, ok := value.(string); ok {
 			m.SnakeCased = v
@@ -279,21 +279,21 @@ func (m *Model) SetFieldValue(field *mapping.StructField, value interface{}) (er
 			m.SnakeCased = string(v)
 			return nil
 		}
-		return errors.Newf(mapping.ClassFieldValue, "provided invalid field type: '%T' for the field: %s", value, field.Name())
+		return errors.Wrapf(mapping.ErrFieldValue, "provided invalid field type: '%T' for the field: %s", value, field.Name())
 	case 3: // CreatedAt
 		if v, ok := value.(time.Time); ok {
 			m.CreatedAt = v
 			return nil
 		}
 
-		return errors.Newf(mapping.ClassFieldValue, "provided invalid field type: '%T' for the field: %s", value, field.Name())
+		return errors.Wrapf(mapping.ErrFieldValue, "provided invalid field type: '%T' for the field: %s", value, field.Name())
 	case 4: // UpdatedAt
 		if v, ok := value.(time.Time); ok {
 			m.UpdatedAt = v
 			return nil
 		}
 
-		return errors.Newf(mapping.ClassFieldValue, "provided invalid field type: '%T' for the field: %s", value, field.Name())
+		return errors.Wrapf(mapping.ErrFieldValue, "provided invalid field type: '%T' for the field: %s", value, field.Name())
 	case 5: // DeletedAt
 		if value == nil {
 			m.DeletedAt = nil
@@ -309,9 +309,9 @@ func (m *Model) SetFieldValue(field *mapping.StructField, value interface{}) (er
 			return nil
 		}
 
-		return errors.Newf(mapping.ClassFieldValue, "provided invalid field type: '%T' for the field: %s", value, field.Name())
+		return errors.Wrapf(mapping.ErrFieldValue, "provided invalid field type: '%T' for the field: %s", value, field.Name())
 	default:
-		return errors.Newf(mapping.ClassInvalidModelField, "provided invalid field: '%s' for the model: 'Model'", field.Name())
+		return errors.Wrapf(mapping.ErrInvalidModelField, "provided invalid field: '%s' for the model: 'Model'", field.Name())
 	}
 }
 
@@ -327,22 +327,22 @@ func (m *Model) ParseFieldsStringValue(field *mapping.StructField, value string)
 	case 3: // CreatedAt
 		temp := m.CreatedAt
 		if err := m.CreatedAt.UnmarshalText([]byte(value)); err != nil {
-			return "", errors.Newf(mapping.ClassFieldValue, "invalid field 'CreatedAt' value: '%v' to parse string. Err: %v", m.CreatedAt, err)
+			return "", errors.Wrapf(mapping.ErrFieldValue, "invalid field 'CreatedAt' value: '%v' to parse string. Err: %v", m.CreatedAt, err)
 		}
 		bt, err := m.CreatedAt.MarshalText()
 		if err != nil {
-			return "", errors.Newf(mapping.ClassFieldValue, "invalid field 'CreatedAt' value: '%v' to parse string. Err: %v", m.CreatedAt, err)
+			return "", errors.Wrapf(mapping.ErrFieldValue, "invalid field 'CreatedAt' value: '%v' to parse string. Err: %v", m.CreatedAt, err)
 		}
 		m.CreatedAt = temp
 		return string(bt), nil
 	case 4: // UpdatedAt
 		temp := m.UpdatedAt
 		if err := m.UpdatedAt.UnmarshalText([]byte(value)); err != nil {
-			return "", errors.Newf(mapping.ClassFieldValue, "invalid field 'UpdatedAt' value: '%v' to parse string. Err: %v", m.UpdatedAt, err)
+			return "", errors.Wrapf(mapping.ErrFieldValue, "invalid field 'UpdatedAt' value: '%v' to parse string. Err: %v", m.UpdatedAt, err)
 		}
 		bt, err := m.UpdatedAt.MarshalText()
 		if err != nil {
-			return "", errors.Newf(mapping.ClassFieldValue, "invalid field 'UpdatedAt' value: '%v' to parse string. Err: %v", m.UpdatedAt, err)
+			return "", errors.Wrapf(mapping.ErrFieldValue, "invalid field 'UpdatedAt' value: '%v' to parse string. Err: %v", m.UpdatedAt, err)
 		}
 		m.UpdatedAt = temp
 		return string(bt), nil
@@ -350,16 +350,16 @@ func (m *Model) ParseFieldsStringValue(field *mapping.StructField, value string)
 		var base time.Time
 		temp := &base
 		if err := temp.UnmarshalText([]byte(value)); err != nil {
-			return "", errors.Newf(mapping.ClassFieldValue, "invalid field 'DeletedAt' value: '%v' to parse string. Err: %v", m.DeletedAt, err)
+			return "", errors.Wrapf(mapping.ErrFieldValue, "invalid field 'DeletedAt' value: '%v' to parse string. Err: %v", m.DeletedAt, err)
 		}
 		bt, err := temp.MarshalText()
 		if err != nil {
-			return "", errors.Newf(mapping.ClassFieldValue, "invalid field 'DeletedAt' value: '%v' to parse string. Err: %v", m.DeletedAt, err)
+			return "", errors.Wrapf(mapping.ErrFieldValue, "invalid field 'DeletedAt' value: '%v' to parse string. Err: %v", m.DeletedAt, err)
 		}
 
 		return string(bt), nil
 	}
-	return nil, errors.Newf(mapping.ClassInvalidModelField, "provided invalid field: '%s' for given model: Model'", field.Name())
+	return nil, errors.Wrapf(mapping.ErrInvalidModelField, "provided invalid field: '%s' for given model: Model'", field.Name())
 }
 
 // Compile time check if BasicModel implements mapping.Model interface.
@@ -432,7 +432,7 @@ func (b *BasicModel) SetPrimaryKeyValue(value interface{}) error {
 	case float64:
 		b.ID = int(valueType)
 	default:
-		return errors.Newf(mapping.ClassFieldValue, "provided invalid value: '%T' for the primary field for model: 'BasicModel'", value)
+		return errors.Wrapf(mapping.ErrFieldValue, "provided invalid value: '%T' for the primary field for model: 'BasicModel'", value)
 	}
 	return nil
 }
@@ -470,7 +470,7 @@ func (b *BasicModel) GetFieldsAddress(field *mapping.StructField) (interface{}, 
 	case 7: // Float32
 		return &b.Float32, nil
 	}
-	return nil, errors.Newf(mapping.ClassInvalidModelField, "provided invalid field: '%s' for given model: BasicModel'", field.Name())
+	return nil, errors.Wrapf(mapping.ErrInvalidModelField, "provided invalid field: '%s' for given model: BasicModel'", field.Name())
 }
 
 // GetFieldZeroValue implements mapping.Fielder interface.s
@@ -493,7 +493,7 @@ func (b *BasicModel) GetFieldZeroValue(field *mapping.StructField) (interface{},
 	case 7: // Float32
 		return 0, nil
 	default:
-		return nil, errors.Newf(mapping.ClassInvalidModelField, "provided invalid field name: '%s'", field.Name())
+		return nil, errors.Wrapf(mapping.ErrInvalidModelField, "provided invalid field name: '%s'", field.Name())
 	}
 }
 
@@ -517,7 +517,7 @@ func (b *BasicModel) IsFieldZero(field *mapping.StructField) (bool, error) {
 	case 7: // Float32
 		return b.Float32 == 0, nil
 	}
-	return false, errors.Newf(mapping.ClassInvalidModelField, "provided invalid field name: '%s'", field.Name())
+	return false, errors.Wrapf(mapping.ErrInvalidModelField, "provided invalid field name: '%s'", field.Name())
 }
 
 // SetFieldZeroValue implements mapping.Fielder interface.s
@@ -540,7 +540,7 @@ func (b *BasicModel) SetFieldZeroValue(field *mapping.StructField) error {
 	case 7: // Float32
 		b.Float32 = 0
 	default:
-		return errors.Newf(mapping.ClassInvalidModelField, "provided invalid field name: '%s'", field.Name())
+		return errors.Wrapf(mapping.ErrInvalidModelField, "provided invalid field name: '%s'", field.Name())
 	}
 	return nil
 }
@@ -568,7 +568,7 @@ func (b *BasicModel) GetHashableFieldValue(field *mapping.StructField) (interfac
 	case 7: // Float32
 		return b.Float32, nil
 	}
-	return nil, errors.Newf(mapping.ClassInvalidModelField, "provided invalid field: '%s' for given model: 'BasicModel'", field.Name())
+	return nil, errors.Wrapf(mapping.ErrInvalidModelField, "provided invalid field: '%s' for given model: 'BasicModel'", field.Name())
 }
 
 // GetFieldValue implements mapping.Fielder interface.
@@ -591,7 +591,7 @@ func (b *BasicModel) GetFieldValue(field *mapping.StructField) (interface{}, err
 	case 7: // Float32
 		return b.Float32, nil
 	}
-	return nil, errors.Newf(mapping.ClassInvalidModelField, "provided invalid field: '%s' for given model: BasicModel'", field.Name())
+	return nil, errors.Wrapf(mapping.ErrInvalidModelField, "provided invalid field: '%s' for given model: BasicModel'", field.Name())
 }
 
 // SetFieldValue implements mapping.Fielder interface.
@@ -627,7 +627,7 @@ func (b *BasicModel) SetFieldValue(field *mapping.StructField, value interface{}
 		case float64:
 			b.ID = int(v)
 		default:
-			return errors.Newf(mapping.ClassFieldValue, "provided invalid field type: '%T' for the field: %s", value, field.Name())
+			return errors.Wrapf(mapping.ErrFieldValue, "provided invalid field type: '%T' for the field: %s", value, field.Name())
 		}
 		return nil
 	case 1: // String
@@ -641,14 +641,14 @@ func (b *BasicModel) SetFieldValue(field *mapping.StructField, value interface{}
 			b.String = string(v)
 			return nil
 		}
-		return errors.Newf(mapping.ClassFieldValue, "provided invalid field type: '%T' for the field: %s", value, field.Name())
+		return errors.Wrapf(mapping.ErrFieldValue, "provided invalid field type: '%T' for the field: %s", value, field.Name())
 	case 2: // Timed
 		if v, ok := value.(time.Time); ok {
 			b.Timed = v
 			return nil
 		}
 
-		return errors.Newf(mapping.ClassFieldValue, "provided invalid field type: '%T' for the field: %s", value, field.Name())
+		return errors.Wrapf(mapping.ErrFieldValue, "provided invalid field type: '%T' for the field: %s", value, field.Name())
 	case 3: // PtrTime
 		if value == nil {
 			b.PtrTime = nil
@@ -664,7 +664,7 @@ func (b *BasicModel) SetFieldValue(field *mapping.StructField, value interface{}
 			return nil
 		}
 
-		return errors.Newf(mapping.ClassFieldValue, "provided invalid field type: '%T' for the field: %s", value, field.Name())
+		return errors.Wrapf(mapping.ErrFieldValue, "provided invalid field type: '%T' for the field: %s", value, field.Name())
 	case 4: // Int
 		if v, ok := value.(int); ok {
 			b.Int = v
@@ -695,7 +695,7 @@ func (b *BasicModel) SetFieldValue(field *mapping.StructField, value interface{}
 		case float64:
 			b.Int = int(v)
 		default:
-			return errors.Newf(mapping.ClassFieldValue, "provided invalid field type: '%T' for the field: %s", value, field.Name())
+			return errors.Wrapf(mapping.ErrFieldValue, "provided invalid field type: '%T' for the field: %s", value, field.Name())
 		}
 		return nil
 	case 5: // Int16
@@ -728,7 +728,7 @@ func (b *BasicModel) SetFieldValue(field *mapping.StructField, value interface{}
 		case float64:
 			b.Int16 = int16(v)
 		default:
-			return errors.Newf(mapping.ClassFieldValue, "provided invalid field type: '%T' for the field: %s", value, field.Name())
+			return errors.Wrapf(mapping.ErrFieldValue, "provided invalid field type: '%T' for the field: %s", value, field.Name())
 		}
 		return nil
 	case 6: // Varchar20
@@ -742,7 +742,7 @@ func (b *BasicModel) SetFieldValue(field *mapping.StructField, value interface{}
 			b.Varchar20 = string(v)
 			return nil
 		}
-		return errors.Newf(mapping.ClassFieldValue, "provided invalid field type: '%T' for the field: %s", value, field.Name())
+		return errors.Wrapf(mapping.ErrFieldValue, "provided invalid field type: '%T' for the field: %s", value, field.Name())
 	case 7: // Float32
 		if v, ok := value.(float32); ok {
 			b.Float32 = v
@@ -773,11 +773,11 @@ func (b *BasicModel) SetFieldValue(field *mapping.StructField, value interface{}
 		case float64:
 			b.Float32 = float32(v)
 		default:
-			return errors.Newf(mapping.ClassFieldValue, "provided invalid field type: '%T' for the field: %s", value, field.Name())
+			return errors.Wrapf(mapping.ErrFieldValue, "provided invalid field type: '%T' for the field: %s", value, field.Name())
 		}
 		return nil
 	default:
-		return errors.Newf(mapping.ClassInvalidModelField, "provided invalid field: '%s' for the model: 'BasicModel'", field.Name())
+		return errors.Wrapf(mapping.ErrInvalidModelField, "provided invalid field: '%s' for the model: 'BasicModel'", field.Name())
 	}
 }
 
@@ -791,11 +791,11 @@ func (b *BasicModel) ParseFieldsStringValue(field *mapping.StructField, value st
 	case 2: // Timed
 		temp := b.Timed
 		if err := b.Timed.UnmarshalText([]byte(value)); err != nil {
-			return "", errors.Newf(mapping.ClassFieldValue, "invalid field 'Timed' value: '%v' to parse string. Err: %v", b.Timed, err)
+			return "", errors.Wrapf(mapping.ErrFieldValue, "invalid field 'Timed' value: '%v' to parse string. Err: %v", b.Timed, err)
 		}
 		bt, err := b.Timed.MarshalText()
 		if err != nil {
-			return "", errors.Newf(mapping.ClassFieldValue, "invalid field 'Timed' value: '%v' to parse string. Err: %v", b.Timed, err)
+			return "", errors.Wrapf(mapping.ErrFieldValue, "invalid field 'Timed' value: '%v' to parse string. Err: %v", b.Timed, err)
 		}
 		b.Timed = temp
 		return string(bt), nil
@@ -803,11 +803,11 @@ func (b *BasicModel) ParseFieldsStringValue(field *mapping.StructField, value st
 		var base time.Time
 		temp := &base
 		if err := temp.UnmarshalText([]byte(value)); err != nil {
-			return "", errors.Newf(mapping.ClassFieldValue, "invalid field 'PtrTime' value: '%v' to parse string. Err: %v", b.PtrTime, err)
+			return "", errors.Wrapf(mapping.ErrFieldValue, "invalid field 'PtrTime' value: '%v' to parse string. Err: %v", b.PtrTime, err)
 		}
 		bt, err := temp.MarshalText()
 		if err != nil {
-			return "", errors.Newf(mapping.ClassFieldValue, "invalid field 'PtrTime' value: '%v' to parse string. Err: %v", b.PtrTime, err)
+			return "", errors.Wrapf(mapping.ErrFieldValue, "invalid field 'PtrTime' value: '%v' to parse string. Err: %v", b.PtrTime, err)
 		}
 
 		return string(bt), nil
@@ -820,5 +820,5 @@ func (b *BasicModel) ParseFieldsStringValue(field *mapping.StructField, value st
 	case 7: // Float32
 		return strconv.ParseFloat(value, 64)
 	}
-	return nil, errors.Newf(mapping.ClassInvalidModelField, "provided invalid field: '%s' for given model: BasicModel'", field.Name())
+	return nil, errors.Wrapf(mapping.ErrInvalidModelField, "provided invalid field: '%s' for given model: BasicModel'", field.Name())
 }

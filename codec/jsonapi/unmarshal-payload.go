@@ -28,12 +28,14 @@ func (c Codec) UnmarshalPayload(r io.Reader, options codec.UnmarshalOptions) (*c
 		if options.ModelStruct == nil {
 			mStruct, ok := c.c.ModelMap.GetByCollection(node.Type)
 			if !ok {
-				return nil, errors.NewDetf(codec.ClassUnmarshal, "provided unknown collection type: %s", node.Type)
+				return nil, errors.WrapDetf(codec.ErrUnmarshal, "provided unknown collection type: %s", node.Type).
+					WithDetailf("provided unknown collection type: %s", node.Type)
 			}
 			if payload.ModelStruct == nil {
 				payload.ModelStruct = mStruct
 			} else if payload.ModelStruct != mStruct {
-				return nil, errors.NewDetf(codec.ClassUnmarshal, "provided payload has multiple collection data")
+				return nil, errors.WrapDetf(codec.ErrUnmarshal, "provided payload has multiple collection data").
+					WithDetail("provided payload has multiple collection data")
 			}
 		}
 		modelStruct := payload.ModelStruct

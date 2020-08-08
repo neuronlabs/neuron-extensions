@@ -26,7 +26,7 @@ func (p *Postgres) Delete(ctx context.Context, s *query.Scope) (int64, error) {
 	// Execute prepared query.
 	res, err := p.connection(s).Exec(ctx, q.query, q.values...)
 	if err != nil {
-		return 0, errors.New(p.errorClass(err), "delete query failed")
+		return 0, errors.Wrap(p.neuronError(err), "delete query failed")
 	}
 
 	return res.RowsAffected(), nil

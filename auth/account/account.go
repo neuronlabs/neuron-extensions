@@ -31,7 +31,7 @@ type Account struct {
 // Validate does the validation of the input account. It checks the email address as well as the
 func (a *Account) InsertValidate() error {
 	if a.Email == "" {
-		return errors.New(mapping.ClassFieldValue, "provided empty email value")
+		return errors.Wrap(mapping.ErrFieldValue, "provided empty email value")
 	}
 	return nil
 }

@@ -78,6 +78,6 @@ func TestTransactions(t *testing.T) {
 
 		_, err := db.Query(mStruct).Where("id =", model.ID).Get()
 		require.Error(t, err)
-		assert.True(t, errors.IsClass(err, query.ClassNoResult))
+		assert.True(t, errors.IsClass(err, query.ErrQueryNoResult))
 	})
 }

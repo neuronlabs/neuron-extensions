@@ -44,7 +44,7 @@ func (p *Postgres) insertWithCommonFieldSet(ctx context.Context, s *query.Scope)
 		_, err := p.connection(s).Exec(ctx, q.query, q.values...)
 		if err != nil {
 			log.Debugf("insert query failed: %v", err)
-			return errors.NewDetf(p.errorClass(err), "inserting failed: %v", err)
+			return errors.WrapDetf(p.neuronError(err), "inserting failed: %v", err)
 		}
 		return nil
 	}
@@ -52,13 +52,13 @@ func (p *Postgres) insertWithCommonFieldSet(ctx context.Context, s *query.Scope)
 	rows, err := p.connection(s).Query(ctx, q.query, q.values...)
 	if err != nil {
 		log.Debugf("Insert query failed: %v", err)
-		return errors.NewDetf(p.errorClass(err), "insert query failed")
+		return errors.WrapDetf(p.neuronError(err), "insert query failed")
 	}
 	var i int
 	for rows.Next() {
 		if err = rows.Scan(s.Models[i].GetPrimaryKeyAddress()); err != nil {
 			log.Debugf("Scanning failed: %v", err)
-			return errors.NewDetf(p.errorClass(err), "inserting failed: %v", err)
+			return errors.WrapDetf(p.neuronError(err), "inserting failed: %v", err)
 		}
 		i++
 	}
@@ -80,19 +80,19 @@ func (p *Postgres) insertWithBulkFieldSet(ctx context.Context, s *query.Scope) e
 		switch len(indices) {
 		case 0:
 			if _, err = br.Exec(); err != nil {
-				return errors.NewDetf(p.errorClass(err), "insert failed: %v", err)
+				return errors.WrapDetf(p.neuronError(err), "insert failed: %v", err)
 			}
 		default:
 			rows, err := br.Query()
 			if err != nil {
-				return errors.NewDetf(p.errorClass(err), "insert failed: %v", err)
+				return errors.WrapDetf(p.neuronError(err), "insert failed: %v", err)
 			}
 
 			var i int
 			for rows.Next() {
 				if err = rows.Scan(s.Models[indices[i]].GetPrimaryKeyAddress()); err != nil {
 					rows.Close()
-					return errors.NewDetf(p.errorClass(err), "insert failed: %v", err)
+					return errors.WrapDetf(p.neuronError(err), "insert failed: %v", err)
 				}
 				i++
 			}
@@ -117,7 +117,7 @@ func (p *Postgres) parseInsertWithCommonFieldSet(s *query.Scope) (*insertQuery, 
 
 	commonFieldSet, hasCommonFieldSet := s.CommonFieldSet()
 	if !hasCommonFieldSet {
-		return nil, errors.NewDetf(query.ClassInvalidFieldSet, "no insert fieldset provided")
+		return nil, errors.WrapDetf(query.ErrInvalidFieldSet, "no insert fieldset provided")
 	}
 	fieldSet, autoSelected := p.prepareInsertFieldset(s.ModelStruct, commonFieldSet)
 
@@ -150,7 +150,7 @@ func (p *Postgres) parseInsertWithCommonFieldSet(s *query.Scope) (*insertQuery, 
 			// Get the model and get selected field values.
 			fielder, isFielder := model.(mapping.Fielder)
 			if !isFielder && (len(fieldSet) > 1 || ((len(fieldSet) == 1) && fieldSet[0].Kind() != mapping.KindPrimary)) {
-				return nil, errors.Newf(mapping.ClassModelNotImplements, "Model: '%s' doesn't implement Fielder interface", s.ModelStruct)
+				return nil, errors.Wrapf(mapping.ErrModelNotImplements, "Model: '%s' doesn't implement Fielder interface", s.ModelStruct)
 			}
 
 			// Add the selected fields to the query.
@@ -270,7 +270,7 @@ func (p *Postgres) parseInsertBulkFieldsetQuery(s *query.Scope, batch internal.B
 				model := s.Models[index]
 				fielder, isFielder := model.(mapping.Fielder)
 				if !isFielder && (len(fieldSet) > 1 || ((len(fieldSet) == 1) && fieldSet[0].Kind() != mapping.KindPrimary)) {
-					return nil, errors.Newf(mapping.ClassModelNotImplements, "Model: '%s' doesn't implement Fielder interface", s.ModelStruct)
+					return nil, errors.Wrapf(mapping.ErrModelNotImplements, "Model: '%s' doesn't implement Fielder interface", s.ModelStruct)
 				}
 
 				var fieldValue interface{}

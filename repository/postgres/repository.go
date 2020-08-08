@@ -8,7 +8,6 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 
-	postgresErrors "github.com/neuronlabs/neuron-extensions/repository/postgres/errors"
 	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
 	"github.com/neuronlabs/neuron-extensions/repository/postgres/log"
 	"github.com/neuronlabs/neuron-extensions/repository/postgres/migrate"
@@ -126,7 +125,7 @@ func (p *Postgres) FactoryName() string {
 // The method creates models tables if not exists and updates the columns per given model fields.
 func (p *Postgres) MigrateModels(ctx context.Context, models ...*mapping.ModelStruct) error {
 	if p.ConnPool == nil {
-		return errors.Newf(repository.ClassConnection, "no connection established")
+		return errors.Wrapf(repository.ErrConnection, "no connection established")
 	}
 	for _, model := range models {
 		if err := migrate.AutoMigrateModel(ctx, p.ConnPool, model); err != nil {
@@ -142,7 +141,7 @@ func (p *Postgres) MigrateModels(ctx context.Context, models ...*mapping.ModelSt
 func (p *Postgres) HealthCheck(ctx context.Context) (*repository.HealthResponse, error) {
 	if p.ConnPool == nil {
 		// if no pool is defined than no Dial method was done.
-		return nil, errors.Newf(repository.ClassConnection, "no connection established")
+		return nil, errors.Wrapf(repository.ErrConnection, "no connection established")
 	}
 	var temp string
 	if err := p.ConnPool.QueryRow(ctx, "SELECT 1").Scan(&temp); err != nil {
@@ -185,24 +184,24 @@ Private Methods
 func (p *Postgres) establishConnection(ctx context.Context) (err error) {
 	p.ConnPool, err = pgxpool.ConnectConfig(ctx, p.ConnConfig)
 	if err != nil {
-		return errors.NewDetf(repository.ClassConnection, "cannot open database connection: %s", err.Error())
+		return errors.WrapDetf(repository.ErrConnection, "cannot open database connection: %s", err.Error())
 	}
 	conn, err := p.ConnPool.Acquire(ctx)
 	if err != nil {
-		return errors.NewDetf(repository.ClassConnection, "cannot open database connection: %s", err.Error())
+		return errors.WrapDetf(repository.ErrConnection, "cannot open database connection: %s", err.Error())
 	}
 	if err = conn.Conn().Ping(ctx); err != nil {
-		return errors.NewDet(repository.ClassConnection, "cannot establish database connection for pq repository")
+		return errors.WrapDet(repository.ErrConnection, "cannot establish database connection for pq repository")
 	}
 	return nil
 }
 
-func (p *Postgres) errorClass(err error) errors.Class {
-	mapped, ok := postgresErrors.Get(err)
+func (p *Postgres) neuronError(err error) error {
+	mapped, ok := Get(err)
 	if ok {
 		return mapped
 	}
-	return postgresErrors.ClassUnmappedError
+	return ErrUnmappedError
 }
 
 func (p *Postgres) connection(s *query.Scope) internal.Connection {

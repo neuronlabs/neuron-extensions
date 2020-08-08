@@ -72,7 +72,7 @@ func TestUpdate(t *testing.T) {
 		model.ID = 1e8
 		affected, err := db.Query(mStruct, model).Update()
 		assert.Error(t, err)
-		assert.True(t, errors.IsClass(err, query.ClassNoResult), "%v", err)
+		assert.True(t, errors.IsClass(err, query.ErrQueryNoResult), "%v", err)
 		assert.Equal(t, int64(0), affected)
 	})
 

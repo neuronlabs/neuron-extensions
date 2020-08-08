@@ -81,7 +81,7 @@ func (q *QueryModel) SetPrimaryKeyValue(value interface{}) error {
 	case float64:
 		q.ID = int(valueType)
 	default:
-		return errors.Newf(mapping.ClassFieldValue, "provided invalid value: '%T' for the primary field for model: 'QueryModel'", value)
+		return errors.Wrapf(mapping.ErrFieldValue, "provided invalid value: '%T' for the primary field for model: 'QueryModel'", value)
 	}
 	return nil
 }
@@ -107,7 +107,7 @@ func (q *QueryModel) GetFieldsAddress(field *mapping.StructField) (interface{}, 
 	case 1: // StringAttr
 		return &q.StringAttr, nil
 	}
-	return nil, errors.Newf(mapping.ClassInvalidModelField, "provided invalid field: '%s' for given model: QueryModel'", field.Name())
+	return nil, errors.Wrapf(mapping.ErrInvalidModelField, "provided invalid field: '%s' for given model: QueryModel'", field.Name())
 }
 
 // GetFieldZeroValue implements mapping.Fielder interface.s
@@ -118,7 +118,7 @@ func (q *QueryModel) GetFieldZeroValue(field *mapping.StructField) (interface{},
 	case 1: // StringAttr
 		return "", nil
 	default:
-		return nil, errors.Newf(mapping.ClassInvalidModelField, "provided invalid field name: '%s'", field.Name())
+		return nil, errors.Wrapf(mapping.ErrInvalidModelField, "provided invalid field name: '%s'", field.Name())
 	}
 }
 
@@ -130,7 +130,7 @@ func (q *QueryModel) IsFieldZero(field *mapping.StructField) (bool, error) {
 	case 1: // StringAttr
 		return q.StringAttr == "", nil
 	}
-	return false, errors.Newf(mapping.ClassInvalidModelField, "provided invalid field name: '%s'", field.Name())
+	return false, errors.Wrapf(mapping.ErrInvalidModelField, "provided invalid field name: '%s'", field.Name())
 }
 
 // SetFieldZeroValue implements mapping.Fielder interface.s
@@ -141,7 +141,7 @@ func (q *QueryModel) SetFieldZeroValue(field *mapping.StructField) error {
 	case 1: // StringAttr
 		q.StringAttr = ""
 	default:
-		return errors.Newf(mapping.ClassInvalidModelField, "provided invalid field name: '%s'", field.Name())
+		return errors.Wrapf(mapping.ErrInvalidModelField, "provided invalid field name: '%s'", field.Name())
 	}
 	return nil
 }
@@ -154,7 +154,7 @@ func (q *QueryModel) GetHashableFieldValue(field *mapping.StructField) (interfac
 	case 1: // StringAttr
 		return q.StringAttr, nil
 	}
-	return nil, errors.Newf(mapping.ClassInvalidModelField, "provided invalid field: '%s' for given model: 'QueryModel'", field.Name())
+	return nil, errors.Wrapf(mapping.ErrInvalidModelField, "provided invalid field: '%s' for given model: 'QueryModel'", field.Name())
 }
 
 // GetFieldValue implements mapping.Fielder interface.
@@ -165,7 +165,7 @@ func (q *QueryModel) GetFieldValue(field *mapping.StructField) (interface{}, err
 	case 1: // StringAttr
 		return q.StringAttr, nil
 	}
-	return nil, errors.Newf(mapping.ClassInvalidModelField, "provided invalid field: '%s' for given model: QueryModel'", field.Name())
+	return nil, errors.Wrapf(mapping.ErrInvalidModelField, "provided invalid field: '%s' for given model: QueryModel'", field.Name())
 }
 
 // SetFieldValue implements mapping.Fielder interface.
@@ -201,7 +201,7 @@ func (q *QueryModel) SetFieldValue(field *mapping.StructField, value interface{}
 		case float64:
 			q.ID = int(v)
 		default:
-			return errors.Newf(mapping.ClassFieldValue, "provided invalid field type: '%T' for the field: %s", value, field.Name())
+			return errors.Wrapf(mapping.ErrFieldValue, "provided invalid field type: '%T' for the field: %s", value, field.Name())
 		}
 		return nil
 	case 1: // StringAttr
@@ -215,9 +215,9 @@ func (q *QueryModel) SetFieldValue(field *mapping.StructField, value interface{}
 			q.StringAttr = string(v)
 			return nil
 		}
-		return errors.Newf(mapping.ClassFieldValue, "provided invalid field type: '%T' for the field: %s", value, field.Name())
+		return errors.Wrapf(mapping.ErrFieldValue, "provided invalid field type: '%T' for the field: %s", value, field.Name())
 	default:
-		return errors.Newf(mapping.ClassInvalidModelField, "provided invalid field: '%s' for the model: 'QueryModel'", field.Name())
+		return errors.Wrapf(mapping.ErrInvalidModelField, "provided invalid field: '%s' for the model: 'QueryModel'", field.Name())
 	}
 }
 
@@ -229,5 +229,5 @@ func (q *QueryModel) ParseFieldsStringValue(field *mapping.StructField, value st
 	case 1: // StringAttr
 		return value, nil
 	}
-	return nil, errors.Newf(mapping.ClassInvalidModelField, "provided invalid field: '%s' for given model: QueryModel'", field.Name())
+	return nil, errors.Wrapf(mapping.ErrInvalidModelField, "provided invalid field: '%s' for given model: QueryModel'", field.Name())
 }
