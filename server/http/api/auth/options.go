@@ -1,4 +1,4 @@
-package jsonauth
+package auth
 
 type Options struct {
 	PathPrefix string

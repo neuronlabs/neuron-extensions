@@ -1,4 +1,4 @@
-package jsonauth
+package auth
 
 import (
 	"github.com/julienschmidt/httprouter"
@@ -13,6 +13,7 @@ type API struct {
 	serverOptions server.Options
 }
 
+// New creates account API.
 func New(options ...Option) *API {
 	a := &API{
 		Options: &Options{},
