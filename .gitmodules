@@ -19,15 +19,18 @@
 [submodule "repository/postgres"]
 	path = repository/postgres
 	url = git@github.com:neuronlabs/repository-postgres.git
-[submodule "server/http/api/jsonapi"]
-	path = server/http/api/jsonapi
-	url = git@github.com:neuronlabs/server-jsonapi.git
-[submodule "server/http/api/auth"]
-	path = server/http/api/auth
-	url = git@github.com:neuronlabs/server-http-auth.git
 [submodule "server/http"]
 	path = server/http
 	url = git@github.com:neuronlabs/server-http.git
 [submodule "repository/mocks"]
 	path = repository/mocks
 	url = git@github.com:neuronlabs/repository-mock.git
+[submodule "neurogns"]
+	path = neurogns
+	url = git@github.com:neuronlabs/neurogonesis.git
+[submodule "api/http/jsonapi"]
+	path = api/http/jsonapi
+	url = git@github.com:neuronlabs/server-jsonapi.git
+[submodule "api/http/authentication"]
+	path = api/http/authentication
+	url = git@github.com:neuronlabs/server-http-auth.git
