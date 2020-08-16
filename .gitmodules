@@ -22,9 +22,6 @@
 [submodule "server/http/api/jsonapi"]
 	path = server/http/api/jsonapi
 	url = git@github.com:neuronlabs/server-jsonapi.git
-[submodule "server-http-auth"]
-	path = server-http-auth
-	url = git@github.com:neuronlabs/server-http-auth.git
 [submodule "server/http/api/auth"]
 	path = server/http/api/auth
 	url = git@github.com:neuronlabs/server-http-auth.git
