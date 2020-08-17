@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
 	"github.com/neuronlabs/neuron/auth"
 	"github.com/neuronlabs/neuron/errors"
 )
@@ -20,6 +21,32 @@ func (a *API) logout(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	if err := claims.Valid(); err != nil {
+		a.marshalErrors(rw, 0, err)
+		return
+	}
+
+	switch claims.(type) {
+	case auth.RefreshClaims:
+		err := httputil.ErrInvalidAuthorizationHeader()
+		err.Detail = "provided invalid token to logout"
+		a.marshalErrors(rw, 0, err)
+		return
+	case auth.AccessClaims:
+	default:
+		err := httputil.ErrInternalError()
+		err.Detail = "provided unknown token claims"
+		a.marshalErrors(rw, 0, err)
+		return
+	}
+
+	// Revoke provided token.
+	err = a.Tokener.RevokeToken(req.Context(), token)
+	if err != nil {
+		a.marshalErrors(rw, 0, err)
+		return
+	}
+	return
 }
 
 func (a *API) getBearerToken(rw http.ResponseWriter, req *http.Request) (string, error) {

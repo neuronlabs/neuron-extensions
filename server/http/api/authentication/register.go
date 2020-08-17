@@ -7,15 +7,16 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
-	"github.com/neuronlabs/neuron-extensions/server/http/log"
-
 	"github.com/neuronlabs/neuron/auth"
 	"github.com/neuronlabs/neuron/codec"
 	"github.com/neuronlabs/neuron/database"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/server"
+
+	jsonCodec "github.com/neuronlabs/neuron-extensions/codec/json"
+	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
+	"github.com/neuronlabs/neuron-extensions/server/http/log"
 )
 
 // AccountCreateInput is an input for the account creation.
@@ -100,7 +101,7 @@ func (a *API) handleCreateAccount(rw http.ResponseWriter, req *http.Request) {
 	payload.ModelStruct = a.model
 	payload.MarshalSingularFormat = true
 
-	cdc := jsonCodec.GetCodec(a.serverOptions.Controller)
+	cdc := json.GetCodec(a.serverOptions.Controller)
 
 	if err := cdc.MarshalPayload(rw, payload); err != nil {
 		log.Errorf("Marshaling account payload failed: %v", err)
