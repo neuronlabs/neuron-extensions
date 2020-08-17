@@ -29,7 +29,7 @@ type Account struct {
 	UpdatedAt time.Time
 	DeletedAt *time.Time
 	// Username is the unique account username.
-	Username string `db:",unique"`
+	Username string `db:";unique"`
 	// PasswordHash is the hash obtained by hashing the password.
 	// Both of these fields has a json tag so that the token wouldn't keep password hash and password salt.
 	PasswordHash []byte `codec:"-" json:"-"`

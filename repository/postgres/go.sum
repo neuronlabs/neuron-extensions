@@ -99,6 +99,8 @@ github.com/neuronlabs/inflection v1.0.1 h1:LDuwbM1jYKEf6DDcA7XV7JRn3Sv9/PBiW6iUo
 github.com/neuronlabs/inflection v1.0.1/go.mod h1:gnqNj1uxAGPYT1LsHRvSyBcd57vvIKTuTmS3ffdgRd8=
 github.com/neuronlabs/neuron v0.17.1 h1:1khtAlaPOhi6SgI7h30NR9Oc/x4FrEd3PEX2l9ro4fk=
 github.com/neuronlabs/neuron v0.17.1/go.mod h1:vUgnqObgxnwlR+khg3mcym7/o4BWzql2TmM2HVjFEoA=
+github.com/neuronlabs/neuron v0.17.2 h1:j4a8OhiSrd9saY3vQc9df9f+fLD/++BgUKVIvilE1WI=
+github.com/neuronlabs/neuron v0.17.2/go.mod h1:vUgnqObgxnwlR+khg3mcym7/o4BWzql2TmM2HVjFEoA=
 github.com/neuronlabs/strcase v1.0.0 h1:F/7Scr7ojAL6l5g3MQiCENGlMI/NK6LwAfaURcUiI7U=
 github.com/neuronlabs/strcase v1.0.0/go.mod h1:IhdRx7jB1zZAQ5r2ryfBc/28sWmXZDbQi7XokQKCpgo=
 github.com/patrickmn/go-cache v2.1.0+incompatible/go.mod h1:3Qf8kWWT7OJRJbdiICTKqZju1ZixQ/KpMGzzAfe6+WQ=

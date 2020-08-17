@@ -107,6 +107,11 @@ type ParameterSetter interface {
 	SetParameters(params []string) error
 }
 
+var (
+	byteSlice    = reflect.TypeOf([]byte{})
+	byteSlicePtr = reflect.TypeOf(&[]byte{})
+)
+
 // findDataType finds the data type for the provided field
 func findDataType(field *mapping.StructField) (DataTyper, error) {
 	// For predefined database type
@@ -142,10 +147,13 @@ func findDataType(field *mapping.StructField) (DataTyper, error) {
 	}
 
 	// Check if the field is UUID.
-	if strings.ToLower(t.Name()) == "uuid" && t.Kind() == reflect.Array && t.Len() == 16 {
+	if strings.ToLower(t.Name()) == "uuid" && t.Kind() == reflect.Array && t.Len() == 16 && t.Elem().Kind() == reflect.Uint8 {
 		return FUUID, nil
 	}
 
+	if byteSlice == t || t == byteSlicePtr {
+		return FBytea, nil
+	}
 	if field.IsCreatedAt() || field.IsDeletedAt() || field.IsUpdatedAt() {
 		return FTimestampTZ.Copy(), nil
 	}
