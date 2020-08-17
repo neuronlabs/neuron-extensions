@@ -1,4 +1,4 @@
-module github.com/neuronlabs/neuron-extensions/auth/tokener
+module github.com/neuronlabs/neuron-extensions/auth/jwt-tokener
 
 go 1.13
 
