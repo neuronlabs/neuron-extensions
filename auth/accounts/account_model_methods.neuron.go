@@ -2,7 +2,7 @@
 // This file was generated at:
 // Sun, 16 Aug 2020 23:26:13 +0200
 
-package account
+package accounts
 
 import (
 	"time"

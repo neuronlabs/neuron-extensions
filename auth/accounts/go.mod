@@ -1,4 +1,4 @@
-module github.com/neuronlabs/neuron-extensions/auth/account
+module github.com/neuronlabs/neuron-extensions/auth/accounts
 
 go 1.13
 
