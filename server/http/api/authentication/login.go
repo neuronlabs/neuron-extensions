@@ -124,7 +124,7 @@ func (a *API) handleLoginEndpoint(rw http.ResponseWriter, req *http.Request) {
 	// Get the account model.
 	// TODO: replace with a hook.
 	if err := params.DB.QueryCtx(ctx, a.model, model).Refresh(); err != nil {
-		if errors.Is(err, query.ErrQueryNoResult) {
+		if errors.Is(err, query.ErrNoResult) {
 			httpError := httputil.ErrInvalidAuthenticationInfo()
 			httpError.Detail = "username or neuronPassword is not valid"
 			a.marshalErrors(rw, 0, httpError)

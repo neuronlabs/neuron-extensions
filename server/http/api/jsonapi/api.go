@@ -10,21 +10,20 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 
-	"github.com/neuronlabs/neuron-extensions/codec/jsonapi"
-	httpServer "github.com/neuronlabs/neuron-extensions/server/http"
-	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
-	"github.com/neuronlabs/neuron-extensions/server/http/middleware"
-
 	"github.com/neuronlabs/neuron/auth"
 	"github.com/neuronlabs/neuron/codec"
 	"github.com/neuronlabs/neuron/controller"
-	"github.com/neuronlabs/neuron/core"
 	"github.com/neuronlabs/neuron/database"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/log"
 	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/query"
 	"github.com/neuronlabs/neuron/server"
+
+	"github.com/neuronlabs/neuron-extensions/codec/jsonapi"
+	httpServer "github.com/neuronlabs/neuron-extensions/server/http"
+	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
+	"github.com/neuronlabs/neuron-extensions/server/http/middleware"
 )
 
 // Compile time check if API implements httpServer.API.
@@ -108,7 +107,7 @@ func (a *API) InitializeAPI(options server.Options) error {
 			return err
 		}
 		a.models[mStruct] = struct{}{}
-		initializer, ok := modelHandler.Handler.(core.Initializer)
+		initializer, ok := modelHandler.Handler.(controller.Initializer)
 		if ok {
 			if err := initializer.Initialize(a.Controller); err != nil {
 				return err

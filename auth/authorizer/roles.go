@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/neuronlabs/neuron-extensions/auth/account"
+	"github.com/neuronlabs/neuron/log"
 
 	"github.com/neuronlabs/neuron/auth"
 	"github.com/neuronlabs/neuron/database"
@@ -64,7 +64,7 @@ func (a *AccountRoles) BeforeInsert(context.Context, database.DB) error {
 // FindRoles implements authorization.Roler interface.
 func (a *Authorizer) FindRoles(ctx context.Context, options ...auth.ListRoleOption) ([]auth.Role, error) {
 	o := &auth.ListRoleOptions{}
-	q := account.NRN_Roles.QueryCtx(ctx, a.db)
+	q := NRN_Roles.QueryCtx(ctx, a.db)
 	for _, option := range options {
 		option(o)
 	}

@@ -14,7 +14,11 @@ func (a *API) logout(rw http.ResponseWriter, req *http.Request) {
 		a.marshalErrors(rw, 401, err)
 		return
 	}
-	a.Tokener.InspectToken()
+	claims, err := a.Tokener.InspectToken(req.Context(), token)
+	if err != nil {
+		a.marshalErrors(rw, 0, err)
+		return
+	}
 
 }
 
