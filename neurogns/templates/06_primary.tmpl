@@ -1,0 +1,165 @@
+{{define "primary" -}}
+{{- $out := . -}}
+// Compile time check if {{.Name}} implements mapping.Model interface.
+var _ mapping.Model = &{{.Name}}{}
+
+// NeuronCollectionName implements mapping.Model interface method.
+// Returns the name of the collection for the '{{.Name}}'.
+func ({{.Receiver}} *{{.Name}}) NeuronCollectionName() string {
+    return "{{.CollectionName}}"
+}
+
+// IsPrimaryKeyZero implements mapping.Model interface method.
+func ({{.Receiver}} *{{.Name}}) IsPrimaryKeyZero() bool {
+    return {{.Primary.IsZero}}
+}
+
+// GetPrimaryKeyValue implements mapping.Model interface method.
+func ({{.Receiver}} *{{.Name}}) GetPrimaryKeyValue() interface{} {
+    return {{.Receiver}}.{{.Primary.Name}}
+}
+
+// GetPrimaryKeyStringValue implements mapping.Model interface method.
+func ({{.Receiver}} *{{.Name}}) GetPrimaryKeyStringValue() (string, error) {
+    {{if .Primary.StringGetter -}}
+    return {{ stringer (selector .Receiver .Primary.Name) .Primary.StringGetter}}, nil
+    {{- else if .Primary.IsTextMarshaler -}}
+    id, err := {{.Receiver}}.{{.Primary.Name}}.MarshalText()
+    if err != nil {
+        return "", errors.Wrapf(mapping.ErrFieldValue, "invalid primary field value: %v to parse string. Err: %v", {{.Receiver}}.{{.Primary.Name}}, err)
+    }
+    return string(id), nil
+    {{- else if .Primary.IsString -}}
+    return {{.Receiver}}.{{.Primary.Name}}.String(), nil
+    {{- else -}}
+    return "", errors.Wrap(mapping.ErrModelDefinition, "model '{{.Name}}' has invalid primary key field type to parse string.")
+    {{- end}}
+}
+
+// GetPrimaryKeyAddress implements mapping.Model interface method.
+func ({{.Receiver}} *{{.Name}}) GetPrimaryKeyAddress() interface{} {
+    return &{{.Receiver}}.{{.Primary.Name}}
+}
+
+// GetPrimaryKeyHashableValue implements mapping.Model interface method.
+func ({{.Receiver}} *{{.Name}}) GetPrimaryKeyHashableValue() interface{} {
+    {{if .Primary.IsPointer -}}
+    if {{.Receiver}}.{{.Primary.Name}} == nil {
+        return {{.Receiver}}.{{.Primary.Name}}
+    }
+    {{end -}}
+    {{if .Primary.IsByteSlice -}}
+    return string({{if .Primary.IsPointer}}*{{end}}{{.Receiver}}.{{.Primary.Name}})
+    {{else -}}
+    return {{if .Primary.IsPointer}}*{{end}}{{.Receiver}}.{{.Primary.Name}}
+    {{end -}}
+}
+
+// GetPrimaryKeyZeroValue implements mapping.Model interface method.
+func ({{.Receiver}} *{{.Name}}) GetPrimaryKeyZeroValue() interface{} {
+    return {{if eq .Primary.Zero "nil"}}{{if .Primary.IsPointer}}({{end}}{{.Primary.Type}}{{if .Primary.IsPointer}}){{end}}({{end}}{{.Primary.GetZero}}{{if eq .Primary.Zero "nil"}}){{end}}
+}
+
+// SetPrimaryKey implements mapping.Model interface method.
+func ({{.Receiver}} *{{.Name}}) SetPrimaryKeyValue(value interface{}) error {
+    {{if .Primary.IsPointer -}}
+    if value == nil {
+        {{.Receiver}}.{{.Primary.Name}} = nil
+        return nil
+    }
+    {{end -}}
+    if v, ok := value.({{.Primary.Type}}); ok {
+        {{.Receiver}}.{{.Primary.Name}} = v
+        return nil
+    {{if and (not .Primary.IsSlice) .Primary.IsPointer -}}
+    } else if v, ok := value.({{.Primary.BaseType}}); ok {
+        {{.Receiver}}.{{.Primary.Name}} = &v
+        return nil
+    {{end -}}{{range $wrapped := .Primary.WrappedTypes -}}
+    } else if v, ok := value.({{$wrapped}}); ok {
+        {{if $out.Primary.IsPointer -}}
+        temp := {{slice $out.Primary.Type 1}}(v)
+        {{$out.Receiver}}.{{$out.Primary.Name}} = &temp
+        {{else -}}
+        {{$out.Receiver}}.{{$out.Primary.Name}} = {{$out.Primary.BaseType}}(v)
+        {{end -}}
+    {{end -}}
+    }
+    {{if le (len .Primary.AlternateTypes) 1 -}}
+    {{- if eq (len .Primary.AlternateTypes) 1 -}}
+    // Check alternate types for given field.
+    if v, ok := value.({{index .Primary.AlternateTypes 0}}); ok {
+        {{if $out.Primary.IsPointer -}}
+        temp := {{slice $out.Primary.Type 1}}(v)
+        {{$out.Receiver}}.{{$out.Primary.Name}} = &temp
+        {{- else -}}
+        {{$out.Receiver}}.{{$out.Primary.Name}} = {{$out.Primary.Type}}(v)
+        {{- end}}
+        return nil
+    }
+    {{end -}}{{if .Primary.Scanner -}}
+        return {{.Receiver}}.{{.Primary.Name}}.Scan(value)
+    {{else -}}
+        return errors.Wrapf(mapping.ErrFieldValue, "provided invalid value: '%T' for the primary field for model: '%T'",
+        value, {{.Receiver}}){{end}}
+    {{- else -}}
+    // Check alternate types for given field.
+    switch valueType := value.(type) {
+    {{range $alternate := .Primary.AlternateTypes -}}
+    case {{$alternate}}:
+        {{if $out.Primary.IsPointer -}}
+        temp := {{$out.Primary.BaseType}}(valueType)
+        {{$out.Receiver}}.{{$out.Primary.Name}} = &temp
+        {{- else -}}
+        {{$out.Receiver}}.{{$out.Primary.Name}} = {{$out.Primary.Type}}(valueType)
+        {{- end}}
+    {{end -}}default:
+        return errors.Wrapf(mapping.ErrFieldValue, "provided invalid value: '%T' for the primary field for model: '{{.Name}}'", value)
+    }
+    return nil{{end}}
+}
+
+// SetPrimaryKeyStringValue implements mapping.Model interface method.
+func ({{.Receiver}} *{{.Name}}) SetPrimaryKeyStringValue(value string) error {
+    {{if .Primary.StringSetter -}}
+    tmp, err := {{ stringParser "value" .Primary.StringSetter }}
+    if err != nil {
+        return err
+    }
+    {{if (wrapParser .Primary.Type .Primary.StringSetter) -}}
+    {{.Receiver}}.{{.Primary.Name}} = {{.Primary.Type}}(tmp)
+    {{- else -}}
+    {{.Receiver}}.{{.Primary.Name}} = tmp
+    {{- end}}
+    return nil
+    {{- else if .Primary.IsTextUnmarshaler -}}
+    if err := {{.Receiver}}.{{.Primary.Name}}.UnmarshalText([]byte(value)); err != nil {
+        return errors.Wrapf(mapping.ErrFieldValue, "invalid primary field value: %v to parse string. Err: %v", {{.Receiver}}.{{.Primary.Name}}, err)
+    }
+    return nil
+    {{- else if and .Primary.IsString (not .Primary.IsSlice) -}}
+    {{- if .Primary.IsPointer -}}
+    {{.Receiver}}.{{.Primary.Name}} = &value
+    return nil
+    {{- else -}}
+    {{.Receiver}}.{{.Primary.Name}} = value
+    return nil
+    {{- end}}
+    {{- else -}}
+    return errors.Wrap(mapping.ErrModelDefinition, "model '{{.Name}}' has invalid primary key field type to parse string.")
+    {{- end}}
+}
+
+// SetFrom implements FromSetter interface.
+func ({{.Receiver}} *{{.Name}}) SetFrom(model mapping.Model) error {
+    if model == nil {
+        return errors.Wrap(query.ErrInvalidInput, "provided nil model to set from")
+    }
+    from, ok := model.(*{{.Name}})
+    if !ok {
+        return errors.WrapDetf(mapping.ErrModelNotMatch, "provided model doesn't match the input: %T", model)
+    }
+    *{{.Receiver}} = *from
+    return nil
+}
+{{- end}}
