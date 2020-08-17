@@ -2,6 +2,7 @@ package auth
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
@@ -9,14 +10,53 @@ import (
 
 	"github.com/neuronlabs/neuron/auth"
 	"github.com/neuronlabs/neuron/codec"
+	"github.com/neuronlabs/neuron/database"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/query"
-	"github.com/neuronlabs/neuron/server"
 
 	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
 	"github.com/neuronlabs/neuron-extensions/server/http/log"
 )
+
+// LoginOptions are the options used while handling the login.
+type LoginOptions struct {
+	Header        http.Header
+	Account       auth.Account
+	Password      *auth.Password
+	RememberToken bool
+}
+
+// LoginAccountRefresher is an interface used for refreshing - getting the account in the login process.
+// The function should not check the password. It should only check if account exists and get it's value.
+type LoginAccountRefresher interface {
+	HandleLoginAccountRefresh(ctx context.Context, db database.DB, options *LoginOptions) error
+}
+
+// BeforeLoginer is the hook interface used before login process.
+type BeforeLoginer interface {
+	BeforeLogin(ctx context.Context, db database.DB, options *LoginOptions) error
+}
+
+// AfterLoginer is the hook interface used after login process.
+type AfterLoginer interface {
+	AfterLogin(ctx context.Context, db database.DB, options *LoginOptions) error
+}
+
+// AfterFailedLogin is an interface used to handle cases when the login fails.
+type AfterFailedLoginer interface {
+	AfterFailedLogin(ctx context.Context, db database.DB, options *LoginOptions) error
+}
+
+// WithTransactionLoginer is an interface that begins the transaction on the login process.
+type WithTransactionLoginer interface {
+	LoginWithTransaction() *query.TxOptions
+}
+
+// WithContextLoginer is an interface that provides context to the login process.
+type WithContextLoginer interface {
+	LoginWithContext(ctx context.Context) (context.Context, error)
+}
 
 // LoginInput is the input login structure.
 type LoginInput struct {
@@ -95,8 +135,8 @@ func (a *API) handleLoginEndpoint(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	// Validate password.
+	neuronPassword := auth.NewPassword(input.Password, a.Options.PasswordScorer)
 	if a.Options.PasswordValidator != nil {
-		neuronPassword := auth.NewPassword(input.Password, a.Options.PasswordScorer)
 		if err := a.Options.PasswordValidator(neuronPassword); err != nil {
 			httpError := httputil.ErrInvalidJSONFieldValue()
 			httpError.Detail = "Provided invalid neuronPassword."
@@ -108,23 +148,72 @@ func (a *API) handleLoginEndpoint(rw http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	model := mapping.NewModel(a.model).(auth.Account)
-	model.SetUsername(input.Username)
+	account := mapping.NewModel(a.model).(auth.Account)
+	account.SetUsername(input.Username)
 
-	// GetUser
 	ctx := req.Context()
-	params := server.Params{
-		Ctx:           ctx,
-		Authorizer:    a.serverOptions.Authorizer,
-		Authenticator: a.Authenticator,
-		Tokener:       a.Tokener,
-		DB:            a.serverOptions.DB,
+
+	var err error
+	if contexter, ok := a.Options.AccountHandler.(WithContextLoginer); ok {
+		ctx, err = contexter.LoginWithContext(ctx)
+		if err != nil {
+			a.marshalErrors(rw, 0, err)
+			return
+		}
+	}
+
+	options := &LoginOptions{
+		Header:        req.Header,
+		Account:       account,
+		Password:      neuronPassword,
+		RememberToken: input.RememberToken,
+	}
+
+	db := a.serverOptions.DB
+
+	var tx *database.Tx
+	transactioner, isTransactioner := a.Options.AccountHandler.(WithTransactionLoginer)
+	if isTransactioner {
+		tx, err = database.Begin(ctx, db, transactioner.LoginWithTransaction())
+		if err != nil {
+			log.Errorf("Begin transaction failed: %v", err)
+			a.marshalErrors(rw, 500, httputil.ErrInternalError())
+			return
+		}
+		db = tx
 	}
 
 	// Get the account model.
-	// TODO: replace with a hook.
-	if err := params.DB.QueryCtx(ctx, a.model, model).Refresh(); err != nil {
+	if before, ok := a.Options.AccountHandler.(BeforeLoginer); ok {
+		if err := before.BeforeLogin(ctx, db, options); err != nil {
+			if isTransactioner {
+				if err = tx.Rollback(); err != nil {
+					log.Errorf("Rolling back transaction failed: %v", err)
+				}
+			}
+			a.marshalErrors(rw, 0, err)
+			return
+		}
+	}
+
+	// Prepare account refresher.
+	refresher, ok := a.Options.AccountHandler.(LoginAccountRefresher)
+	if !ok {
+		refresher = a.defaultHandler
+	}
+	if err := refresher.HandleLoginAccountRefresh(ctx, db, options); err != nil {
+		if isTransactioner {
+			if err = tx.Rollback(); err != nil {
+				log.Errorf("Rolling back transaction failed: %v", err)
+			}
+		}
 		if errors.Is(err, query.ErrNoResult) {
+			if loginFailer, ok := a.Options.AccountHandler.(AfterLoginer); ok {
+				if err = loginFailer.AfterLogin(ctx, a.serverOptions.DB, options); err != nil {
+					a.marshalErrors(rw, 0, err)
+					return
+				}
+			}
 			httpError := httputil.ErrInvalidAuthenticationInfo()
 			httpError.Detail = "username or neuronPassword is not valid"
 			a.marshalErrors(rw, 0, httpError)
@@ -134,13 +223,44 @@ func (a *API) handleLoginEndpoint(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Check Password
-	if err := a.Authenticator.ComparePassword(model, input.Password); err != nil {
-		// TODO: create a hook here.
+	// Check if password matches hashed password in the model.
+	if err := a.Authenticator.ComparePassword(options.Account, input.Password); err != nil {
+		if isTransactioner {
+			if err = tx.Rollback(); err != nil {
+				log.Errorf("Rolling back transaction failed: %v", err)
+			}
+		}
+		if loginFailer, ok := a.Options.AccountHandler.(AfterLoginer); ok {
+			if err = loginFailer.AfterLogin(ctx, a.serverOptions.DB, options); err != nil {
+				a.marshalErrors(rw, 0, err)
+				return
+			}
+		}
 		httpError := httputil.ErrInvalidAuthenticationInfo()
 		httpError.Detail = "username or neuronPassword is not valid"
 		a.marshalErrors(rw, 0, httpError)
 		return
+	}
+
+	// Handle after loginer hook.
+	if after, ok := a.Options.AccountHandler.(AfterLoginer); ok {
+		if err := after.AfterLogin(ctx, db, options); err != nil {
+			if isTransactioner {
+				if err = tx.Rollback(); err != nil {
+					log.Errorf("Rolling back transaction failed: %v", err)
+				}
+			}
+			a.marshalErrors(rw, 0, err)
+			return
+		}
+	}
+
+	if isTransactioner {
+		if err = tx.Commit(); err != nil {
+			log.Errorf("Committing transaction failed: %v", err)
+			a.marshalErrors(rw, 500, httputil.ErrInternalError())
+			return
+		}
 	}
 
 	expiration := a.Options.TokenExpiration
@@ -148,8 +268,8 @@ func (a *API) handleLoginEndpoint(rw http.ResponseWriter, req *http.Request) {
 		expiration = a.Options.RememberTokenExpiration
 	}
 
-	// Create Token
-	token, err := a.Tokener.Token(model,
+	// Create the token for provided account.
+	token, err := a.Tokener.Token(options.Account,
 		auth.TokenExpirationTime(expiration),
 		auth.TokenRefreshExpirationTime(a.Options.RefreshTokenExpiration),
 	)

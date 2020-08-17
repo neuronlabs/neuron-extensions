@@ -1,7 +1,9 @@
 package auth
 
 import (
+	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/julienschmidt/httprouter"
 
@@ -15,6 +17,7 @@ import (
 	"github.com/neuronlabs/neuron-extensions/codec/json"
 	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
 	"github.com/neuronlabs/neuron-extensions/server/http/log"
+	"github.com/neuronlabs/neuron-extensions/server/http/middleware"
 )
 
 // API is an API for the accounts operations.
@@ -42,6 +45,11 @@ func New(options ...Option) (*API, error) {
 	}
 	if a.Options.AccountModel == nil {
 		return nil, errors.Wrap(auth.ErrAccountModelNotDefined, "provided no account model for the account service")
+	}
+	if a.Options.PathPrefix != "" {
+		if _, err := url.Parse(a.Options.PathPrefix); err != nil {
+			return nil, errors.Wrap(server.ErrServer, "provided invalid path prefix for the authentication module")
+		}
 	}
 	a.defaultHandler.Account = a.Options.AccountModel
 	return a, nil
@@ -88,8 +96,38 @@ func (a *API) GetEndpoints() []*server.Endpoint {
 	return a.Endpoints
 }
 
-// SetRoutes sets the router
+// SetRoutes implements http server API interface.
 func (a *API) SetRoutes(router *httprouter.Router) error {
+	prefix := a.Options.PathPrefix
+	if prefix == "" {
+		prefix = "/"
+	}
+
+	// Register endpoint.
+	middlewares := server.MiddlewareChain{middleware.StoreServerOptions(&a.serverOptions)}
+	middlewares = append(middlewares, a.Options.Middlewares...)
+	middlewares = append(middlewares, a.Options.RegisterMiddlewares...)
+	router.POST(fmt.Sprintf("%s/register", prefix), httputil.Wrap(middlewares.
+		Handle(http.HandlerFunc(a.handleRegisterAccount))))
+
+	// Login endpoint.
+	middlewares = server.MiddlewareChain{middleware.StoreServerOptions(&a.serverOptions)}
+	middlewares = append(middlewares, a.Options.Middlewares...)
+	middlewares = append(middlewares, a.Options.LoginMiddlewares...)
+	router.POST(fmt.Sprintf("%s/login", prefix), httputil.Wrap(middlewares.Handle(http.HandlerFunc(a.handleLoginEndpoint))))
+
+	// Refresh Token endpoint.
+	middlewares = server.MiddlewareChain{middleware.StoreServerOptions(&a.serverOptions)}
+	middlewares = append(middlewares, a.Options.Middlewares...)
+	middlewares = append(middlewares, a.Options.RefreshTokenMiddlewares...)
+	router.POST(fmt.Sprintf("%s/refresh", prefix), httputil.Wrap(middlewares.Handle(http.HandlerFunc(a.handleRefreshToken))))
+
+	// Logout endpoint.
+	middlewares = server.MiddlewareChain{middleware.StoreServerOptions(&a.serverOptions)}
+	middlewares = append(middlewares, a.Options.Middlewares...)
+	middlewares = append(middlewares, a.Options.LogoutMiddlewares...)
+	router.POST(fmt.Sprintf("%s/logout", prefix), httputil.Wrap(middlewares.Handle(http.HandlerFunc(a.handleLogout))))
+
 	return nil
 }
 

@@ -13,6 +13,10 @@ type Options struct {
 	AccountHandler          interface{}
 	PathPrefix              string
 	Middlewares             []server.Middleware
+	RegisterMiddlewares     []server.Middleware
+	LoginMiddlewares        []server.Middleware
+	LogoutMiddlewares       []server.Middleware
+	RefreshTokenMiddlewares []server.Middleware
 	StrictUnmarshal         bool
 	PasswordValidator       auth.PasswordValidator
 	PasswordScorer          auth.PasswordScorer
@@ -109,5 +113,33 @@ func WithRefreshTokenExpiration(d time.Duration) Option {
 func WithMiddlewares(middlewares ...server.Middleware) Option {
 	return func(o *Options) {
 		o.Middlewares = append(o.Middlewares, middlewares...)
+	}
+}
+
+// WithLoginMiddlewares adds middlewares for all auth.API endpoints.
+func WithLoginMiddlewares(middlewares ...server.Middleware) Option {
+	return func(o *Options) {
+		o.LoginMiddlewares = append(o.LoginMiddlewares, middlewares...)
+	}
+}
+
+// WithLogoutMiddlewares adds middlewares for all auth.API endpoints.
+func WithLogoutMiddlewares(middlewares ...server.Middleware) Option {
+	return func(o *Options) {
+		o.LogoutMiddlewares = append(o.LogoutMiddlewares, middlewares...)
+	}
+}
+
+// WithRegisterMiddlewares adds middlewares for all auth.API endpoints.
+func WithRegisterMiddlewares(middlewares ...server.Middleware) Option {
+	return func(o *Options) {
+		o.RegisterMiddlewares = append(o.RegisterMiddlewares, middlewares...)
+	}
+}
+
+// WithRefreshTokenMiddlewares adds middlewares for all auth.API endpoints.
+func WithRefreshTokenMiddlewares(middlewares ...server.Middleware) Option {
+	return func(o *Options) {
+		o.RefreshTokenMiddlewares = append(o.RefreshTokenMiddlewares, middlewares...)
 	}
 }

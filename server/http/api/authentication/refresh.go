@@ -13,7 +13,7 @@ import (
 	"github.com/neuronlabs/neuron/query"
 )
 
-func (a *API) refreshToken(rw http.ResponseWriter, req *http.Request) {
+func (a *API) handleRefreshToken(rw http.ResponseWriter, req *http.Request) {
 	token, err := a.getBearerToken(rw, req)
 	if err != nil {
 		a.marshalErrors(rw, 401, err)
@@ -32,10 +32,10 @@ func (a *API) refreshToken(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	var accountID string
+	var refreshClaims auth.RefreshClaims
 	switch ct := claims.(type) {
 	case auth.RefreshClaims:
-		accountID = ct.GetAccountID()
+		refreshClaims = ct
 	case auth.AccessClaims:
 		err := httputil.ErrInvalidAuthorizationHeader()
 		err.Detail = "Cannot refresh token using 'Access' token. Provide refresh token."
@@ -49,7 +49,7 @@ func (a *API) refreshToken(rw http.ResponseWriter, req *http.Request) {
 	}
 	model := mapping.NewModel(a.model)
 
-	if err = model.SetPrimaryKeyStringValue(accountID); err != nil {
+	if err = model.SetPrimaryKeyStringValue(refreshClaims.GetAccountID()); err != nil {
 		log.Debugf("Setting primary key string value failed: %v - in Refresh Token", err)
 		err := httputil.ErrInternalError()
 		a.marshalErrors(rw, 0, err)
@@ -63,7 +63,7 @@ func (a *API) refreshToken(rw http.ResponseWriter, req *http.Request) {
 		a.marshalErrors(rw, 0, err)
 		return
 	}
-	// TODO: set expiration date.
+
 	tokens, err := a.Tokener.Token(model.(auth.Account))
 	if err != nil {
 		a.marshalErrors(rw, 0, err)

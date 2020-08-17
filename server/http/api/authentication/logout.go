@@ -9,7 +9,7 @@ import (
 	"github.com/neuronlabs/neuron/errors"
 )
 
-func (a *API) logout(rw http.ResponseWriter, req *http.Request) {
+func (a *API) handleLogout(rw http.ResponseWriter, req *http.Request) {
 	token, err := a.getBearerToken(rw, req)
 	if err != nil {
 		a.marshalErrors(rw, 401, err)
@@ -29,7 +29,7 @@ func (a *API) logout(rw http.ResponseWriter, req *http.Request) {
 	switch claims.(type) {
 	case auth.RefreshClaims:
 		err := httputil.ErrInvalidAuthorizationHeader()
-		err.Detail = "provided invalid token to logout"
+		err.Detail = "provided invalid token to handleLogout"
 		a.marshalErrors(rw, 0, err)
 		return
 	case auth.AccessClaims:
