@@ -237,12 +237,23 @@ func UpdateModuleVersion(module *SubModule, reference, newVersion string) error 
 		return err
 	}
 
-	cmd := exec.Command("go", "get", reference, newVersion)
+	cmd := exec.Command("go", "mod", "tidy")
 	out, err := cmd.Output()
 	if err != nil {
 		return err
 	}
-	fmt.Println(out)
+	if len(out) > 0 {
+		fmt.Println(out)
+	}
+
+	cmd = exec.Command("go", "get", reference)
+	out, err = cmd.Output()
+	if err != nil {
+		return err
+	}
+	if len(out) > 0 {
+		fmt.Println(out)
+	}
 	return nil
 }
 

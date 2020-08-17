@@ -104,6 +104,7 @@ func runUpdateModule(cmd *cobra.Command, args []string) {
 	}
 	for _, subModule := range subModules {
 		if err = modules.UpdateModuleVersion(subModule, moduleToUpdate, moduleVersion); err != nil {
+			fmt.Printf("Err: %v\n", err)
 			os.Exit(1)
 		}
 	}
