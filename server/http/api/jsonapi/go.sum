@@ -42,10 +42,10 @@ github.com/neuronlabs/inflection v1.0.1 h1:LDuwbM1jYKEf6DDcA7XV7JRn3Sv9/PBiW6iUo
 github.com/neuronlabs/inflection v1.0.1/go.mod h1:gnqNj1uxAGPYT1LsHRvSyBcd57vvIKTuTmS3ffdgRd8=
 github.com/neuronlabs/neuron v0.17.1 h1:1khtAlaPOhi6SgI7h30NR9Oc/x4FrEd3PEX2l9ro4fk=
 github.com/neuronlabs/neuron v0.17.1/go.mod h1:vUgnqObgxnwlR+khg3mcym7/o4BWzql2TmM2HVjFEoA=
-github.com/neuronlabs/neuron-extensions/codec/jsonapi v0.0.0-20200816233600-aa10e3e8a145 h1:SgubsFrDK0CB5sSFIbGdL15NkaaS37J7Q1pJJL4J1UI=
-github.com/neuronlabs/neuron-extensions/codec/jsonapi v0.0.0-20200816233600-aa10e3e8a145/go.mod h1:jUPBVarBUwfC5+zpf8CVSa6uE0xe5NPkiC377ZMevFM=
-github.com/neuronlabs/neuron-extensions/server/http v0.0.0-20200816233600-aa10e3e8a145 h1:ERarI3j1LpNL58FpwNo2MlWFOmkNVLEW7u9j+pf0MFQ=
-github.com/neuronlabs/neuron-extensions/server/http v0.0.0-20200816233600-aa10e3e8a145/go.mod h1:DPTP/z1MLAus+deTKLm3p4c1I9CdMGqzT/wH4Y2+dT8=
+github.com/neuronlabs/neuron-extensions/codec/jsonapi v0.0.0-20200817100313-03aab5a92b54 h1:4qGRWT+TM2hh231qLdA28osbnQnMfPBcghT8Ft8j/Gc=
+github.com/neuronlabs/neuron-extensions/codec/jsonapi v0.0.0-20200817100313-03aab5a92b54/go.mod h1:jUPBVarBUwfC5+zpf8CVSa6uE0xe5NPkiC377ZMevFM=
+github.com/neuronlabs/neuron-extensions/server/http v0.0.0-20200817100313-03aab5a92b54 h1:OwVB2CuVFDhn3xsQBz1IYMnzboHEmADq+SFBpWXTTzY=
+github.com/neuronlabs/neuron-extensions/server/http v0.0.0-20200817100313-03aab5a92b54/go.mod h1:jFzs9t4BUksHZR0SIyCuwTWYfZG0W98k3HipaUx4LW4=
 github.com/neuronlabs/strcase v1.0.0 h1:F/7Scr7ojAL6l5g3MQiCENGlMI/NK6LwAfaURcUiI7U=
 github.com/neuronlabs/strcase v1.0.0/go.mod h1:IhdRx7jB1zZAQ5r2ryfBc/28sWmXZDbQi7XokQKCpgo=
 github.com/patrickmn/go-cache v2.1.0+incompatible/go.mod h1:3Qf8kWWT7OJRJbdiICTKqZju1ZixQ/KpMGzzAfe6+WQ=
