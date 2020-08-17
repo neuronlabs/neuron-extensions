@@ -63,11 +63,10 @@ func (a *API) InitializeAPI(options server.Options) error {
 	if a.Authenticator == nil {
 		return errors.Wrap(auth.ErrInitialization, "provided nil authenticator for the service")
 	}
-	tokener, ok := options.Authenticator.(auth.Tokener)
-	if !ok {
-		return errors.Wrap(auth.ErrInitialization, "provided authenticator is not a tokener")
+	a.Tokener = options.Tokener
+	if a.Tokener == nil {
+		return errors.Wrap(auth.ErrInitialization, "provided nil tokener for the service")
 	}
-	a.Tokener = tokener
 	mStruct, err := a.serverOptions.Controller.ModelStruct(a.Options.AccountModel)
 	if err != nil {
 		return err
