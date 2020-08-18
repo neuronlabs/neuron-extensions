@@ -40,12 +40,14 @@ func (a *Authenticator) Initialize(c *controller.Controller) error {
 		return auth.ErrAccountModelNotDefined
 	}
 
+	// Get and check model required fields.
 	mStruct, err := c.ModelStruct(accountModel)
 	if err != nil {
 		return errors.Wrap(err, "Authenticator - account model")
 	}
 	a.model = mStruct
 
+	// Set the username nad password fields.
 	var ok bool
 	a.usernameField, ok = mStruct.FieldByName(accountModel.UsernameField())
 	if !ok {
@@ -55,7 +57,13 @@ func (a *Authenticator) Initialize(c *controller.Controller) error {
 	if !ok {
 		return errors.Wrap(auth.ErrAccountModelNotDefined, "Authenticator - account password field not found")
 	}
-	if saltFielder, ok := accountModel.(auth.SaltFielder); ok {
+
+	// Check if model implements SaltFielder interface if the authentication requires salt.
+	if a.Options.AuthenticateMethod != auth.BCrypt {
+		saltFielder, ok := accountModel.(auth.SaltFielder)
+		if !ok {
+			return errors.Wrap(auth.ErrAccountModelNotDefined, "Authenticator requires account to have the salt field defined. The account model needs implement auth.SaltFielder interface.")
+		}
 		a.saltField, ok = mStruct.FieldByName(saltFielder.SaltField())
 		if !ok {
 			return errors.Wrap(auth.ErrAccountModelNotDefined, "Authenticator - account salt field not found within model")

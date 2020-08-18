@@ -51,7 +51,23 @@ func (d *DefaultHandler) HandleRegisterAccount(ctx context.Context, db database.
 
 // HandleLoginAccountRefresh implements LoginAccountRefreshHandler.
 func (d *DefaultHandler) HandleLoginAccountRefresh(ctx context.Context, db database.DB, options *LoginOptions) error {
-	return db.QueryCtx(ctx, d.Model, options.Account).Refresh()
+	// Find the account with provided username.
+	model, err := db.QueryCtx(ctx, d.Model).
+		Filter(filter.New(d.UsernameField, filter.OpEqual, options.Account.GetUsername())).Get()
+	if err != nil {
+		return err
+	}
+
+	// Try to set the fields into already created account.
+	fromSetter, ok := options.Account.(mapping.FromSetter)
+	if ok {
+		if err := fromSetter.SetFrom(model); err != nil {
+			return err
+		}
+		return nil
+	}
+	options.Account = model.(auth.Account)
+	return nil
 }
 
 // Initialize implements core.Initializer.

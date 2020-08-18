@@ -93,6 +93,12 @@ func (a *API) handleRegisterAccount(rw http.ResponseWriter, req *http.Request) {
 	model := mapping.NewModel(a.model).(auth.Account)
 	model.SetUsername(input.Username)
 
+	// Hash the password (with optional salt) and set into given model.
+	if err = a.Authenticator.HashAndSetPassword(model, password); err != nil {
+		a.marshalErrors(rw, 0, err)
+		return
+	}
+
 	registerOptions := &RegisterAccountOptions{
 		Account:    model,
 		Password:   password,
