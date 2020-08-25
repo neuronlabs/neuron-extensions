@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/neuronlabs/neuron/auth"
-	"github.com/neuronlabs/neuron/controller"
+	"github.com/neuronlabs/neuron/core"
 	"github.com/neuronlabs/neuron/database"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/query"
@@ -27,7 +27,7 @@ var (
 type Authorizer struct {
 	Options *Options
 
-	c  *controller.Controller
+	c  *core.Controller
 	db database.DB
 }
 
@@ -69,7 +69,7 @@ func New(options ...Option) *Authorizer {
 }
 
 // Initialize implements core.Initializer interface.
-func (a *Authorizer) Initialize(c *controller.Controller) error {
+func (a *Authorizer) Initialize(c *core.Controller) error {
 	a.c = c
 	a.db = database.New(c)
 	return nil

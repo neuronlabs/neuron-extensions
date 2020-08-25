@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
 	"github.com/neuronlabs/neuron-extensions/server/http/log"
@@ -14,13 +15,13 @@ import (
 )
 
 func (a *API) handleRefreshToken(rw http.ResponseWriter, req *http.Request) {
-	token, err := a.getBearerToken(rw, req)
+	token, err := a.getBearerToken(req)
 	if err != nil {
 		a.marshalErrors(rw, 401, err)
 		return
 	}
 	ctx := req.Context()
-	claims, err := a.Tokener.InspectToken(ctx, token)
+	claims, err := a.Controller.Tokener.InspectToken(ctx, token)
 	if err != nil {
 		a.marshalErrors(rw, 0, err)
 		return
@@ -32,31 +33,22 @@ func (a *API) handleRefreshToken(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	var refreshClaims auth.RefreshClaims
-	switch ct := claims.(type) {
-	case auth.RefreshClaims:
-		refreshClaims = ct
-	case auth.AccessClaims:
+	if _, ok := claims.(auth.AccessClaims); ok {
 		err := httputil.ErrInvalidAuthorizationHeader()
 		err.Detail = "Cannot refresh token using 'Access' token. Provide refresh token."
-		a.marshalErrors(rw, 0, err)
-		return
-	default:
-		err := httputil.ErrInternalError()
-		err.Detail = "Provided unknown token claims."
 		a.marshalErrors(rw, 0, err)
 		return
 	}
 	model := mapping.NewModel(a.model)
 
-	if err = model.SetPrimaryKeyStringValue(refreshClaims.GetAccountID()); err != nil {
+	if err = model.SetPrimaryKeyStringValue(claims.Subject()); err != nil {
 		log.Debugf("Setting primary key string value failed: %v - in Refresh Token", err)
 		err := httputil.ErrInternalError()
 		a.marshalErrors(rw, 0, err)
 		return
 	}
 
-	if err = a.serverOptions.DB.QueryCtx(req.Context(), a.model, model).Refresh(); err != nil {
+	if err = a.DB.QueryCtx(req.Context(), a.model, model).Refresh(); err != nil {
 		if errors.Is(err, query.ErrNoResult) {
 			err = auth.ErrAccountNotFound
 		}
@@ -64,17 +56,26 @@ func (a *API) handleRefreshToken(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	tokens, err := a.Tokener.Token(model.(auth.Account))
+	tokenOptions := []auth.TokenOption{auth.TokenExpirationTime(a.Options.TokenExpiration)}
+	refreshExpires := time.Unix(claims.ExpiresIn(), 0)
+	// Check if the refresh token would still be valid when the
+	if refreshExpires.After(time.Now().Add(a.Options.TokenExpiration)) {
+		tokenOptions = append(tokenOptions, auth.TokenRefreshToken(token))
+	} else {
+		tokenOptions = append(tokenOptions, auth.TokenRefreshExpirationTime(a.Options.RefreshTokenExpiration))
+	}
+
+	tokenOutput, err := a.Controller.Tokener.Token(ctx, model.(auth.Account), tokenOptions...)
 	if err != nil {
 		a.marshalErrors(rw, 0, err)
 		return
 	}
 
 	output := &LoginOutput{
-		AccessToken:  tokens.AccessToken,
-		RefreshToken: tokens.RefreshToken,
-		TokenType:    tokens.TokenType,
-		ExpiresIn:    int64(tokens.ExpiresIn),
+		AccessToken:  tokenOutput.AccessToken,
+		RefreshToken: tokenOutput.RefreshToken,
+		TokenType:    tokenOutput.TokenType,
+		ExpiresIn:    int64(tokenOutput.ExpiresIn),
 	}
 
 	buffer := &bytes.Buffer{}
@@ -82,6 +83,7 @@ func (a *API) handleRefreshToken(rw http.ResponseWriter, req *http.Request) {
 		a.marshalErrors(rw, 500, httputil.ErrInternalError())
 		return
 	}
+	a.setContentType(rw)
 	rw.WriteHeader(http.StatusCreated)
 	if _, err = buffer.WriteTo(rw); err != nil {
 		log.Errorf("Writing to response writer failed: %v", err)

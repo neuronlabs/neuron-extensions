@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/neuronlabs/neuron/auth"
-	"github.com/neuronlabs/neuron/controller"
+	"github.com/neuronlabs/neuron/core"
 	"github.com/neuronlabs/neuron/database"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/mapping"
@@ -71,7 +71,7 @@ func (d *DefaultHandler) HandleLoginAccountRefresh(ctx context.Context, db datab
 }
 
 // Initialize implements core.Initializer.
-func (d *DefaultHandler) Initialize(c *controller.Controller) error {
+func (d *DefaultHandler) Initialize(c *core.Controller) error {
 	// Find the username field.
 	var err error
 	d.Model, err = c.ModelStruct(d.Account)

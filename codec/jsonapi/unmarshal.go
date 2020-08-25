@@ -286,13 +286,13 @@ func unmarshalNode(mStruct *mapping.ModelStruct, data *Node, model mapping.Model
 
 				buf := bytes.NewBuffer(nil)
 				if err := json.NewEncoder(buf).Encode(data.Relationships[relName]); err != nil {
-					log.Debug2f("Controller.UnmarshalNode.relationshipMultiple json.Encode failed. %v", err)
+					log.Debug2f("UnmarshalNode.relationshipMultiple json.Encode failed. %v", err)
 					return nil, errors.WrapDet(codec.ErrUnmarshalFieldValue, "invalid relationship format").
 						WithDetailf("The value for the relationship: '%s' is of invalid form.", relName)
 				}
 
 				if err := json.NewDecoder(buf).Decode(relationship); err != nil {
-					log.Debug2f("Controller.UnmarshalNode.relationshipMultiple json.Encode failed. %v", err)
+					log.Debug2f("UnmarshalNode.relationshipMultiple json.Encode failed. %v", err)
 					return nil, errors.WrapDet(codec.ErrUnmarshal, "invalid relationship format").
 						WithDetailf("The value for the relationship: '%s' is of invalid form.", relName)
 				}
@@ -321,13 +321,13 @@ func unmarshalNode(mStruct *mapping.ModelStruct, data *Node, model mapping.Model
 				buf := bytes.NewBuffer(nil)
 
 				if err := json.NewEncoder(buf).Encode(relValue); err != nil {
-					log.Debug2f("Controller.UnmarshalNode.relationshipSingle json.Encode failed. %v", err)
+					log.Debug2f("UnmarshalNode.relationshipSingle json.Encode failed. %v", err)
 					return nil, errors.WrapDet(codec.ErrUnmarshalFieldValue, "invalid relationship format").
 						WithDetailf("The value for the relationship: '%s' is of invalid form.", relName)
 				}
 
 				if err := json.NewDecoder(buf).Decode(relationship); err != nil {
-					log.Debug2f("Controller.UnmarshalNode.RelationshipSingle json.Decode failed. %v", err)
+					log.Debug2f("UnmarshalNode.RelationshipSingle json.Decode failed. %v", err)
 					return nil, errors.WrapDet(codec.ErrUnmarshalFieldValue, "invalid relationship format").
 						WithDetailf("The value for the relationship: '%s' is of invalid form.", relName)
 				}

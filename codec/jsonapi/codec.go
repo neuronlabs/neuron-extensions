@@ -5,11 +5,11 @@ import (
 	"io"
 
 	"github.com/neuronlabs/neuron/codec"
-	"github.com/neuronlabs/neuron/controller"
+	"github.com/neuronlabs/neuron/core"
 )
 
 // Codec gets the Codec value.
-func GetCodec(c *controller.Controller) codec.Codec {
+func GetCodec(c *core.Controller) codec.Codec {
 	return Codec{c: c}
 }
 
@@ -17,7 +17,7 @@ var _ codec.Codec = &Codec{}
 
 // Codec is jsonapi model
 type Codec struct {
-	c *controller.Controller
+	c *core.Controller
 }
 
 // MarshalErrors implements neuronCodec.Codec interface.

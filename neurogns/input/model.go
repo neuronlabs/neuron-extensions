@@ -51,7 +51,7 @@ func (m *Model) CollectionInput(packageName string) *CollectionInput {
 		PackageName: packageName,
 		Imports: []string{
 			"context",
-			"github.com/neuronlabs/neuron/controller",
+			"github.com/neuronlabs/neuron/core",
 			"github.com/neuronlabs/neuron/errors",
 			"github.com/neuronlabs/neuron/mapping",
 			"github.com/neuronlabs/neuron/query",

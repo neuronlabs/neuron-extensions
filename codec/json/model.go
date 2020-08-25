@@ -36,5 +36,6 @@ func (m marshaler) MarshalJSON() ([]byte, error) {
 			sb.WriteRune(' ')
 		}
 	}
+	sb.WriteRune('}')
 	return []byte(sb.String()), nil
 }

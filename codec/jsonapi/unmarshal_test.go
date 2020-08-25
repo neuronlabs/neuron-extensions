@@ -9,13 +9,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neuronlabs/neuron/codec"
-	"github.com/neuronlabs/neuron/controller"
+	"github.com/neuronlabs/neuron/core"
 	"github.com/neuronlabs/neuron/errors"
 )
 
 // TestUnmarshalScopeOne tests unmarshal scope one function.
 func TestUnmarshalScopeOne(t *testing.T) {
-	c := controller.NewDefault()
+	c := core.NewDefault()
 	err := c.RegisterModels(&Blog{}, &Post{}, &Comment{})
 	require.Nil(t, err)
 
@@ -175,7 +175,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 				  }
 				}`)
 
-		c := controller.NewDefault()
+		c := core.NewDefault()
 		err := c.RegisterModels(&UnmarshalModel{})
 		require.Nil(t, err)
 
@@ -207,7 +207,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 				  	}
 				  }
 				}`)
-		c := controller.NewDefault()
+		c := core.NewDefault()
 		cd := &Codec{c: c}
 		err := c.RegisterModels(&UnmarshalModel{})
 		require.Nil(t, err)
@@ -243,7 +243,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 				  	}
 				  }
 				}`)
-		c := controller.NewDefault()
+		c := core.NewDefault()
 		cd := &Codec{c: c}
 		err := c.RegisterModels(&UnmarshalModel{})
 		require.Nil(t, err)
@@ -263,7 +263,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 				  	}
 				  }
 				}`)
-		c := controller.NewDefault()
+		c := core.NewDefault()
 		cd := &Codec{c: c}
 		err := c.RegisterModels(&UnmarshalModel{})
 		require.Nil(t, err)
@@ -274,7 +274,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 
 	t.Run("Array", func(t *testing.T) {
 		t.Run("TooManyValues", func(t *testing.T) {
-			c := controller.NewDefault()
+			c := core.NewDefault()
 			cd := &Codec{c: c}
 			err := c.RegisterModels(&ArrModel{})
 			require.Nil(t, err)
@@ -286,7 +286,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 		})
 
 		t.Run("Correct", func(t *testing.T) {
-			c := controller.NewDefault()
+			c := core.NewDefault()
 			cd := &Codec{c: c}
 			err := c.RegisterModels(&ArrModel{})
 			require.NoError(t, err)
@@ -1149,7 +1149,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 // }
 
 func TestUnmarshalEmpty(t *testing.T) {
-	c := controller.NewDefault()
+	c := core.NewDefault()
 	cd := &Codec{c: c}
 	err := c.RegisterModels(&Blog{}, &Post{}, &Comment{})
 	require.Nil(t, err)

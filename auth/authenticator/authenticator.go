@@ -9,7 +9,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/neuronlabs/neuron/auth"
-	"github.com/neuronlabs/neuron/controller"
+	"github.com/neuronlabs/neuron/core"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/mapping"
 )
@@ -21,39 +21,32 @@ var (
 // Authenticator is the structure that implements auth.Authenticator as well as auth.Tokener interfaces.
 // It is used to provide full authentication process for the
 type Authenticator struct {
-	Options *auth.AuthenticatorOptions
+	Options    *auth.AuthenticatorOptions
+	Controller *core.Controller
 
 	model         *mapping.ModelStruct
 	usernameField *mapping.StructField
 	passwordField *mapping.StructField
 	saltField     *mapping.StructField
-	c             *controller.Controller
 }
 
 // Initialize implements initializer interface.
-func (a *Authenticator) Initialize(c *controller.Controller) error {
-	a.c = c
+func (a *Authenticator) Initialize(c *core.Controller) error {
+	a.Controller = c
 
 	// Check if account model is defined.
-	accountModel := a.Options.AccountModel
-	if accountModel == nil {
+	if c.AccountModel == nil {
 		return auth.ErrAccountModelNotDefined
 	}
-
-	// Get and check model required fields.
-	mStruct, err := c.ModelStruct(accountModel)
-	if err != nil {
-		return errors.Wrap(err, "Authenticator - account model")
-	}
-	a.model = mStruct
+	accountModel := mapping.NewModel(c.AccountModel).(auth.Account)
 
 	// Set the username nad password fields.
 	var ok bool
-	a.usernameField, ok = mStruct.FieldByName(accountModel.UsernameField())
+	a.usernameField, ok = c.AccountModel.FieldByName(accountModel.UsernameField())
 	if !ok {
 		return errors.Wrap(auth.ErrAccountModelNotDefined, "Authenticator - account username field not found")
 	}
-	a.passwordField, ok = mStruct.FieldByName(accountModel.PasswordHashField())
+	a.passwordField, ok = c.AccountModel.FieldByName(accountModel.PasswordHashField())
 	if !ok {
 		return errors.Wrap(auth.ErrAccountModelNotDefined, "Authenticator - account password field not found")
 	}
@@ -64,7 +57,7 @@ func (a *Authenticator) Initialize(c *controller.Controller) error {
 		if !ok {
 			return errors.Wrap(auth.ErrAccountModelNotDefined, "Authenticator requires account to have the salt field defined. The account model needs implement auth.SaltFielder interface.")
 		}
-		a.saltField, ok = mStruct.FieldByName(saltFielder.SaltField())
+		a.saltField, ok = c.AccountModel.FieldByName(saltFielder.SaltField())
 		if !ok {
 			return errors.Wrap(auth.ErrAccountModelNotDefined, "Authenticator - account salt field not found within model")
 		}

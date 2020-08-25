@@ -15,10 +15,8 @@ import (
 
 // Compile time check if Account implements auth.Account interface.
 var (
-	_ auth.Account     = &Account{}
-	_ auth.SaltGetter  = &Account{}
-	_ auth.SaltSetter  = &Account{}
-	_ auth.SaltFielder = &Account{}
+	_ auth.Account = &Account{}
+	_ auth.Salter  = &Account{}
 )
 
 // Account is the basic model used for authentication and authorization.
@@ -27,7 +25,7 @@ type Account struct {
 	// Timestamps for the account.
 	CreatedAt time.Time
 	UpdatedAt time.Time
-	DeletedAt *time.Time
+	DeletedAt *time.Time `codec:";omitempty"`
 	// Username is the unique account username.
 	Username string `db:";unique"`
 	// PasswordHash is the hash obtained by hashing the password.

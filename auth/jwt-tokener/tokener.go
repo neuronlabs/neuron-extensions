@@ -2,16 +2,14 @@ package tokener
 
 import (
 	"context"
-	"encoding/binary"
-	"encoding/json"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
 
 	"github.com/neuronlabs/neuron/auth"
-	"github.com/neuronlabs/neuron/controller"
+	"github.com/neuronlabs/neuron/core"
 	"github.com/neuronlabs/neuron/errors"
-	"github.com/neuronlabs/neuron/log"
+	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/store"
 )
 
@@ -24,7 +22,7 @@ type Tokener struct {
 	Store   store.Store
 	Options auth.TokenerOptions
 
-	c                       *controller.Controller
+	c                       *core.Controller
 	signingKey, validateKey interface{}
 }
 
@@ -39,6 +37,7 @@ func New(options ...auth.TokenerOption) (*Tokener, error) {
 	}
 
 	t := &Tokener{
+		Store:   o.Store,
 		Parser:  jwt.Parser{SkipClaimsValidation: true},
 		Options: *o,
 	}
@@ -69,47 +68,32 @@ func New(options ...auth.TokenerOption) (*Tokener, error) {
 }
 
 // Initialize implements core.Initializer interface.
-func (t *Tokener) Initialize(c *controller.Controller) error {
+func (t *Tokener) Initialize(c *core.Controller) error {
 	t.c = c
 
 	if t.Store == nil {
 		if c.DefaultStore == nil {
-			return errors.Wrap(auth.ErrInitialization, "no store found for the authenticator")
+			return errors.Wrap(auth.ErrInitialization, "no store found for the tokener")
 		}
 		t.Store = c.DefaultStore
+	}
+	if c.AccountModel == nil {
+		return errors.Wrap(auth.ErrInitialization, "no account model defined  for the tokener")
 	}
 	return nil
 }
 
 // InspectToken inspects given token string and returns provided claims.
 func (t *Tokener) InspectToken(ctx context.Context, token string) (auth.Claims, error) {
-	mapClaims, err := t.inspectToken(ctx, token)
+	claims, _, err := t.inspectToken(ctx, token)
 	if err != nil {
 		return nil, err
-	}
-
-	var claims auth.Claims
-	_, isAccess := mapClaims["account"]
-	if !isAccess {
-		if _, ok := mapClaims["account_id"]; !ok {
-			return nil, errors.Wrap(auth.ErrToken, "provided token with invalid claims")
-		}
-		claims = &RefreshClaims{}
-	} else {
-		claims = &AccessClaims{}
-	}
-	marshaled, err := json.Marshal(mapClaims)
-	if err != nil {
-		return nil, errors.Wrap(auth.ErrInternalError, "marshaling map claims failed")
-	}
-	if err = json.Unmarshal(marshaled, claims); err != nil {
-		return nil, errors.Wrap(auth.ErrInternalError, "unmarshaling claims failed")
 	}
 	return claims, nil
 }
 
 // Token creates an auth.Token from provided options.
-func (t *Tokener) Token(account auth.Account, options ...auth.TokenOption) (auth.Token, error) {
+func (t *Tokener) Token(ctx context.Context, account auth.Account, options ...auth.TokenOption) (auth.Token, error) {
 	o := &auth.TokenOptions{
 		ExpirationTime:        t.Options.TokenExpiration,
 		RefreshExpirationTime: t.Options.RefreshTokenExpiration,
@@ -121,48 +105,70 @@ func (t *Tokener) Token(account auth.Account, options ...auth.TokenOption) (auth
 	if account == nil {
 		return auth.Token{}, errors.Wrap(auth.ErrNoRequiredOption, "provided no account in the token creation")
 	}
+	if account.IsPrimaryKeyZero() {
+		return auth.Token{}, errors.Wrap(auth.ErrNoRequiredOption, "provided account with zero value primary key")
+	}
+
+	// Get string value for the account's primary key.
+	accountID, err := account.GetPrimaryKeyStringValue()
+	if err != nil {
+		return auth.Token{}, errors.Wrapf(auth.ErrInternalError, "getting account primary key string value failed: %v", err)
+	}
 
 	// Set the claims for the full token.
+	expiresAt := t.c.Now().Add(o.ExpirationTime)
 	claims := &AccessClaims{
 		Account: account,
-		Claims: Claims{
-			StandardClaims: jwt.StandardClaims{
-				ExpiresAt: t.c.Now().Add(o.ExpirationTime).Unix(),
-			},
-		},
+		// Set the claims with current accountID and expiresAt.
+		Claims: Claims{StandardClaims: jwt.StandardClaims{Subject: accountID, ExpiresAt: expiresAt.Unix()}},
 	}
 
 	token := jwt.NewWithClaims(t.Options.SigningMethod, claims)
-
 	tokenString, err := token.SignedString(t.signingKey)
 	if err != nil {
 		return auth.Token{}, errors.Wrapf(auth.ErrInternalError, "writing signed string failed: %v", err)
 	}
 
-	// Get string value for the account's primary key.
-	stringID, err := account.GetPrimaryKeyStringValue()
-	if err != nil {
-		return auth.Token{}, errors.Wrapf(auth.ErrInternalError, "getting account primary key string value failed: %v", err)
-	}
-
-	// Create and sign refresh token.
-	refClaims := &RefreshClaims{
-		AccountID: stringID,
-		Claims: Claims{
+	// Check if the refresh token is provided.
+	var refreshStoreToken *StoreToken
+	refreshToken := o.RefreshToken
+	if refreshToken == "" {
+		// Create and sign refresh token.
+		refreshTokenExpiration := t.c.Now().Add(t.Options.RefreshTokenExpiration)
+		refClaims := &Claims{
 			StandardClaims: jwt.StandardClaims{
-				ExpiresAt: t.c.Now().Add(t.Options.RefreshTokenExpiration).Unix(),
+				// Token subject should be account ID.
+				Subject:   accountID,
+				ExpiresAt: refreshTokenExpiration.Unix(),
 			},
-		},
+		}
+		refreshTokenClaims := jwt.NewWithClaims(t.Options.SigningMethod, refClaims)
+		refreshToken, err = refreshTokenClaims.SignedString(t.signingKey)
+		if err != nil {
+			return auth.Token{}, errors.Wrapf(auth.ErrInternalError, "writing refresh token signed string failed: %v", err)
+		}
+		refreshStoreToken = &StoreToken{ExpiresAt: refreshTokenExpiration}
+	} else {
+		refreshStoreToken, err = t.getStoreToken(ctx, refreshToken)
+		if err != nil {
+			return auth.Token{}, err
+		}
+	}
+	// Add the access token to the refresh mapped tokens, and store it.
+	refreshStoreToken.MappedTokens = append(refreshStoreToken.MappedTokens, tokenString)
+	if err = t.setStoreToken(ctx, refreshToken, refreshStoreToken); err != nil {
+		return auth.Token{}, err
 	}
 
-	refreshToken := jwt.NewWithClaims(t.Options.SigningMethod, refClaims)
-	refreshTokenString, err := refreshToken.SignedString(t.signingKey)
-	if err != nil {
-		return auth.Token{}, errors.Wrapf(auth.ErrInternalError, "writing signed string failed: %v", err)
+	// Create and set the store token for the access token with the mapped refresh token.
+	sToken := &StoreToken{ExpiresAt: expiresAt, MappedTokens: []string{refreshToken}}
+	if err = t.setStoreToken(ctx, tokenString, sToken); err != nil {
+		return auth.Token{}, err
 	}
+
 	return auth.Token{
 		AccessToken:  tokenString,
-		RefreshToken: refreshTokenString,
+		RefreshToken: refreshToken,
 		ExpiresIn:    int(o.ExpirationTime / time.Second),
 		TokenType:    "bearer",
 	}, nil
@@ -170,25 +176,61 @@ func (t *Tokener) Token(account auth.Account, options ...auth.TokenOption) (auth
 
 // RevokeToken invalidates provided 'token'.
 func (t *Tokener) RevokeToken(ctx context.Context, token string) error {
-	claims := Claims{}
-	if _, err := t.inspectToken(ctx, token); err != nil {
-		return err
-	}
-	now := jwt.TimeFunc().Unix()
-	ttl := time.Unix(now, 0).Sub(time.Unix(claims.ExpiresAt, 0))
-
-	value := make([]byte, 8)
-	binary.BigEndian.PutUint64(value, uint64(now))
-	err := t.Store.SetWithTTL(ctx, &store.Record{Key: t.revokeKey(token), Value: value, ExpiresAt: t.c.Now().Add(ttl)}, ttl)
+	claims, sToken, err := t.inspectToken(ctx, token)
 	if err != nil {
 		return err
+	}
+	if sToken.RevokedAt != nil {
+		return errors.Wrap(auth.ErrTokenRevoked, "token was already revoked")
+	}
+	if err = claims.Valid(); err != nil {
+		return err
+	}
+
+	now := t.c.Now()
+	sToken.RevokedAt = &now
+	if err = t.setStoreToken(ctx, token, sToken); err != nil {
+		return err
+	}
+	var alreadyRevoked map[string]struct{}
+	if len(sToken.MappedTokens) > 0 {
+		alreadyRevoked = map[string]struct{}{}
+	}
+	for _, mappedToken := range sToken.MappedTokens {
+		if err = t.revokeToken(ctx, mappedToken, now, alreadyRevoked); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func (t *Tokener) inspectToken(ctx context.Context, token string) (jwt.MapClaims, error) {
+func (t *Tokener) revokeToken(ctx context.Context, token string, now time.Time, alreadyRevoked map[string]struct{}) error {
+	if _, ok := alreadyRevoked[token]; ok {
+		return nil
+	}
+	sToken, err := t.getStoreToken(ctx, token)
+	if err != nil {
+		return err
+	}
+	if sToken.RevokedAt != nil {
+		return nil
+	}
+	sToken.RevokedAt = &now
+	if err = t.setStoreToken(ctx, token, sToken); err != nil {
+		return err
+	}
+	alreadyRevoked[token] = struct{}{}
+	for _, mappedToken := range sToken.MappedTokens {
+		if err = t.revokeToken(ctx, mappedToken, now, alreadyRevoked); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (t *Tokener) inspectToken(ctx context.Context, token string) (auth.Claims, *StoreToken, error) {
 	// Initialize jwt.MapClaims.
-	claims := jwt.MapClaims{}
+	claims := &AccessClaims{Account: mapping.NewModel(t.c.AccountModel).(auth.Account)}
 	_, err := t.Parser.ParseWithClaims(token, claims, func(tk *jwt.Token) (interface{}, error) {
 		if tk.Method != t.Options.SigningMethod {
 			return nil, errors.Wrap(auth.ErrToken, "provided invalid signing algorithm for the token")
@@ -197,29 +239,21 @@ func (t *Tokener) inspectToken(ctx context.Context, token string) (jwt.MapClaims
 	})
 	if err != nil {
 		if !errors.Is(err, auth.ErrToken) {
-			return nil, errors.Wrapf(auth.ErrToken, "parsing token failed: %v", err)
+			return nil, nil, errors.Wrapf(auth.ErrToken, "parsing token failed: %v", err)
 		}
-		return nil, err
+		return nil, nil, err
 	}
-
-	// Check if the token is not set as revoked.
-	record, err := t.Store.Get(ctx, t.revokeKey(token))
+	sToken, err := t.getStoreToken(ctx, token)
 	if err != nil {
-		// If the token was not revoked than the error would be of store.ErrValueNotFound.
-		if errors.Is(err, store.ErrRecordNotFound) {
-			return claims, nil
-		}
-		log.Errorf("Getting token info from store failed: %v", err)
-		return nil, err
+		return nil, nil, err
+	}
+	if sToken.RevokedAt != nil {
+		claims.RevokedAt = sToken.RevokedAt.Unix()
 	}
 
-	// Set the revoked at field.
-	revokedAt := binary.BigEndian.Uint64(record.Value)
-	// The store had marked this token as revoked.
-	claims["revoked_at"] = revokedAt
-	return claims, errors.Wrap(auth.ErrTokenRevoked, "provided token had been revoked")
-}
-
-func (t *Tokener) revokeKey(token string) string {
-	return "nrn_jwt_auth_revoked-" + token
+	// Check if there is account with valid ID. Otherwise set it as refresh token.
+	if claims.Account.IsPrimaryKeyZero() {
+		return &claims.Claims, sToken, nil
+	}
+	return claims, sToken, nil
 }

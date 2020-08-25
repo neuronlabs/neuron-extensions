@@ -62,7 +62,9 @@ func (c Codec) marshalModel(model mapping.Model) (marshaler, error) {
 	var result marshaler
 	// Iterate over primary key, attributes and foreign keys.
 	for _, sField := range mStruct.StructFields() {
-		sField.CodecSkip()
+		if sField.CodecSkip() {
+			continue
+		}
 		switch sField.Kind() {
 		case mapping.KindPrimary, mapping.KindAttribute, mapping.KindForeignKey:
 			isZero, err := fielder.IsFieldZero(sField)

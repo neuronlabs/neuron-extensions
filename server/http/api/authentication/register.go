@@ -94,7 +94,7 @@ func (a *API) handleRegisterAccount(rw http.ResponseWriter, req *http.Request) {
 	model.SetUsername(input.Username)
 
 	// Hash the password (with optional salt) and set into given model.
-	if err = a.Authenticator.HashAndSetPassword(model, password); err != nil {
+	if err = a.Controller.Authenticator.HashAndSetPassword(model, password); err != nil {
 		a.marshalErrors(rw, 0, err)
 		return
 	}
@@ -107,7 +107,7 @@ func (a *API) handleRegisterAccount(rw http.ResponseWriter, req *http.Request) {
 	}
 	// Execute create account
 	var payload *codec.Payload
-	err = database.RunInTransaction(ctx, a.serverOptions.DB, nil, func(db database.DB) error {
+	err = database.RunInTransaction(ctx, a.DB, nil, func(db database.DB) error {
 		err := a.registerAccount(ctx, db, registerOptions)
 		if err != nil {
 			return err
@@ -135,7 +135,7 @@ func (a *API) handleRegisterAccount(rw http.ResponseWriter, req *http.Request) {
 	payload.MarshalSingularFormat = true
 
 	rw.WriteHeader(http.StatusCreated)
-	cdc := jsonCodec.GetCodec(a.serverOptions.Controller)
+	cdc := jsonCodec.GetCodec(a.Controller)
 	if err := cdc.MarshalPayload(rw, payload); err != nil {
 		log.Errorf("Marshaling account payload failed: %v", err)
 	}

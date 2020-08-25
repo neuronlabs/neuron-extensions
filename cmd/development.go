@@ -41,9 +41,6 @@ for the selected submodule by providing it as the argument.`,
 
 func init() {
 	modulesCmd.AddCommand(developModeCmd)
-
-	// Here you will define your flags and configuration settings.
-	developModeCmd.Flags().BoolP("all", "a", false, "Sets development mode to all submodules")
 }
 
 // neuron-extensions modules develop-mode . codec/json

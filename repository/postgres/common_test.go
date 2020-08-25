@@ -8,15 +8,15 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/neuronlabs/neuron/controller"
+	"github.com/neuronlabs/neuron/core"
 	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/repository"
 )
 
-func testingController(t *testing.T, integration bool, models ...mapping.Model) *controller.Controller {
+func testingController(t *testing.T, integration bool, models ...mapping.Model) *core.Controller {
 	t.Helper()
 
-	c := controller.NewDefault()
+	c := core.NewDefault()
 	c.Options.DefaultNotNullFields = true
 	c.ModelMap.Options.DefaultNotNull = true
 
@@ -51,7 +51,7 @@ func testingController(t *testing.T, integration bool, models ...mapping.Model) 
 	return c
 }
 
-func testingRepository(c *controller.Controller) *Postgres {
+func testingRepository(c *core.Controller) *Postgres {
 	for _, p := range c.Repositories {
 		return p.(*Postgres)
 	}

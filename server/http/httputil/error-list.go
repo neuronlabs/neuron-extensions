@@ -45,7 +45,7 @@ func ErrHeadersNotSupported() *codec.Error {
 func ErrInvalidAuthenticationInfo() *codec.Error {
 	return &codec.Error{
 		Title:  `The authentication information was not provided in the correct format.`,
-		Status: "400",
+		Status: "401",
 	}
 }
 

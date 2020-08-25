@@ -83,7 +83,10 @@ func (p *Postgres) ID() string {
 
 // Close closes given repository connections.
 func (p *Postgres) Close(ctx context.Context) (err error) {
+	log.Debug2f("Closing postgres repository started")
+	log.Debug2f("Closing: %d connections", p.ConnPool.Stat().AcquiredConns())
 	p.ConnPool.Close()
+	log.Debug2f("Closing postgres repository finished")
 	return nil
 }
 

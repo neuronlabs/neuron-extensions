@@ -8,7 +8,7 @@ package {{.PackageName}}
 {{template "imports" .}}
 
 // Neuron_Collections stores all generated collections.
-var Neuron_Collections = []database.Collection{
+var Neuron_Collections = []core.Initializer{
 {{range $collection := .Collections -}}
     {{$collection.Collection.VariableName}},
 {{end -}}

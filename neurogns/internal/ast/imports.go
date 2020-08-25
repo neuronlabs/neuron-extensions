@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/ast"
 
+	"github.com/neuronlabs/neuron/log"
 	"golang.org/x/tools/go/packages"
 
 	"github.com/neuronlabs/neuron-extensions/neurogns/input"
@@ -38,7 +39,7 @@ func (g *ModelGenerator) parseImportPackages() error {
 		return errors.New("error while loading import packages")
 	}
 	for _, pkg := range pkgs {
-		// fmt.Printf("Imported package: %s\n", pkg.Name)
+		log.Debug2f("Imported package: %s\n", pkg.Name)
 		importTypes := g.importFields[pkg.ID]
 		for _, file := range pkg.Syntax {
 			for _, decl := range file.Decls {
@@ -77,7 +78,7 @@ func (g *ModelGenerator) parseImportPackages() error {
 		for _, importedField := range importedFields {
 			modelImports[importedField.Path] = struct{}{}
 			if g.isFieldRelation(importedField.AstField) {
-				fmt.Printf("Model: '%s' Field: '%s' is relation\n", model.Name, importedField.Field.Name)
+				log.Debugf("Model: '%s' Field: '%s' is relation\n", model.Name, importedField.Field.Name)
 				importedField.Field.IsSlice = isMany(importedField.AstField.Type)
 				importedField.Field.IsElemPointer = isElemPointer(importedField.AstField)
 				importedField.Field.IsPointer = isPointer(importedField.AstField)

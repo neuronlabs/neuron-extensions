@@ -5,7 +5,7 @@ import (
 
 	"github.com/neuronlabs/neuron-extensions/server/http/log"
 	"github.com/neuronlabs/neuron/codec"
-	"github.com/neuronlabs/neuron/controller"
+	"github.com/neuronlabs/neuron/core"
 	"github.com/neuronlabs/neuron/database"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/mapping"
@@ -16,11 +16,11 @@ import (
 // DefaultHandler is the default json:api handler. It is used as the default handler in the API.
 // The internal fields like 'c' controller would be set by Initialize method.
 type DefaultHandler struct {
-	c *controller.Controller
+	c *core.Controller
 }
 
 // Initialize implements controller initializer.
-func (d *DefaultHandler) Initialize(c *controller.Controller) error {
+func (d *DefaultHandler) Initialize(c *core.Controller) error {
 	d.c = c
 	return nil
 }

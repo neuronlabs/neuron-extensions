@@ -9,9 +9,11 @@ import (
 
 	"github.com/neuronlabs/neuron/auth"
 	"github.com/neuronlabs/neuron/codec"
-	"github.com/neuronlabs/neuron/controller"
+	"github.com/neuronlabs/neuron/core"
+	"github.com/neuronlabs/neuron/database"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/mapping"
+	"github.com/neuronlabs/neuron/query"
 	"github.com/neuronlabs/neuron/server"
 
 	"github.com/neuronlabs/neuron-extensions/codec/json"
@@ -22,16 +24,14 @@ import (
 
 // API is an API for the accounts operations.
 type API struct {
-	Options       *Options
-	Authenticator auth.Authenticator
-	Tokener       auth.Tokener
-	Endpoints     []*server.Endpoint
+	Options    *Options
+	Endpoints  []*server.Endpoint
+	DB         database.DB
+	Controller *core.Controller
 
 	// model is account model structure.
 	model          *mapping.ModelStruct
 	defaultHandler *DefaultHandler
-
-	serverOptions server.Options
 }
 
 // New creates account API.
@@ -56,33 +56,35 @@ func New(options ...Option) (*API, error) {
 }
 
 // InitializeAPI implements server/http.API interface.
-func (a *API) InitializeAPI(options server.Options) error {
-	a.serverOptions = options
+func (a *API) InitializeAPI(c *core.Controller) error {
+	a.Controller = c
+	a.DB = database.New(c)
+
 	// Check authenticator.
-	a.Authenticator = options.Authenticator
-	if a.Authenticator == nil {
+	if a.Controller.Authenticator == nil {
 		return errors.Wrap(auth.ErrInitialization, "provided nil authenticator for the service")
 	}
-	a.Tokener = options.Tokener
-	if a.Tokener == nil {
+	// Check Tokener.
+	if a.Controller.Tokener == nil {
 		return errors.Wrap(auth.ErrInitialization, "provided nil tokener for the service")
 	}
-	mStruct, err := a.serverOptions.Controller.ModelStruct(a.Options.AccountModel)
+	// Map the model.
+	mStruct, err := a.Controller.ModelStruct(a.Options.AccountModel)
 	if err != nil {
 		return err
 	}
 	a.model = mStruct
 
 	// Initialize default handler.
-	if err := a.defaultHandler.Initialize(options.Controller); err != nil {
+	if err := a.defaultHandler.Initialize(a.Controller); err != nil {
 		return err
 	}
 
 	// Initialize handler if needed.
 	if initializer, ok := a.Options.AccountHandler.(interface {
-		Initialize(c *controller.Controller) error
+		Initialize(c *core.Controller) error
 	}); ok {
-		if err := initializer.Initialize(options.Controller); err != nil {
+		if err := initializer.Initialize(a.Controller); err != nil {
 			return err
 		}
 	}
@@ -103,29 +105,52 @@ func (a *API) SetRoutes(router *httprouter.Router) error {
 	}
 
 	// Register endpoint.
-	middlewares := server.MiddlewareChain{middleware.StoreServerOptions(&a.serverOptions)}
+	middlewares := server.MiddlewareChain{middleware.Controller(a.Controller)}
 	middlewares = append(middlewares, a.Options.Middlewares...)
 	middlewares = append(middlewares, a.Options.RegisterMiddlewares...)
 	router.POST(fmt.Sprintf("%s/register", prefix), httputil.Wrap(middlewares.
 		Handle(http.HandlerFunc(a.handleRegisterAccount))))
 
+	a.Endpoints = append(a.Endpoints, &server.Endpoint{
+		Path:        fmt.Sprintf("%s/register", prefix),
+		HTTPMethod:  "POST",
+		QueryMethod: query.Insert,
+		ModelStruct: a.model,
+	})
+
 	// Login endpoint.
-	middlewares = server.MiddlewareChain{middleware.StoreServerOptions(&a.serverOptions)}
+	middlewares = server.MiddlewareChain{middleware.Controller(a.Controller)}
 	middlewares = append(middlewares, a.Options.Middlewares...)
 	middlewares = append(middlewares, a.Options.LoginMiddlewares...)
 	router.POST(fmt.Sprintf("%s/login", prefix), httputil.Wrap(middlewares.Handle(http.HandlerFunc(a.handleLoginEndpoint))))
 
+	a.Endpoints = append(a.Endpoints, &server.Endpoint{
+		Path:        fmt.Sprintf("%s/login", prefix),
+		HTTPMethod:  "POST",
+		ModelStruct: a.model,
+	})
+
 	// Refresh Token endpoint.
-	middlewares = server.MiddlewareChain{middleware.StoreServerOptions(&a.serverOptions)}
+	middlewares = server.MiddlewareChain{middleware.Controller(a.Controller)}
 	middlewares = append(middlewares, a.Options.Middlewares...)
 	middlewares = append(middlewares, a.Options.RefreshTokenMiddlewares...)
 	router.POST(fmt.Sprintf("%s/refresh", prefix), httputil.Wrap(middlewares.Handle(http.HandlerFunc(a.handleRefreshToken))))
+	a.Endpoints = append(a.Endpoints, &server.Endpoint{
+		Path:        fmt.Sprintf("%s/refresh", prefix),
+		HTTPMethod:  "POST",
+		ModelStruct: a.model,
+	})
 
 	// Logout endpoint.
-	middlewares = server.MiddlewareChain{middleware.StoreServerOptions(&a.serverOptions)}
+	middlewares = server.MiddlewareChain{middleware.Controller(a.Controller)}
 	middlewares = append(middlewares, a.Options.Middlewares...)
 	middlewares = append(middlewares, a.Options.LogoutMiddlewares...)
 	router.POST(fmt.Sprintf("%s/logout", prefix), httputil.Wrap(middlewares.Handle(http.HandlerFunc(a.handleLogout))))
+	a.Endpoints = append(a.Endpoints, &server.Endpoint{
+		Path:        fmt.Sprintf("%s/logout", prefix),
+		HTTPMethod:  "POST",
+		ModelStruct: a.model,
+	})
 
 	return nil
 }
@@ -140,7 +165,7 @@ func (a *API) marshalErrors(rw http.ResponseWriter, status int, err error) {
 	// Write status to the header.
 	rw.WriteHeader(status)
 	// Marshal errors into response writer.
-	marshalError := json.GetCodec(a.serverOptions.Controller).MarshalErrors(rw, httpErrors...)
+	marshalError := json.GetCodec(a.Controller).MarshalErrors(rw, httpErrors...)
 	if err != nil {
 		log.Errorf("Marshaling errors: '%v' failed: %v", httpErrors, marshalError)
 	}

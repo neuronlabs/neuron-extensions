@@ -10,9 +10,8 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 
-	"github.com/neuronlabs/neuron/auth"
 	"github.com/neuronlabs/neuron/codec"
-	"github.com/neuronlabs/neuron/controller"
+	"github.com/neuronlabs/neuron/core"
 	"github.com/neuronlabs/neuron/database"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/log"
@@ -34,10 +33,8 @@ type API struct {
 	// AuthenticatorOptions are the settings used for the API mechanics.
 	Options *Options
 	// Server options set from the neuron core service.
-	Authorizer    auth.Verifier
-	Authenticator auth.Authenticator
-	DB            database.DB
-	Controller    *controller.Controller
+	DB         database.DB
+	Controller *core.Controller
 	// Endpoints are API endpoints slice created after initialization.
 	Endpoints []*server.Endpoint
 
@@ -66,15 +63,13 @@ func (a *API) GetEndpoints() []*server.Endpoint {
 }
 
 // InitializeAPI implements httpServer.API interface.
-func (a *API) InitializeAPI(options server.Options) error {
-	a.Controller = options.Controller
-	a.DB = options.DB
-	a.Authorizer = options.Authorizer
-	a.Authenticator = options.Authenticator
+func (a *API) InitializeAPI(c *core.Controller) error {
+	a.Controller = c
+	a.DB = database.New(c)
 
 	a.Options.Middlewares = append(server.MiddlewareChain{
-		middleware.Controller(options.Controller),
-		middleware.WithCodec(jsonapi.GetCodec(options.Controller)),
+		middleware.Controller(c),
+		middleware.WithCodec(jsonapi.GetCodec(c)),
 	}, a.Options.Middlewares...)
 
 	// Check if there are any models registered for given API.
@@ -107,7 +102,7 @@ func (a *API) InitializeAPI(options server.Options) error {
 			return err
 		}
 		a.models[mStruct] = struct{}{}
-		initializer, ok := modelHandler.Handler.(controller.Initializer)
+		initializer, ok := modelHandler.Handler.(core.Initializer)
 		if ok {
 			if err := initializer.Initialize(a.Controller); err != nil {
 				return err
@@ -448,16 +443,6 @@ func (a *API) createListScope(model *mapping.ModelStruct, req *http.Request) (*q
 		return nil, err
 	}
 	return s, nil
-}
-
-func (a *API) params(req *http.Request) *server.Params {
-	params := &server.Params{
-		Ctx:           req.Context(),
-		DB:            a.DB,
-		Authorizer:    a.Authorizer,
-		Authenticator: a.Authenticator,
-	}
-	return params
 }
 
 // parseFieldSetAndIncludes parses json:api formatted fieldSet and includes into neuron-like fieldSet and includes.

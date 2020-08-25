@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/neuronlabs/neuron/controller"
+	"github.com/neuronlabs/neuron/core"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/log"
 	"github.com/neuronlabs/neuron/mapping"
@@ -15,7 +15,7 @@ import (
 )
 
 // ParseParameters implements neuronCodec.ParametersParser interface.
-func (c Codec) ParseParameters(ctrl *controller.Controller, q *query.Scope, parameters query.Parameters) (err error) {
+func (c Codec) ParseParameters(ctrl *core.Controller, q *query.Scope, parameters query.Parameters) (err error) {
 	var (
 		includes             query.Parameter
 		pageSize, pageNumber int64
@@ -230,7 +230,7 @@ func (c Codec) parseFilterParameter(mStruct *mapping.ModelStruct, split []string
 	}
 }
 
-func (c Codec) parseFieldsParameter(ctrl *controller.Controller, q *query.Scope, parameter query.Parameter, fields map[*mapping.ModelStruct]mapping.FieldSet) error {
+func (c Codec) parseFieldsParameter(ctrl *core.Controller, q *query.Scope, parameter query.Parameter, fields map[*mapping.ModelStruct]mapping.FieldSet) error {
 	split, err := query.SplitBracketParameter(parameter.Key[len(query.ParamFields):])
 	if err != nil {
 		return err

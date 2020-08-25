@@ -8,6 +8,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 
 	"github.com/neuronlabs/neuron-extensions/server/http/log"
+	"github.com/neuronlabs/neuron/core"
 	"github.com/neuronlabs/neuron/server"
 )
 
@@ -16,25 +17,24 @@ var _ server.Server = &Server{}
 // API is an interface used for the server API's.
 type API interface {
 	server.EndpointsGetter
-	InitializeAPI(options server.Options) error
+	InitializeAPI(c *core.Controller) error
 	SetRoutes(router *httprouter.Router) error
 }
 
 // Server is an http server implementation. It implements neuron/server.Server interface.
 type Server struct {
-	Options   *Options
-	Router    *httprouter.Router
-	Endpoints []*server.Endpoint
-
-	serverOptions server.Options
-	server        http.Server
+	Options    *Options
+	Endpoints  []*server.Endpoint
+	Router     *httprouter.Router
+	Server     http.Server
+	Controller *core.Controller
 }
 
 // New creates new server.
 func New(options ...Option) *Server {
 	s := &Server{
 		Options: newOptions(),
-		server:  http.Server{},
+		Server:  http.Server{},
 		Router:  httprouter.New(),
 	}
 	for _, option := range options {
@@ -53,13 +53,13 @@ func (s *Server) GetEndpoints() []*server.Endpoint {
 }
 
 // Initialize initializes server with provided options.
-func (s *Server) Initialize(options server.Options) error {
+func (s *Server) Initialize(c *core.Controller) error {
 	// Initialize all endpoints.
-	s.serverOptions = options
+	s.Controller = c
 	s.setOptions()
 
 	for _, api := range s.Options.APIs {
-		if err := api.InitializeAPI(options); err != nil {
+		if err := api.InitializeAPI(c); err != nil {
 			return err
 		}
 		if err := api.SetRoutes(s.Router); err != nil {
@@ -70,7 +70,7 @@ func (s *Server) Initialize(options server.Options) error {
 
 	for _, apis := range s.Options.VersionedAPIs {
 		for _, api := range apis {
-			if err := api.InitializeAPI(options); err != nil {
+			if err := api.InitializeAPI(c); err != nil {
 				return err
 			}
 			if err := api.SetRoutes(s.Router); err != nil {
@@ -84,14 +84,14 @@ func (s *Server) Initialize(options server.Options) error {
 
 // Serve serves all routes stored in given server.
 func (s *Server) Serve() error {
-	s.server.Handler = s.Router
+	s.Server.Handler = s.Router
 	log.Infof("Listening and serve at: %s:%d", s.Options.Hostname, s.Options.Port)
-	return s.server.ListenAndServe()
+	return s.Server.ListenAndServe()
 }
 
 // Shutdown gently shutdown the server connection.
 func (s *Server) Shutdown(ctx context.Context) error {
-	if err := s.server.Shutdown(ctx); err != nil {
+	if err := s.Server.Shutdown(ctx); err != nil {
 		log.Errorf("HTTP server shutdown failed: %v", err)
 		return err
 	}
@@ -102,6 +102,6 @@ func (s *Server) setOptions() {
 	if s.Options.Port == 0 {
 		s.Options.Port = 80
 	}
-	s.server.Addr = fmt.Sprintf("%s:%d", s.Options.Hostname, s.Options.Port)
-	s.server.TLSConfig = s.Options.TLSConfig
+	s.Server.Addr = fmt.Sprintf("%s:%d", s.Options.Hostname, s.Options.Port)
+	s.Server.TLSConfig = s.Options.TLSConfig
 }

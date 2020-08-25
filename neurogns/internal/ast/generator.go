@@ -14,6 +14,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/neuronlabs/neuron/log"
 	"github.com/neuronlabs/strcase"
 	"golang.org/x/tools/go/packages"
 
@@ -114,7 +115,7 @@ func (g *ModelGenerator) HasCollectionInitializer() bool {
 			continue
 		}
 		for _, file := range pkg.CompiledGoFiles {
-			fmt.Printf("File: %s\n", file)
+			log.Debugf("File: %s\n", file)
 			if file == "initialize_collections.neuron.go" {
 				return true
 			}
@@ -128,7 +129,7 @@ func (g *ModelGenerator) CollectionInitializer(externalController bool) *input.C
 	model := g.Models()[0]
 	col := &input.Collections{PackageName: model.PackageName, ExternalController: externalController}
 	if externalController {
-		col.Imports.Add("github.com/neuronlabs/neuron/controller")
+		col.Imports.Add("github.com/neuronlabs/neuron/core")
 	}
 	return col
 }
@@ -319,7 +320,7 @@ func (g *ModelGenerator) extractMethods(pkgName string, dt *ast.FuncDecl) {
 			method.ReturnTypes = append(method.ReturnTypes, fieldTypeName(r.Type))
 		}
 	}
-	// fmt.Printf("Extracted method: %#v for type: '%s'\n", method, typeName)
+	log.Debug2f("Extracted method: %#v for type: '%s'\n", method, typeName)
 	g.typeMethods[typeName] = append(g.typeMethods[typeName], method)
 }
 
@@ -596,14 +597,14 @@ func (g *ModelGenerator) isRelation(expr ast.Expr) bool {
 		if t.Obj == nil {
 			tp, ok := g.loadedTypes[t.Name]
 			if !ok {
-				fmt.Printf(" (obj == nil [%v] - not a relation) ", t)
+				log.Debugf(" (obj == nil [%v] - not a relation) ", t)
 				return false
 			}
 			return g.isRelation(tp.Type)
 		}
 		ts, ok := t.Obj.Decl.(*ast.TypeSpec)
 		if !ok {
-			fmt.Printf(" (obj.Decl is not a type spec: %T) ", t.Obj.Decl)
+			log.Debugf(" (obj.Decl is not a type spec: %T) ", t.Obj.Decl)
 			return false
 		}
 		return g.isRelation(ts.Type)
@@ -677,7 +678,7 @@ func fieldTypeName(expr ast.Expr) string {
 	case *ast.Ellipsis:
 		return fieldTypeName(tp.Elt)
 	default:
-		fmt.Printf("Unknown field type: %#v\n", tp)
+		log.Debugf("Unknown field type: %#v\n", tp)
 	}
 	return ""
 }

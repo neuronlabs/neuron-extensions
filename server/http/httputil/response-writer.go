@@ -8,6 +8,9 @@ import (
 
 var _ http.ResponseWriter = &ResponseWriter{}
 
+// ResponseWriter is a wrapper implementation for the http.ResponseWriter. It allows to have buffered writer and status.
+// It needs to be used in a middleware so that it could manipulate the output with some compressor or react differently on panic.
+// Look at middleware.ResponseWriter how it is used.
 type ResponseWriter struct {
 	Status         int
 	TempWriter     io.Writer

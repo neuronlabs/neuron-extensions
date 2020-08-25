@@ -1,10 +1,10 @@
 package ast
 
 import (
-	"fmt"
 	"go/ast"
 
 	"github.com/neuronlabs/inflection"
+	"github.com/neuronlabs/neuron/log"
 	"golang.org/x/tools/go/packages"
 
 	"github.com/neuronlabs/neuron-extensions/neurogns/input"
@@ -104,16 +104,16 @@ func (g *ModelGenerator) extractModel(file *ast.File, structType *ast.StructType
 			}
 		}
 
-		fmt.Printf("Model: '%s' Field: '%s' ", modelName, field.Name)
+		log.Debugf("Model: '%s' Field: '%s' ", modelName, field.Name)
 		if g.isFieldRelation(structField) {
-			fmt.Println("is relation")
+			log.Debug("is relation")
 			field.IsSlice = isMany(structField.Type)
 			field.IsElemPointer = isElemPointer(structField)
 			field.IsPointer = isPointer(structField)
 			model.Relations = append(model.Relations, &field)
 			continue
 		} else if importedField := g.isImported(file, structField); importedField != nil {
-			fmt.Println("is imported")
+			log.Debug("is imported")
 			importedField.Field = &field
 			importedField.AstField = structField
 			if isPrimary(structField) {
@@ -122,7 +122,6 @@ func (g *ModelGenerator) extractModel(file *ast.File, structType *ast.StructType
 			g.modelImportedFields[model] = append(g.modelImportedFields[model], importedField)
 			continue
 		}
-		fmt.Printf("is ")
 		fieldPtr := &field
 		if err := g.setModelField(structField, fieldPtr, false); err != nil {
 			return nil, err
@@ -130,9 +129,7 @@ func (g *ModelGenerator) extractModel(file *ast.File, structType *ast.StructType
 		// Check if field is a primary key field.
 		if isPrimary(structField) {
 			model.Primary = fieldPtr
-			fmt.Printf("primary ")
 		}
-		fmt.Println("field")
 		model.Fields = append(model.Fields, fieldPtr)
 	}
 
@@ -147,7 +144,7 @@ func (g *ModelGenerator) extractModel(file *ast.File, structType *ast.StructType
 		model.Imports.Add(pkg)
 	}
 
-	fmt.Printf("Adding model: '%s'\n", model.Name)
+	log.Debugf("Adding model: '%s'\n", model.Name)
 	g.models[model.Name] = model
 
 	for _, relation := range model.Relations {

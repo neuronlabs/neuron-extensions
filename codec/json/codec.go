@@ -5,7 +5,7 @@ import (
 	"io"
 
 	"github.com/neuronlabs/neuron/codec"
-	"github.com/neuronlabs/neuron/controller"
+	"github.com/neuronlabs/neuron/core"
 	"github.com/neuronlabs/neuron/errors"
 )
 
@@ -17,11 +17,11 @@ var _ codec.Codec = &Codec{}
 
 // Codec is a json codec.Codec implementation.
 type Codec struct {
-	c *controller.Controller
+	c *core.Controller
 }
 
 // GetCodec gets the codec with provided controller 'c'.
-func GetCodec(c *controller.Controller) Codec {
+func GetCodec(c *core.Controller) Codec {
 	return Codec{c: c}
 }
 

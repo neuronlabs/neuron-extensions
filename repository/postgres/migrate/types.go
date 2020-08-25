@@ -47,7 +47,7 @@ var (
 	/** Binary */
 
 	// FBytea is the 1 or 4 bytes plus the actual binary string data type 'bytea'.
-	FBytea = &ParameterDataType{SQLName: "bytea", DataType: DataType{Name: "bytea"}}
+	FBytea = &BasicDataType{SQLName: "bytea", DataType: DataType{Name: "bytea"}}
 	// FBoolean is the 'boolean' pq data type.
 	FBoolean = &BasicDataType{SQLName: "boolean", DataType: DataType{Name: "boolean"}}
 

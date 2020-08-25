@@ -7,8 +7,10 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 
-	"github.com/neuronlabs/neuron-extensions/server/http/log"
+	"github.com/neuronlabs/neuron/core"
 	"github.com/neuronlabs/neuron/server"
+
+	"github.com/neuronlabs/neuron-extensions/server/http/log"
 )
 
 // Compile time check if VersionedServer implements server.VersionedServer.
@@ -39,13 +41,13 @@ func NewVersioned(options ...Option) *VersionedServer {
 }
 
 // InitializeVersion initializes all API stored for given 'version'.
-func (v *VersionedServer) InitializeVersion(version string, options server.Options) error {
+func (v *VersionedServer) InitializeVersion(version string, c *core.Controller) error {
 	apis, ok := v.Options.VersionedAPIs[version]
 	if !ok {
 		return nil
 	}
 	for _, api := range apis {
-		if err := api.InitializeAPI(options); err != nil {
+		if err := api.InitializeAPI(c); err != nil {
 			return err
 		}
 		if err := api.SetRoutes(v.Router); err != nil {

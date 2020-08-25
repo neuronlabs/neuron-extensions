@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neuronlabs/neuron/codec"
-	"github.com/neuronlabs/neuron/controller"
+	"github.com/neuronlabs/neuron/core"
 	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/query"
 )
@@ -19,7 +19,7 @@ import (
 func TestMarshal(t *testing.T) {
 	prepare := func(t *testing.T, models ...mapping.Model) *Codec {
 		t.Helper()
-		c := controller.NewDefault()
+		c := core.NewDefault()
 		require.NoError(t, c.RegisterModels(models...))
 		return &Codec{c: c}
 	}
@@ -231,7 +231,7 @@ func TestMarshal(t *testing.T) {
 // TestMarshalPayload tests marshaling the query.
 func TestMarshalPayload(t *testing.T) {
 	t.Run("MarshalToManyRelationship", func(t *testing.T) {
-		c := controller.NewDefault()
+		c := core.NewDefault()
 		require.NoError(t, c.RegisterModels(&Pet{}, &User{}, &UserPets{}))
 
 		pet := &Pet{ID: 5, Owners: []*User{{ID: 2, privateField: 1}, {ID: 3}}}
@@ -275,7 +275,7 @@ func TestMarshalPayload(t *testing.T) {
 	})
 
 	t.Run("MarshalToManyEmptyRelationship", func(t *testing.T) {
-		c := controller.NewDefault()
+		c := core.NewDefault()
 		require.NoError(t, c.RegisterModels(&Pet{}, &User{}, &UserPets{}))
 
 		pet := &Pet{ID: 5, Owners: []*User{}}
@@ -370,7 +370,7 @@ func TestMarshalPayload(t *testing.T) {
 // }
 
 func TestMarshalCustomTag(t *testing.T) {
-	c := controller.NewDefault()
+	c := core.NewDefault()
 	assert.NoError(t, c.RegisterModels(&CustomTagModel{}))
 
 	hidden := &CustomTagModel{ID: 1, VisibleCustomName: "found", HiddenField: true, OmitEmptyField: "found", CustomOmitEmpty: "found"}

@@ -109,7 +109,9 @@ func SetDevelopmentMode(module *SubModule, neuronPath, extensionsPath string) er
 		}
 
 		stringLines := strings.Split(strings.TrimSpace(string(line)), " ")
-
+		if stringLines[0] == "require" {
+			stringLines = stringLines[1:]
+		}
 		if stringLines[0] == "github.com/neuronlabs/neuron" {
 			rel, err := filepath.Rel(module.Path, neuronPath)
 			if err != nil {

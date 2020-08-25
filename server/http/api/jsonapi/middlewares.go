@@ -6,7 +6,8 @@ import (
 
 	"github.com/neuronlabs/neuron-extensions/codec/jsonapi"
 	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
-	"github.com/neuronlabs/neuron/controller"
+	"github.com/neuronlabs/neuron-extensions/server/http/log"
+	"github.com/neuronlabs/neuron/core"
 )
 
 // MidAccept creates a middleware that requires provided accept
@@ -21,13 +22,15 @@ func MidAccept(next http.Handler) http.Handler {
 		}
 
 		rw.WriteHeader(http.StatusNotAcceptable)
-		c, ok := controller.CtxGet(req.Context())
+		c, ok := core.CtxGetController(req.Context())
 		if !ok {
 			return
 		}
 		err := httputil.ErrUnsupportedHeader()
 		err.Detail = fmt.Sprintf("header Accept doesn't contain '%s' mime type", jsonapi.MimeType)
-		jsonapi.GetCodec(c).MarshalErrors(rw, err)
+		if err := jsonapi.GetCodec(c).MarshalErrors(rw, err); err != nil {
+			log.Errorf("Marshaling error failed: %v", err)
+		}
 	})
 }
 

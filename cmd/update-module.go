@@ -46,7 +46,7 @@ func init() {
 }
 
 // modules update codec/json github.com/neuronlabs/neuron v1.0.0
-func runUpdateModule(cmd *cobra.Command, args []string) {
+func runUpdateModule(_ *cobra.Command, args []string) {
 	path, err := getExtensionsPath()
 	if err != nil {
 		os.Exit(1)

@@ -7,8 +7,8 @@ type {{.Collection.Name}} struct {
     Model *mapping.ModelStruct
 }
 
-// InitializeCollection implements database.Collection interface.
-func ({{.Collection.Receiver}} *{{.Collection.Name}}) InitializeCollection(_ctrl *controller.Controller) error {
+// InitializeCollection implements core.Initializer interface.
+func ({{.Collection.Receiver}} *{{.Collection.Name}}) Initialize(_ctrl *core.Controller) error {
     mStruct, err := _ctrl.ModelStruct(&{{.Model.Name}}{})
     if err != nil {
         return err

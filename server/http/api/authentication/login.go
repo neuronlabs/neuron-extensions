@@ -138,12 +138,9 @@ func (a *API) handleLoginEndpoint(rw http.ResponseWriter, req *http.Request) {
 	neuronPassword := auth.NewPassword(input.Password, a.Options.PasswordScorer)
 	if a.Options.PasswordValidator != nil {
 		if err := a.Options.PasswordValidator(neuronPassword); err != nil {
-			httpError := httputil.ErrInvalidJSONFieldValue()
-			httpError.Detail = "Provided invalid neuronPassword."
-			if detailer, ok := err.(*errors.DetailedError); ok {
-				httpError.Detail = detailer.Details
-			}
-			a.marshalErrors(rw, 400, httpError)
+			httpError := httputil.ErrInvalidAuthenticationInfo()
+			httpError.Detail = "username or password is not valid"
+			a.marshalErrors(rw, 0, httpError)
 			return
 		}
 	}
@@ -152,7 +149,6 @@ func (a *API) handleLoginEndpoint(rw http.ResponseWriter, req *http.Request) {
 	account.SetUsername(input.Username)
 
 	ctx := req.Context()
-
 	var err error
 	if contexter, ok := a.Options.AccountHandler.(WithContextLoginer); ok {
 		ctx, err = contexter.LoginWithContext(ctx)
@@ -168,9 +164,7 @@ func (a *API) handleLoginEndpoint(rw http.ResponseWriter, req *http.Request) {
 		Password:      neuronPassword,
 		RememberToken: input.RememberToken,
 	}
-
-	db := a.serverOptions.DB
-
+	db := a.DB
 	var tx *database.Tx
 	transactioner, isTransactioner := a.Options.AccountHandler.(WithTransactionLoginer)
 	if isTransactioner {
@@ -209,13 +203,13 @@ func (a *API) handleLoginEndpoint(rw http.ResponseWriter, req *http.Request) {
 		}
 		if errors.Is(err, query.ErrNoResult) {
 			if loginFailer, ok := a.Options.AccountHandler.(AfterLoginer); ok {
-				if err = loginFailer.AfterLogin(ctx, a.serverOptions.DB, options); err != nil {
+				if err = loginFailer.AfterLogin(ctx, a.DB, options); err != nil {
 					a.marshalErrors(rw, 0, err)
 					return
 				}
 			}
 			httpError := httputil.ErrInvalidAuthenticationInfo()
-			httpError.Detail = "username or neuronPassword is not valid"
+			httpError.Detail = "username or password is not valid"
 			a.marshalErrors(rw, 0, httpError)
 			return
 		}
@@ -224,20 +218,20 @@ func (a *API) handleLoginEndpoint(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	// Check if password matches hashed password in the model.
-	if err := a.Authenticator.ComparePassword(options.Account, input.Password); err != nil {
+	if err := a.Controller.Authenticator.ComparePassword(options.Account, input.Password); err != nil {
 		if isTransactioner {
 			if err = tx.Rollback(); err != nil {
 				log.Errorf("Rolling back transaction failed: %v", err)
 			}
 		}
 		if loginFailer, ok := a.Options.AccountHandler.(AfterLoginer); ok {
-			if err = loginFailer.AfterLogin(ctx, a.serverOptions.DB, options); err != nil {
+			if err = loginFailer.AfterLogin(ctx, a.DB, options); err != nil {
 				a.marshalErrors(rw, 0, err)
 				return
 			}
 		}
 		httpError := httputil.ErrInvalidAuthenticationInfo()
-		httpError.Detail = "username or neuronPassword is not valid"
+		httpError.Detail = "username or password is not valid"
 		a.marshalErrors(rw, 0, httpError)
 		return
 	}
@@ -269,7 +263,7 @@ func (a *API) handleLoginEndpoint(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	// Create the token for provided account.
-	token, err := a.Tokener.Token(options.Account,
+	token, err := a.Controller.Tokener.Token(ctx, options.Account,
 		auth.TokenExpirationTime(expiration),
 		auth.TokenRefreshExpirationTime(a.Options.RefreshTokenExpiration),
 	)
@@ -285,6 +279,7 @@ func (a *API) handleLoginEndpoint(rw http.ResponseWriter, req *http.Request) {
 		ExpiresIn:    int64(token.ExpiresIn),
 	}
 
+	a.setContentType(rw)
 	buffer := &bytes.Buffer{}
 	if err = json.NewEncoder(buffer).Encode(output); err != nil {
 		a.marshalErrors(rw, 500, httputil.ErrInternalError())

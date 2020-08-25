@@ -9,21 +9,22 @@ import (
 
 // AuthenticatorOptions is the structure that contains auth API  settings.
 type Options struct {
-	AccountModel            auth.Account
-	AccountHandler          interface{}
-	PathPrefix              string
-	Middlewares             []server.Middleware
-	RegisterMiddlewares     []server.Middleware
-	LoginMiddlewares        []server.Middleware
-	LogoutMiddlewares       []server.Middleware
-	RefreshTokenMiddlewares []server.Middleware
-	StrictUnmarshal         bool
-	PasswordValidator       auth.PasswordValidator
-	PasswordScorer          auth.PasswordScorer
-	UsernameValidator       auth.UsernameValidator
-	TokenExpiration         time.Duration
-	RememberTokenExpiration time.Duration
-	RefreshTokenExpiration  time.Duration
+	AccountModel             auth.Account
+	AccountHandler           interface{}
+	PathPrefix               string
+	Middlewares              []server.Middleware
+	RegisterMiddlewares      []server.Middleware
+	LoginMiddlewares         []server.Middleware
+	LogoutMiddlewares        []server.Middleware
+	RefreshTokenMiddlewares  []server.Middleware
+	StrictUnmarshal          bool
+	PasswordValidator        auth.PasswordValidator
+	PasswordScorer           auth.PasswordScorer
+	UsernameValidator        auth.UsernameValidator
+	TokenExpiration          time.Duration
+	RememberTokenExpiration  time.Duration
+	RefreshTokenExpiration   time.Duration
+	PermitRefreshTokenLogout bool
 }
 
 func defaultOptions() *Options {
@@ -141,5 +142,12 @@ func WithRegisterMiddlewares(middlewares ...server.Middleware) Option {
 func WithRefreshTokenMiddlewares(middlewares ...server.Middleware) Option {
 	return func(o *Options) {
 		o.RefreshTokenMiddlewares = append(o.RefreshTokenMiddlewares, middlewares...)
+	}
+}
+
+// WithPermitRefreshTokenLogout sets the option that allows to logout using also refresh token.
+func WithPermitRefreshTokenLogout(permit bool) Option {
+	return func(o *Options) {
+		o.PermitRefreshTokenLogout = permit
 	}
 }
