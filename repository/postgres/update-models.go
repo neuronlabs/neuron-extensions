@@ -101,6 +101,16 @@ func (p *Postgres) updatedModelWithFieldset(ctx context.Context, s *query.Scope,
 	)
 	primaryValue := model.GetPrimaryKeyValue()
 	for _, field := range fieldSet {
+		if field.DatabaseNotNull() && field.Kind() == mapping.KindForeignKey {
+			isZero, err := fielder.IsFieldZero(field)
+			if err != nil {
+				return 0, err
+			}
+			if isZero {
+				modelValues = append(modelValues, nil)
+				continue
+			}
+		}
 		fieldValue, err := fielder.GetFieldValue(field)
 		if err != nil {
 			return affected, err
@@ -140,6 +150,16 @@ func (p *Postgres) updateBatchModelsWithFieldSet(s *query.Scope, b internal.Batc
 		)
 		primaryValue := model.GetPrimaryKeyValue()
 		for _, field := range fieldSet {
+			if field.DatabaseNotNull() && field.Kind() == mapping.KindForeignKey {
+				isZero, err := fielder.IsFieldZero(field)
+				if err != nil {
+					return err
+				}
+				if isZero {
+					modelValues = append(modelValues, nil)
+					continue
+				}
+			}
 			fieldValue, err := fielder.GetFieldValue(field)
 			if err != nil {
 				return err

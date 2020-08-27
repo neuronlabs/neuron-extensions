@@ -154,6 +154,30 @@ func (p *Postgres) parseInsertWithCommonFieldSet(s *query.Scope) (*insertQuery, 
 				switch field.Kind() {
 				case mapping.KindPrimary:
 					iq.values = append(iq.values, model.GetPrimaryKeyValue())
+				case mapping.KindForeignKey:
+					var alreadySet bool
+					if field.DatabaseNotNull() {
+						isZero, err := fielder.IsFieldZero(field)
+						if err != nil {
+							return nil, err
+						}
+						if isZero {
+							fieldValue = nil
+							alreadySet = true
+						}
+					}
+
+					if !alreadySet {
+						if autoSelected != nil && autoSelected.Contains(field) {
+							fieldValue = nil
+						} else {
+							fieldValue, err = fielder.GetFieldValue(field)
+						}
+						if err != nil {
+							return nil, err
+						}
+					}
+					iq.values = append(iq.values, fieldValue)
 				default:
 					if autoSelected != nil && autoSelected.Contains(field) {
 						fieldValue, err = fielder.GetFieldZeroValue(field)

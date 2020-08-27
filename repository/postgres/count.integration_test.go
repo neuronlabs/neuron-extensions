@@ -15,7 +15,7 @@ import (
 	"github.com/neuronlabs/neuron/mapping"
 )
 
-var testModels = []mapping.Model{&tests.Model{}, &tests.SimpleModel{}, &tests.OmitModel{}}
+var testModels = tests.Neuron_Models
 
 // TestIntegrationCount does integration tests for the Count method.
 func TestIntegrationCount(t *testing.T) {

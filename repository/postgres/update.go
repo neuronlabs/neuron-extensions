@@ -45,6 +45,16 @@ func (p *Postgres) Update(ctx context.Context, s *query.Scope) (int64, error) {
 	}
 
 	for _, field := range fieldSet {
+		if field.DatabaseNotNull() && field.Kind() == mapping.KindForeignKey {
+			isZero, err := fielder.IsFieldZero(field)
+			if err != nil {
+				return 0, err
+			}
+			if isZero {
+				values = append(values, nil)
+				continue
+			}
+		}
 		fieldValue, err := fielder.GetFieldValue(field)
 		if err != nil {
 			return 0, err

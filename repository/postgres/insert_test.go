@@ -44,6 +44,28 @@ func TestParseInsertQuery(t *testing.T) {
 	}
 }
 
+func TestParseInsertWithNullForeignKey(t *testing.T) {
+	c := testingController(t, false, &tests.ForeignKeyModel{})
+
+	repo := testingRepository(c)
+
+	m, err := c.ModelStruct(&tests.ForeignKeyModel{})
+	require.NoError(t, err)
+
+	model := &tests.ForeignKeyModel{}
+
+	s := query.NewScope(m, model)
+	// get rid of the primary field.
+	s.FieldSets = []mapping.FieldSet{{m.MustFieldByName("ForeignKey")}}
+	q, err := repo.parseInsertWithCommonFieldSet(s)
+	require.NoError(t, err)
+
+	assert.Equal(t, "INSERT INTO public.foreign_key_models (foreign_key) VALUES ($1) RETURNING id", q.query)
+	if assert.Len(t, q.values, 1) {
+		assert.Nil(t, q.values[0])
+	}
+}
+
 func TestParseWithDefault(t *testing.T) {
 	c := testingController(t, false, &tests.Model{})
 	p := testingRepository(c)

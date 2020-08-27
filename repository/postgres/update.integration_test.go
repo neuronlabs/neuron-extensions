@@ -9,11 +9,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neuronlabs/neuron/database"
+
 	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
 	"github.com/neuronlabs/neuron-extensions/repository/postgres/tests"
-	"github.com/neuronlabs/neuron/database"
-	"github.com/neuronlabs/neuron/errors"
-	"github.com/neuronlabs/neuron/query"
 )
 
 // // TestIntegrationPatch integration tests for update method.
@@ -68,8 +67,8 @@ func TestUpdate(t *testing.T) {
 		model := newModel()
 		model.ID = 1e8
 		affected, err := db.Query(mStruct, model).Update()
-		assert.Error(t, err)
-		assert.True(t, errors.Is(err, query.ErrNoResult), "%v", err)
+		require.NoError(t, err)
+
 		assert.Equal(t, int64(0), affected)
 	})
 
@@ -81,6 +80,33 @@ func TestUpdate(t *testing.T) {
 
 		assert.Equal(t, int64(2), affected)
 	})
+}
+
+func TestUpdateForeign(t *testing.T) {
+	c := testingController(t, true, &tests.ForeignKeyModel{})
+	p := testingRepository(c)
+
+	ctx := context.Background()
+
+	err := c.MigrateModels(ctx, &tests.ForeignKeyModel{})
+	require.NoError(t, err)
+
+	mStruct, err := c.ModelStruct(&tests.ForeignKeyModel{})
+	require.NoError(t, err)
+
+	defer func() {
+		_ = internal.DropTables(ctx, p.ConnPool, mStruct.DatabaseName, mStruct.DatabaseSchemaName)
+	}()
+
+	// No results should return no error.
+	db := database.New(c)
+
+	model := &tests.ForeignKeyModel{}
+	err = db.Query(mStruct, model).Insert()
+	require.NoError(t, err)
+
+	_, err = db.Query(mStruct, model).Select(mStruct.MustFieldByName("ForeignKey")).Update()
+	require.NoError(t, err)
 }
 
 // func TestIntegrationPatch(t *testing.T) {

@@ -231,6 +231,7 @@ func tableDefinitions(model *mapping.ModelStruct) ([]string, error) {
 			continue
 		}
 		// write like: 		name type
+
 		sb.WriteString(field.DatabaseName)
 		sb.WriteString(" ")
 		sb.WriteString(dt.GetName())

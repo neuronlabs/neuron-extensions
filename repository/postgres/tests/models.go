@@ -40,3 +40,8 @@ type ArrayModel struct {
 	SliceInt    []int
 	SliceString []string
 }
+
+type ForeignKeyModel struct {
+	ID         int
+	ForeignKey int `neuron:"type=fk" db:";notnull"`
+}

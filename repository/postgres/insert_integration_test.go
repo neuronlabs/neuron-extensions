@@ -26,6 +26,9 @@ func TestInsertSingleModel(t *testing.T) {
 
 	defer func() {
 		_ = internal.DropTables(ctx, p.ConnPool, mStruct.DatabaseName, mStruct.DatabaseSchemaName)
+		mStruct, err = c.ModelStruct(&tests.ForeignKeyModel{})
+		require.NoError(t, err)
+		_ = internal.DropTables(ctx, p.ConnPool, mStruct.DatabaseName, mStruct.DatabaseSchemaName)
 	}()
 
 	// No results should return no error.
@@ -43,6 +46,15 @@ func TestInsertSingleModel(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.NotZero(t, model1.ID)
+	})
+
+	t.Run("ForeignKeyNotNull", func(t *testing.T) {
+		model := &tests.ForeignKeyModel{}
+		mStruct, err := c.ModelStruct(model)
+		require.NoError(t, err)
+
+		err = db.Query(mStruct, model).Select(mStruct.MustFieldByName("ForeignKey")).Insert()
+		require.NoError(t, err)
 	})
 
 	t.Run("BatchModels", func(t *testing.T) {
