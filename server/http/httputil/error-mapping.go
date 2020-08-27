@@ -51,14 +51,17 @@ var DefaultErrorMapper = &ErrorMapper{
 	server.ErrMissingRequiredHeader: ErrMissingRequiredHeader,
 	server.ErrHeaderValue:           ErrInvalidHeaderValue,
 	// Auth:
-	auth.ErrAccountNotFound:     ErrInvalidAuthenticationInfo,
-	auth.ErrInvalidUsername:     ErrInvalidAuthenticationInfo,
-	auth.ErrInvalidSecret:       ErrInvalidAuthenticationInfo,
-	auth.ErrTokenRevoked:        ErrInvalidAuthenticationInfo,
-	auth.ErrTokenExpired:        ErrInvalidAuthenticationInfo,
-	auth.ErrForbidden:           ErrForbiddenAuthorize,
-	auth.ErrInvalidRole:         ErrForbiddenAuthorize,
-	auth.ErrAuthorizationHeader: ErrInvalidAuthorizationHeader,
+	auth.ErrAccountNotFound:      ErrInvalidAuthenticationInfo,
+	auth.ErrAccountAlreadyExists: ErrAccountAlreadyExists,
+	auth.ErrInvalidUsername:      ErrInvalidAuthenticationInfo,
+	auth.ErrInvalidSecret:        ErrInvalidAuthenticationInfo,
+	auth.ErrInvalidPassword:      ErrInvalidAuthenticationInfo,
+	auth.ErrTokenRevoked:         ErrInvalidAuthenticationInfo,
+	auth.ErrTokenNotValidYet:     ErrInvalidAuthenticationInfo,
+	auth.ErrTokenExpired:         ErrInvalidAuthenticationInfo,
+	auth.ErrForbidden:            ErrForbiddenAuthorize,
+	auth.ErrInvalidRole:          ErrForbiddenAuthorize,
+	auth.ErrAuthorizationHeader:  ErrInvalidAuthorizationHeader,
 }
 
 // MapError maps the 'err' input error into slice of 'Error'.

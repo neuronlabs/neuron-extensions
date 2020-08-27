@@ -9,19 +9,16 @@ import (
 	"reflect"
 	"time"
 
-	codec "github.com/neuronlabs/neuron/codec"
+	"github.com/neuronlabs/neuron/codec"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/log"
 	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/query"
 )
 
-type ctxKey struct{}
-
 type storeKey struct{}
 
 var (
-	marshalFields        = &ctxKey{}
 	StoreKeyMarshalLinks = &storeKey{}
 )
 
@@ -49,7 +46,7 @@ func (c Codec) newIncludedRelation(sField *mapping.StructField, fields map[*mapp
 	return includedRelation
 }
 
-func unmarshalPayload(in io.Reader, options codec.UnmarshalOptions) (Payloader, error) {
+func unmarshalPayload(in io.Reader, options *codec.UnmarshalOptions) (Payloader, error) {
 	data, err := ioutil.ReadAll(in)
 	if err != nil {
 		return nil, err
@@ -156,7 +153,7 @@ func unmarshalHandleDecodeError(err error) error {
 	}
 }
 
-func unmarshalNode(mStruct *mapping.ModelStruct, data *Node, model mapping.Model, included map[string]*Node, options codec.UnmarshalOptions) (fieldSet mapping.FieldSet, err error) {
+func unmarshalNode(mStruct *mapping.ModelStruct, data *Node, model mapping.Model, included map[string]*Node, options *codec.UnmarshalOptions) (fieldSet mapping.FieldSet, err error) {
 	if data.Type != model.NeuronCollectionName() {
 		err := errors.WrapDet(codec.ErrUnmarshal, "unmarshal collection name doesn't match the root struct").
 			WithDetailf("unmarshal collection: '%s' doesn't match root collection:'%s'", data.Type, model.NeuronCollectionName())
@@ -207,13 +204,13 @@ func unmarshalNode(mStruct *mapping.ModelStruct, data *Node, model mapping.Model
 
 				fieldSet = append(fieldSet, modelAttr)
 				if modelAttr.IsTime() && !(modelAttr.IsTimePointer() && attrValue == nil) {
-					if modelAttr.IsISO8601() {
+					if modelAttr.CodecISO8601() {
 						strVal, ok := attrValue.(string)
 						if !ok {
 							return nil, errors.WrapDet(codec.ErrUnmarshalFieldValue, "invalid ISO8601 time field").
 								WithDetailf("Time field: '%s' has invalid formatting.", modelAttr.NeuronName())
 						}
-						t, err := time.Parse(strVal, codec.ISO8601TimeFormat)
+						t, err := time.Parse(codec.ISO8601TimeFormat, strVal)
 						if err != nil {
 							return nil, errors.WrapDet(codec.ErrUnmarshalFieldValue, "invalid ISO8601 time field").
 								WithDetailf("Time field: '%s' has invalid formatting.", modelAttr.NeuronName())

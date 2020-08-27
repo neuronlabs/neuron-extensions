@@ -194,6 +194,12 @@ func SetProductionMode(module *SubModule) error {
 
 // UpdateModuleVersion updates submodule version.
 func UpdateModuleVersion(module *SubModule, reference, newVersion string) error {
+	dir, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	defer os.Chdir(dir)
+
 	lock, err := os.OpenFile(lockFileName(module.Path), os.O_RDWR, 0666)
 	if err != nil && os.IsNotExist(err) {
 		// No lock here we can update the module.
@@ -239,6 +245,7 @@ func UpdateModuleVersion(module *SubModule, reference, newVersion string) error 
 		return err
 	}
 
+	os.Chdir(module.Path)
 	cmd := exec.Command("go", "mod", "tidy")
 	out, err := cmd.Output()
 	if err != nil {

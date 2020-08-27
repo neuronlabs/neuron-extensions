@@ -12,8 +12,8 @@ import (
 	"github.com/neuronlabs/neuron/errors"
 )
 
-//go:generate neurogns models methods --format=goimports --single-file .
-//go:generate neurogns collections --format=goimports  --single-file .
+//go:generate neurogonesis models methods --format=goimports --single-file .
+//go:generate neurogonesis collections --format=goimports  --single-file .
 
 // Role is a simple role model for the RBAC authorization. It contains a many2many relation to Accounts.
 type Role struct {

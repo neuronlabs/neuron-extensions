@@ -11,7 +11,7 @@ import (
 	"github.com/neuronlabs/neuron-extensions/repository/postgres/migrate"
 )
 
-//go:generate neurogns models methods methods --format=goimports --type=QueryModel --single-file .
+//go:generate neurogonesis models methods methods --format=goimports --type=QueryModel --single-file .
 
 // queryModel is the model used for testing the queries filters.
 type QueryModel struct {

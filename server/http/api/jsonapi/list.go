@@ -111,12 +111,15 @@ func (a *API) handleList(mStruct *mapping.ModelStruct) http.HandlerFunc {
 		result.ModelStruct = mStruct
 		result.IncludedRelations = queryIncludes
 		result.FieldSets = []mapping.FieldSet{queryFieldSet}
-		if result.MarshalLinks.Type == codec.NoLink {
-			result.MarshalLinks = codec.LinkOptions{
-				Type:       linkType,
-				BaseURL:    a.Options.PathPrefix,
-				Collection: mStruct.Collection(),
-			}
+		var marshalOptions []codec.MarshalOption
+		if linkType != codec.NoLink {
+			marshalOptions = append(marshalOptions,
+				codec.MarshalWithLinks(codec.LinkOptions{
+					Type:       linkType,
+					BaseURL:    a.Options.PathPrefix,
+					Collection: mStruct.Collection(),
+				}),
+			)
 		}
 
 		// if there is no pagination then the pagination doesn't need to be created.
@@ -132,7 +135,7 @@ func (a *API) handleList(mStruct *mapping.ModelStruct) http.HandlerFunc {
 				sb.WriteString(q.Encode())
 			}
 			result.PaginationLinks.Self = sb.String()
-			a.marshalPayload(rw, result, http.StatusOK)
+			a.marshalPayload(rw, result, http.StatusOK, marshalOptions...)
 			return
 		}
 
@@ -227,7 +230,7 @@ func (a *API) handleList(mStruct *mapping.ModelStruct) http.HandlerFunc {
 		paginationLinks.First = sb.String()
 
 		result.PaginationLinks = paginationLinks
-		a.marshalPayload(rw, result, http.StatusOK)
+		a.marshalPayload(rw, result, http.StatusOK, marshalOptions...)
 	}
 }
 

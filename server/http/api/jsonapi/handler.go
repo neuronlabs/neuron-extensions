@@ -10,7 +10,6 @@ import (
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/query"
-	"github.com/neuronlabs/neuron/server"
 )
 
 // DefaultHandler is the default json:api handler. It is used as the default handler in the API.
@@ -285,46 +284,6 @@ func (d *DefaultHandler) HandleGetRelation(ctx context.Context, db database.DB, 
 		return nil, err
 	}
 	payload.Data = relatedModels
-	return &payload, nil
-}
-
-// HandleGetRelationship implements GetRelationshipHandler interface.
-func (d *DefaultHandler) HandleGetRelationship(ctx context.Context, params server.Params, q *query.Scope, relation *mapping.StructField) (*codec.Payload, error) {
-	getter, ok := params.DB.(database.QueryGetter)
-	if !ok {
-		return nil, errors.WrapDetf(query.ErrInternal, "DB doesn't implement QueryGetter interface: %T", params.DB)
-	}
-	model, err := getter.QueryGet(ctx, q)
-	if err != nil {
-		return nil, err
-	}
-
-	var payload codec.Payload
-	switch relation.Kind() {
-	case mapping.KindRelationshipMultiple:
-		mr, ok := model.(mapping.MultiRelationer)
-		if !ok {
-			return nil, errors.WrapDetf(mapping.ErrModelNotImplements, "model: '%s' doesn't implement MultiRelationer", q.ModelStruct.String())
-		}
-		payload.Data, err = mr.GetRelationModels(relation)
-		if err != nil {
-			return nil, err
-		}
-	case mapping.KindRelationshipSingle:
-		sr, ok := model.(mapping.SingleRelationer)
-		if !ok {
-			return nil, errors.WrapDetf(mapping.ErrModelNotImplements, "model: '%s' doesn't implement SingleRelationer", q.ModelStruct.String())
-		}
-		relatedModel, err := sr.GetRelationModel(relation)
-		if err != nil {
-			return nil, err
-		}
-		if relatedModel != nil {
-			payload.Data = []mapping.Model{relatedModel}
-		}
-	default:
-		return nil, errors.WrapDetf(mapping.ErrInternal, "provided field: '%s' is not a relation", relation.String())
-	}
 	return &payload, nil
 }
 

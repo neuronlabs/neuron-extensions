@@ -65,18 +65,15 @@ func New(options ...store.Option) (*Redis, error) {
 }
 
 // Set implements store.Store interface.
-func (r *Redis) Set(ctx context.Context, record *store.Record) error {
-	if err := r.checkInitialization(); err != nil {
-		return err
+func (r *Redis) Set(ctx context.Context, record *store.Record, options ...store.SetOption) error {
+	o := &store.SetOptions{}
+	for _, option := range options {
+		option(o)
 	}
-	if err := r.r.Set(ctx, r.getKey(record.Key), record.Value, r.Options.DefaultExpiration).Err(); err != nil {
-		return errors.Wrap(store.ErrStore, err.Error())
+	ttl := r.Options.DefaultExpiration
+	if o.TTL != 0 {
+		ttl = o.TTL
 	}
-	return nil
-}
-
-// SetWithTTL implements store.Store interface.
-func (r *Redis) SetWithTTL(ctx context.Context, record *store.Record, ttl time.Duration) error {
 	if err := r.checkInitialization(); err != nil {
 		return err
 	}

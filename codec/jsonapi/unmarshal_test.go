@@ -25,7 +25,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 	t.Run("valid_attributes", func(t *testing.T) {
 		in := strings.NewReader("{\"data\": {\"type\": \"blogs\", \"id\": \"1\", \"attributes\": {\"title\": \"Some title.\"}}}")
 
-		payload, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
+		payload, err := cd.UnmarshalPayload(in)
 		require.NoError(t, err)
 
 		if assert.Len(t, payload.Data, 1) {
@@ -58,7 +58,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 			}
 		}`)
 
-		payload, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
+		payload, err := cd.UnmarshalPayload(in)
 		require.NoError(t, err)
 
 		if assert.Len(t, payload.Data, 1) {
@@ -77,7 +77,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 	// Invalid document - no opening bracket.
 	t.Run("invalid_document", func(t *testing.T) {
 		in := strings.NewReader(`"data":{"type":"blogs","id":"1"}`)
-		_, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
+		_, err := cd.UnmarshalPayload(in)
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, codec.ErrUnmarshal))
 	})
@@ -86,7 +86,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 	// Invalid collection - unrecognized collection
 	t.Run("invalid_collection", func(t *testing.T) {
 		in := strings.NewReader(`{"data":{"type":"unrecognized","id":"1"}}`)
-		_, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
+		_, err := cd.UnmarshalPayload(in)
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, codec.ErrUnmarshal))
 	})
@@ -95,7 +95,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 	// Invalid syntax - syntax error
 	t.Run("invalid_syntax", func(t *testing.T) {
 		in := strings.NewReader(`{"data":{"type":"blogs","id":"1",}}`)
-		_, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
+		_, err := cd.UnmarshalPayload(in)
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, codec.ErrUnmarshal))
 	})
@@ -105,7 +105,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 	t.Run("invalid_field_value", func(t *testing.T) {
 		// number instead of string
 		in := strings.NewReader(`{"data":{"type":"blogs","id":1.03}}`)
-		_, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
+		_, err := cd.UnmarshalPayload(in)
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, codec.ErrUnmarshal))
 	})
@@ -113,7 +113,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 	t.Run("invalid_relationship_type", func(t *testing.T) {
 		// string instead of object
 		in := strings.NewReader(`{"data":{"type":"blogs","id":"1", "relationships":"invalid"}}`)
-		_, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
+		_, err := cd.UnmarshalPayload(in)
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, codec.ErrUnmarshal))
 	})
@@ -121,7 +121,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 	// array
 	t.Run("invalid_id_value_array", func(t *testing.T) {
 		in := strings.NewReader(`{"data":{"type":"blogs","id":{"1":"2"}}}`)
-		_, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
+		_, err := cd.UnmarshalPayload(in)
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, codec.ErrUnmarshal))
 	})
@@ -129,7 +129,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 	// array
 	t.Run("invalid_relationship_value_array", func(t *testing.T) {
 		in := strings.NewReader(`{"data":{"type":"blogs","id":"1", "relationships":["invalid"]}}`)
-		_, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
+		_, err := cd.UnmarshalPayload(in)
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, codec.ErrUnmarshal))
 	})
@@ -137,7 +137,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 	// bool
 	t.Run("invalid_relationship_value_bool", func(t *testing.T) {
 		in := strings.NewReader(`{"data":{"type":"blogs","id":"1", "relationships":true}}`)
-		_, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
+		_, err := cd.UnmarshalPayload(in)
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, codec.ErrUnmarshal))
 	})
@@ -146,7 +146,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 	// invalid field value within i.e. for attribute
 	t.Run("invalid_attribute_value", func(t *testing.T) {
 		in := strings.NewReader(`{"data":{"type":"blogs","id":"1", "attributes":{"title":1.02}}}`)
-		_, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
+		_, err := cd.UnmarshalPayload(in)
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, codec.ErrUnmarshalFieldValue))
 	})
@@ -154,9 +154,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 	t.Run("invalid_field_strict_mode", func(t *testing.T) {
 		// title attribute is missspelled as 'Atitle'
 		in := strings.NewReader(`{"data":{"type":"blogs","id":"1", "attributes":{"Atitle":1.02}}}`)
-		_, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{
-			StrictUnmarshal: true,
-		})
+		_, err := cd.UnmarshalPayload(in, codec.UnmarshalStrictly())
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, codec.ErrUnmarshalFieldName))
 	})
@@ -181,7 +179,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 
 		cd := &Codec{c: c}
 
-		payload, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
+		payload, err := cd.UnmarshalPayload(in)
 		require.NoError(t, err)
 
 		if assert.Len(t, payload.Data, 1) {
@@ -212,7 +210,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 		err := c.RegisterModels(&UnmarshalModel{})
 		require.Nil(t, err)
 
-		payload, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
+		payload, err := cd.UnmarshalPayload(in)
 		require.NoError(t, err)
 
 		if assert.Len(t, payload.Data, 1) {
@@ -248,7 +246,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 		err := c.RegisterModels(&UnmarshalModel{})
 		require.Nil(t, err)
 
-		_, err = cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
+		_, err = cd.UnmarshalPayload(in)
 		assert.Error(t, err)
 	})
 
@@ -268,7 +266,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 		err := c.RegisterModels(&UnmarshalModel{})
 		require.Nil(t, err)
 
-		_, err = cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
+		_, err = cd.UnmarshalPayload(in)
 		assert.Error(t, err)
 	})
 
@@ -281,7 +279,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 
 			in := strings.NewReader(`{"data":{"type":"arr_models","id":"1","attributes":{"arr": [1.251,125.162,16.162]}}}`)
 
-			_, err = cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
+			_, err = cd.UnmarshalPayload(in)
 			assert.Error(t, err)
 		})
 
@@ -293,7 +291,7 @@ func TestUnmarshalScopeOne(t *testing.T) {
 
 			in := strings.NewReader(`{"data":{"type":"arr_models","id":"1","attributes":{"arr": [1.251,125.162]}}}`)
 
-			payload, err := cd.UnmarshalPayload(in, codec.UnmarshalOptions{})
+			payload, err := cd.UnmarshalPayload(in)
 			require.NoError(t, err)
 
 			if assert.Len(t, payload.Data, 1) {
@@ -1159,7 +1157,7 @@ func TestUnmarshalEmpty(t *testing.T) {
 		buf.Reset()
 		buf.WriteString(`{"data": null}`)
 
-		payload, err := cd.UnmarshalPayload(buf, codec.UnmarshalOptions{})
+		payload, err := cd.UnmarshalPayload(buf)
 		require.NoError(t, err)
 
 		assert.Len(t, payload.Data, 0)
@@ -1169,7 +1167,7 @@ func TestUnmarshalEmpty(t *testing.T) {
 		buf.Reset()
 		buf.WriteString(`{"data": []}`)
 
-		payload, err := cd.UnmarshalPayload(buf, codec.UnmarshalOptions{})
+		payload, err := cd.UnmarshalPayload(buf)
 		require.NoError(t, err)
 
 		assert.Len(t, payload.Data, 0)

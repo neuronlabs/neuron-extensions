@@ -33,7 +33,6 @@ func (m marshaler) MarshalJSON() ([]byte, error) {
 		sb.Write(value)
 		if i != len(m)-1 {
 			sb.WriteRune(',')
-			sb.WriteRune(' ')
 		}
 	}
 	sb.WriteRune('}')

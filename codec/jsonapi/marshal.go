@@ -6,7 +6,7 @@ import (
 	"path"
 	"time"
 
-	neuronCodec "github.com/neuronlabs/neuron/codec"
+	"github.com/neuronlabs/neuron/codec"
 	"github.com/neuronlabs/neuron/errors"
 
 	"github.com/neuronlabs/neuron/log"
@@ -16,7 +16,7 @@ import (
 // ErrorsPayload is a serializer struct for representing a valid JSON API errors payload.
 type ErrorsPayload struct {
 	JSONAPI map[string]interface{} `json:"jsonapi,omitempty"`
-	Errors  []*neuronCodec.Error   `json:"errors"`
+	Errors  []*codec.Error         `json:"errors"`
 }
 
 // Marshal marshals provided value 'v' into writer 'w'
@@ -28,7 +28,7 @@ func marshalPayload(w io.Writer, payload Payloader) error {
 	return nil
 }
 
-func (c Codec) visitModels(models []mapping.Model, linkOptions neuronCodec.LinkOptions) (nodes []*Node, err error) {
+func (c Codec) visitModels(models []mapping.Model, linkOptions codec.LinkOptions) (nodes []*Node, err error) {
 	var mStruct *mapping.ModelStruct
 	for _, model := range models {
 		if model == nil {
@@ -47,7 +47,7 @@ func (c Codec) visitModels(models []mapping.Model, linkOptions neuronCodec.LinkO
 	return nodes, nil
 }
 
-func (c Codec) visitPayloadModels(payload *neuronCodec.Payload) (nodes []*Node, err error) {
+func (c Codec) visitPayloadModels(payload *codec.Payload, options *codec.MarshalOptions) (nodes []*Node, err error) {
 	nodes = make([]*Node, len(payload.Data))
 	var mStruct *mapping.ModelStruct
 
@@ -68,7 +68,7 @@ func (c Codec) visitPayloadModels(payload *neuronCodec.Payload) (nodes []*Node, 
 		}
 	case len(payload.Data):
 	default:
-		return nil, errors.WrapDetf(neuronCodec.ErrMarshalPayload, "provided invalid payload fieldset number")
+		return nil, errors.WrapDetf(codec.ErrMarshalPayload, "provided invalid payload fieldset number")
 	}
 
 	for i, model := range payload.Data {
@@ -89,9 +89,9 @@ func (c Codec) visitPayloadModels(payload *neuronCodec.Payload) (nodes []*Node, 
 		}
 
 		if mStruct != payload.ModelStruct {
-			return nil, errors.WrapDet(neuronCodec.ErrMarshal, "expecting payload with single model type - provided multiple type models")
+			return nil, errors.WrapDet(codec.ErrMarshal, "expecting payload with single model type - provided multiple type models")
 		}
-		node, err := visitModelNode(mStruct, model, payload.MarshalLinks, fieldSet...)
+		node, err := visitModelNode(mStruct, model, options.Link, fieldSet...)
 		if err != nil {
 			return nil, err
 		}
@@ -100,7 +100,7 @@ func (c Codec) visitPayloadModels(payload *neuronCodec.Payload) (nodes []*Node, 
 	return nodes, nil
 }
 
-func visitModelNode(mStruct *mapping.ModelStruct, model mapping.Model, linkOptions neuronCodec.LinkOptions, fieldSet ...*mapping.StructField) (node *Node, err error) {
+func visitModelNode(mStruct *mapping.ModelStruct, model mapping.Model, linkOptions codec.LinkOptions, fieldSet ...*mapping.StructField) (node *Node, err error) {
 	node = &Node{Type: mStruct.Collection()}
 
 	// set primary
@@ -189,11 +189,11 @@ func visitModelNode(mStruct *mapping.ModelStruct, model mapping.Model, linkOptio
 				continue
 			}
 
-			if field.IsISO8601() {
+			if field.CodecISO8601() {
 				if log.CurrentLevel().IsAllowed(log.LevelDebug3) {
 					log.Debug3f("jsonapi marshal: %s - field: %s marshal time field using ISO8601 format", mStruct, field.NeuronName())
 				}
-				node.Attributes[fieldName] = t.UTC().Format(neuronCodec.ISO8601TimeFormat)
+				node.Attributes[fieldName] = t.UTC().Format(codec.ISO8601TimeFormat)
 			} else {
 				node.Attributes[fieldName] = t.Unix()
 			}
@@ -236,7 +236,7 @@ func visitModelNode(mStruct *mapping.ModelStruct, model mapping.Model, linkOptio
 				r.Data[i] = &Node{Type: relation.NeuronCollectionName(), ID: id}
 			}
 
-			if linkOptions.Type == neuronCodec.ResourceLink {
+			if linkOptions.Type == codec.ResourceLink {
 				link := make(map[string]interface{})
 				link["self"] = path.Join(linkOptions.BaseURL, mStruct.Collection(), node.ID, "relationships", fieldName)
 				link["related"] = path.Join(linkOptions.BaseURL, mStruct.Collection(), node.ID, fieldName)
@@ -267,7 +267,7 @@ func visitModelNode(mStruct *mapping.ModelStruct, model mapping.Model, linkOptio
 			}
 
 			r := &RelationshipOneNode{}
-			if linkOptions.Type == neuronCodec.ResourceLink {
+			if linkOptions.Type == codec.ResourceLink {
 				link := make(map[string]interface{})
 				link["self"] = path.Join(linkOptions.BaseURL, mStruct.Collection(), node.ID, "relationships", fieldName)
 				link["related"] = path.Join(linkOptions.BaseURL, mStruct.Collection(), node.ID, fieldName)
@@ -285,7 +285,7 @@ func visitModelNode(mStruct *mapping.ModelStruct, model mapping.Model, linkOptio
 		}
 	}
 
-	if linkOptions.Type == neuronCodec.ResourceLink {
+	if linkOptions.Type == codec.ResourceLink {
 		links := make(map[string]interface{})
 		links["self"] = path.Join(linkOptions.BaseURL, mStruct.Collection(), node.ID)
 		linksObj := Links(links)

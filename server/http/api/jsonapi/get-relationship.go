@@ -175,14 +175,18 @@ func (a *API) handleGetRelationship(mStruct *mapping.ModelStruct, relation *mapp
 		if !a.Options.PayloadLinks {
 			linkType = codec.NoLink
 		}
-		result.MarshalLinks = codec.LinkOptions{
-			Type:          linkType,
-			BaseURL:       a.Options.PathPrefix,
-			RootID:        id,
-			Collection:    mStruct.Collection(),
-			RelationField: relation.NeuronName(),
+		options := []codec.MarshalOption{
+			codec.MarshalWithLinks(codec.LinkOptions{
+				Type:          linkType,
+				BaseURL:       a.Options.PathPrefix,
+				RootID:        id,
+				Collection:    mStruct.Collection(),
+				RelationField: relation.NeuronName(),
+			}),
 		}
-		result.MarshalSingularFormat = !relation.Relationship().IsToMany()
+		if !relation.Relationship().IsToMany() {
+			options = append(options, codec.MarshalSingleModel())
+		}
 		result.PaginationLinks = &codec.PaginationLinks{}
 		sb := strings.Builder{}
 		sb.WriteString(a.basePath())
@@ -197,6 +201,6 @@ func (a *API) handleGetRelationship(mStruct *mapping.ModelStruct, relation *mapp
 			sb.WriteString(q.Encode())
 		}
 		result.PaginationLinks.Self = sb.String()
-		a.marshalPayload(rw, result, http.StatusOK)
+		a.marshalPayload(rw, result, http.StatusOK, options...)
 	}
 }

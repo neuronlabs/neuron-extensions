@@ -33,9 +33,13 @@ func (a *API) handleUpdate(mStruct *mapping.ModelStruct) http.HandlerFunc {
 			a.marshalErrors(rw, 0, err)
 			return
 		}
-		// unmarshal the input from the request body.
+		unmarshalOptions := []codec.UnmarshalOption{codec.UnmarshalWithModelStruct(mStruct)}
+		if a.Options.StrictUnmarshal {
+			unmarshalOptions = append(unmarshalOptions, codec.UnmarshalStrictly())
+		}
+		// Unmarshal the input from the request body.
 		pu := jsonapi.GetCodec(a.Controller).(codec.PayloadUnmarshaler)
-		payload, err := pu.UnmarshalPayload(req.Body, codec.UnmarshalOptions{StrictUnmarshal: a.Options.StrictUnmarshal, ModelStruct: mStruct})
+		payload, err := pu.UnmarshalPayload(req.Body, unmarshalOptions...)
 		if err != nil {
 			log.Debugf("Unmarshal scope for: '%s' failed: %v", mStruct.Collection(), err)
 			a.marshalErrors(rw, 0, err)
@@ -178,16 +182,20 @@ func (a *API) handleUpdate(mStruct *mapping.ModelStruct) http.HandlerFunc {
 
 		result.ModelStruct = mStruct
 		result.FieldSets = []mapping.FieldSet{append(mStruct.Fields(), mStruct.RelationFields()...)}
-		if result.MarshalLinks.Type == codec.NoLink {
-			result.MarshalLinks = codec.LinkOptions{
-				Type:       linkType,
-				BaseURL:    a.Options.PathPrefix,
-				RootID:     httputil.CtxMustGetID(ctx),
-				Collection: mStruct.Collection(),
-			}
+		marshalOptions := []codec.MarshalOption{
+			codec.MarshalSingleModel(),
 		}
-		result.MarshalSingularFormat = true
-		a.marshalPayload(rw, result, http.StatusOK)
+		if linkType != codec.NoLink {
+			marshalOptions = append(marshalOptions,
+				codec.MarshalWithLinks(codec.LinkOptions{
+					Type:       linkType,
+					BaseURL:    a.Options.PathPrefix,
+					RootID:     httputil.CtxMustGetID(ctx),
+					Collection: mStruct.Collection(),
+				}),
+			)
+		}
+		a.marshalPayload(rw, result, http.StatusOK, marshalOptions...)
 	}
 }
 

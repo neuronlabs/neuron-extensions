@@ -405,11 +405,11 @@ func (a *API) marshalErrors(rw http.ResponseWriter, status int, err error) {
 	}
 }
 
-func (a *API) marshalPayload(rw http.ResponseWriter, payload *codec.Payload, status int) {
+func (a *API) marshalPayload(rw http.ResponseWriter, payload *codec.Payload, status int, options ...codec.MarshalOption) {
 	a.writeContentType(rw)
 	buf := &bytes.Buffer{}
 	payloadMarshaler := jsonapi.GetCodec(a.Controller).(codec.PayloadMarshaler)
-	if err := payloadMarshaler.MarshalPayload(buf, payload); err != nil {
+	if err := payloadMarshaler.MarshalPayload(buf, payload, options...); err != nil {
 		rw.WriteHeader(500)
 		err := jsonapi.GetCodec(a.Controller).MarshalErrors(rw, httputil.ErrInternalError())
 		if err != nil {

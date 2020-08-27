@@ -13,30 +13,93 @@ import (
 )
 
 // UnmarshalModels implements codec.Codec interface.
-func (c Codec) UnmarshalModels(data []byte, options codec.UnmarshalOptions) ([]mapping.Model, error) {
-	// get the payload.
-	payload, err := getPayload(data)
+func (c Codec) UnmarshalModels(data []byte, options ...codec.UnmarshalOption) ([]mapping.Model, error) {
+	o, err := c.unmarshalOptions(options)
 	if err != nil {
 		return nil, err
 	}
-	var models []mapping.Model
-	for _, n := range payload.nodes() {
-		model, _, err := c.unmarshalNode(options.ModelStruct, n, options)
+
+	var modelNodes []modelNode
+	if o.ExpectSingle {
+		node := modelNode{}
+		if err = json.Unmarshal(data, &node); err != nil {
+			return nil, errors.Wrapf(codec.ErrUnmarshalDocument, "%s", err.Error())
+		}
+		modelNodes = append(modelNodes, node)
+	} else {
+		if err = json.Unmarshal(data, &modelNodes); err != nil {
+			return nil, errors.Wrapf(codec.ErrUnmarshalDocument, "%s", err.Error())
+		}
+	}
+	models := make([]mapping.Model, len(modelNodes))
+	for i, n := range modelNodes {
+		models[i], _, err = c.unmarshalNode(o.ModelStruct, n, o)
 		if err != nil {
 			return nil, err
 		}
-		models = append(models, model)
+
 	}
 	return models, nil
 }
 
-// UnmarshalPayload implements codec.PayloadMarshaler interface.
-func (c Codec) UnmarshalPayload(r io.Reader, options codec.UnmarshalOptions) (*codec.Payload, error) {
-	data, err := ioutil.ReadAll(r)
+func (c Codec) UnmarshalModel(data []byte, options ...codec.UnmarshalOption) (mapping.Model, error) {
+	o, err := c.unmarshalOptions(options)
 	if err != nil {
-		return nil, errors.WrapDetf(codec.ErrUnmarshal, "reading input failed: %v", err)
+		return nil, err
 	}
 
+	node := modelNode{}
+	if err = json.Unmarshal(data, &node); err != nil {
+		return nil, errors.Wrapf(codec.ErrUnmarshalDocument, "%s", err.Error())
+	}
+
+	model, _, err := c.unmarshalNode(o.ModelStruct, node, o)
+	if err != nil {
+		return nil, err
+	}
+	return model, nil
+}
+
+func (c Codec) unmarshalOptions(options []codec.UnmarshalOption) (*codec.UnmarshalOptions, error) {
+	o := &codec.UnmarshalOptions{}
+	for _, option := range options {
+		option(o)
+	}
+	if o.ModelStruct == nil && o.Model == nil {
+		return nil, errors.Wrap(codec.ErrOptions, "no model nor modelstruct provided in the unmarshal options")
+	}
+
+	if o.Model != nil {
+		// Get the model struct from provided options model.
+		mStruct, err := c.c.ModelStruct(o.Model)
+		if err != nil {
+			if errors.Is(err, mapping.ErrModelNotFound) {
+				return nil, errors.Wrap(codec.ErrOptions, "provided option model is not found within given controller")
+			}
+			return nil, errors.Wrapf(codec.ErrOptions, "getting model struct for provided option model failed: %v", err)
+		}
+		if o.ModelStruct != nil && o.ModelStruct != mStruct {
+			return nil, errors.Wrap(codec.ErrOptions, "provided both model and model struct options. But these values doesn't specify the same model structure")
+		}
+		o.ModelStruct = mStruct
+	}
+	return o, nil
+}
+
+// UnmarshalPayload implements codec.PayloadMarshaler interface.
+func (c Codec) UnmarshalPayload(r io.Reader, options ...codec.UnmarshalOption) (*codec.Payload, error) {
+	o, err := c.unmarshalOptions(options)
+	if err != nil {
+		return nil, err
+	}
+
+	// Read all the data from the reader.
+	data, err := ioutil.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the input payload.
 	inputPayload, err := getPayload(data)
 	if err != nil {
 		return nil, err
@@ -46,7 +109,7 @@ func (c Codec) UnmarshalPayload(r io.Reader, options codec.UnmarshalOptions) (*c
 		PaginationLinks: inputPayload.pagination(),
 	}
 	for _, n := range inputPayload.nodes() {
-		model, fieldSet, err := c.unmarshalNode(options.ModelStruct, n, options)
+		model, fieldSet, err := c.unmarshalNode(o.ModelStruct, n, o)
 		if err != nil {
 			return nil, err
 		}
@@ -81,14 +144,14 @@ func getPayload(data []byte) (payloader, error) {
 	}
 }
 
-func (c Codec) unmarshalNode(mStruct *mapping.ModelStruct, node modelNode, options codec.UnmarshalOptions) (mapping.Model, mapping.FieldSet, error) {
+func (c Codec) unmarshalNode(mStruct *mapping.ModelStruct, node modelNode, options *codec.UnmarshalOptions) (mapping.Model, mapping.FieldSet, error) {
 	if !options.StrictUnmarshal {
 		return c.unmarshalNodeNonStrict(mStruct, node, options)
 	}
 	return c.unmarshalNodeStrict(mStruct, node, options)
 }
 
-func (c Codec) unmarshalNodeNonStrict(mStruct *mapping.ModelStruct, n modelNode, options codec.UnmarshalOptions) (mapping.Model, mapping.FieldSet, error) {
+func (c Codec) unmarshalNodeNonStrict(mStruct *mapping.ModelStruct, n modelNode, options *codec.UnmarshalOptions) (mapping.Model, mapping.FieldSet, error) {
 	model := mapping.NewModel(mStruct)
 	var (
 		sField   *mapping.StructField
@@ -141,7 +204,7 @@ func (c Codec) unmarshalNodeNonStrict(mStruct *mapping.ModelStruct, n modelNode,
 	return model, fieldSet, nil
 }
 
-func (c Codec) unmarshalNodeStrict(mStruct *mapping.ModelStruct, node modelNode, options codec.UnmarshalOptions) (mapping.Model, mapping.FieldSet, error) {
+func (c Codec) unmarshalNodeStrict(mStruct *mapping.ModelStruct, node modelNode, options *codec.UnmarshalOptions) (mapping.Model, mapping.FieldSet, error) {
 	model := mapping.NewModel(mStruct)
 	var (
 		sField   *mapping.StructField
@@ -151,20 +214,16 @@ func (c Codec) unmarshalNodeStrict(mStruct *mapping.ModelStruct, node modelNode,
 		err      error
 	)
 	for field, value := range node {
-		var fieldAnnotation codec.FieldAnnotations
 		sField, ok = mStruct.FieldByName(field)
 		if !ok {
 			for _, structField := range mStruct.StructFields() {
-				fieldAnnotation = codec.ExtractFieldAnnotations(structField, "codec")
-				if fieldAnnotation.Name == field {
+				if structField.CodecName() == field {
 					sField = structField
 					break
 				}
 			}
-		} else {
-			fieldAnnotation = codec.ExtractFieldAnnotations(sField, "codec")
 		}
-		if sField == nil || fieldAnnotation.IsHidden {
+		if sField == nil || sField.CodecSkip() {
 			return nil, nil, errors.WrapDetf(codec.ErrUnmarshal, "provided invalid field: '%s'", field)
 		}
 
@@ -188,14 +247,14 @@ func (c Codec) unmarshalNodeStrict(mStruct *mapping.ModelStruct, node modelNode,
 			if value == nil {
 				continue
 			}
-			if err = c.setRelationshipMany(mStruct, model, sField, value, options, fieldAnnotation.Name); err != nil {
+			if err = c.setRelationshipMany(mStruct, model, sField, value, options, sField.CodecName()); err != nil {
 				return nil, nil, err
 			}
 		case mapping.KindRelationshipSingle:
 			if value == nil {
 				continue
 			}
-			if err = c.setRelationshipSingle(mStruct, model, sField, value, options, fieldAnnotation.Name); err != nil {
+			if err = c.setRelationshipSingle(mStruct, model, sField, value, options, sField.CodecName()); err != nil {
 				return nil, nil, err
 			}
 		}
@@ -203,7 +262,7 @@ func (c Codec) unmarshalNodeStrict(mStruct *mapping.ModelStruct, node modelNode,
 	return model, fieldSet, nil
 }
 
-func (c Codec) setRelationshipSingle(mStruct *mapping.ModelStruct, model mapping.Model, sField *mapping.StructField, value interface{}, options codec.UnmarshalOptions, name string) error {
+func (c Codec) setRelationshipSingle(mStruct *mapping.ModelStruct, model mapping.Model, sField *mapping.StructField, value interface{}, options *codec.UnmarshalOptions, name string) error {
 	v, ok := value.(map[string]interface{})
 	if !ok {
 		return errors.WrapDetf(codec.ErrUnmarshal, "provided invalid model relation: '%s' field", name)
@@ -219,7 +278,7 @@ func (c Codec) setRelationshipSingle(mStruct *mapping.ModelStruct, model mapping
 	return sr.SetRelationModel(sField, relationNode)
 }
 
-func (c Codec) setRelationshipMany(mStruct *mapping.ModelStruct, model mapping.Model, sField *mapping.StructField, value interface{}, options codec.UnmarshalOptions, name string) error {
+func (c Codec) setRelationshipMany(mStruct *mapping.ModelStruct, model mapping.Model, sField *mapping.StructField, value interface{}, options *codec.UnmarshalOptions, name string) error {
 	values, ok := value.([]interface{})
 	if !ok {
 		return errors.WrapDetf(codec.ErrUnmarshal, "provided invalid model relation: '%s' field value", name)
@@ -245,13 +304,13 @@ func (c Codec) setRelationshipMany(mStruct *mapping.ModelStruct, model mapping.M
 
 func setAttribute(sField *mapping.StructField, value interface{}, fielder mapping.Fielder) error {
 	if sField.IsTime() && !(sField.IsTimePointer() && value == nil) {
-		if sField.IsISO8601() {
+		if sField.CodecISO8601() {
 			strVal, ok := value.(string)
 			if !ok {
 				return errors.WrapDet(mapping.ErrFieldValue, "invalid ISO8601 time field").
 					WithDetailf("Time field: '%s' has invalid formatting.", sField.NeuronName())
 			}
-			t, err := time.Parse(strVal, codec.ISO8601TimeFormat)
+			t, err := time.Parse(codec.ISO8601TimeFormat, strVal)
 			if err != nil {
 				return errors.WrapDet(mapping.ErrFieldValue, "invalid ISO8601 time field").
 					WithDetailf("Time field: '%s' has invalid formatting.", sField.NeuronName())

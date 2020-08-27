@@ -40,8 +40,8 @@ github.com/neuronlabs/brotli v1.0.1 h1:hsqYyCmZ2zTZlK8FEUgNNGysaO+5SrhaFz/e/FbLl
 github.com/neuronlabs/brotli v1.0.1/go.mod h1:iysgfWo5kgcULNA2Yi6IRolAdZtg4EMEJkQPEcXnF5I=
 github.com/neuronlabs/inflection v1.0.1 h1:LDuwbM1jYKEf6DDcA7XV7JRn3Sv9/PBiW6iUojZhTZ4=
 github.com/neuronlabs/inflection v1.0.1/go.mod h1:gnqNj1uxAGPYT1LsHRvSyBcd57vvIKTuTmS3ffdgRd8=
-github.com/neuronlabs/neuron v0.18.0 h1:VJWvAhjWQhMCCjQlDLRpx12f0f8XQpUvfveN7qtCwGE=
-github.com/neuronlabs/neuron v0.18.0/go.mod h1:DifnmQQdc0QLsGgXCrj9z2Ly3l4/8axL84LgKMukRuY=
+github.com/neuronlabs/neuron v0.19.0 h1:3ipMeh7I1ESO1NP2Qxr0hbIieZYLD1lLA/Lqb97fvm8=
+github.com/neuronlabs/neuron v0.19.0/go.mod h1:xjSqaRsUv89SeieBQ3RsEmMMyEPUbl1/rn2WmK3mmiA=
 github.com/neuronlabs/strcase v1.0.0 h1:F/7Scr7ojAL6l5g3MQiCENGlMI/NK6LwAfaURcUiI7U=
 github.com/neuronlabs/strcase v1.0.0/go.mod h1:IhdRx7jB1zZAQ5r2ryfBc/28sWmXZDbQi7XokQKCpgo=
 github.com/pelletier/go-toml v1.0.1-0.20170904195809-1d6b12b7cb29/go.mod h1:5z9KED0ma1S8pY6P1sdut58dfprrGBbd/94hg7ilaic=
@@ -56,10 +56,15 @@ github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+
 github.com/stretchr/testify v1.4.0 h1:2E4SXV/wtOkTonXsotYi4li6zVWxYlZuYNCXe9XRJyk=
 github.com/stretchr/testify v1.4.0/go.mod h1:j7eGeouHqKxXV5pUuKE4zz7dFj8WfuZ+81PSLYec5m4=
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
+golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
 golang.org/x/net v0.0.0-20190603091049-60506f45cf65/go.mod h1:HSz+uSET+XFnRR8LxR5pz3Of3rY3CfYBVs4xY44aLks=
+golang.org/x/net v0.0.0-20200822124328-c89045814202/go.mod h1:/O7V0waA8r7cgGh81Ro3o1hOxt32SMVPicZroKQ2sZA=
 golang.org/x/oauth2 v0.0.0-20170912212905-13449ad91cb2/go.mod h1:N/0e6XlmueqKjAGxoOufVs8QHGRruUQn6yWY3a++T0U=
 golang.org/x/sync v0.0.0-20170517211232-f52d1811a629/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
 golang.org/x/text v0.3.2/go.mod h1:bEr9sfX3Q8Zfm5fL9x+3itogRgK3+ptLWKqgva+5dAk=
 golang.org/x/time v0.0.0-20170424234030-8be79e1e0910/go.mod h1:tRJNPiyCQ0inRvYxbN9jk5I+vvW/OXSQhTDSoE431IQ=

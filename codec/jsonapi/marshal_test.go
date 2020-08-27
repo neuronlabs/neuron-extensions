@@ -32,7 +32,7 @@ func TestMarshal(t *testing.T) {
 		"single": func(t *testing.T) {
 			cd := prepareBlogs(t)
 			value := &Blog{ID: 5, Title: "My title", ViewCount: 14}
-			data, err := cd.MarshalModels([]mapping.Model{value}, codec.MarshalOptions{})
+			data, err := cd.MarshalModels([]mapping.Model{value})
 			if assert.NoError(t, err) {
 				assert.Contains(t, string(data), `"title":"My title"`)
 				assert.Contains(t, string(data), `"view_count":14`)
@@ -46,7 +46,7 @@ func TestMarshal(t *testing.T) {
 				now := time.Now()
 				value := &ModelTime{ID: 5, Time: now}
 
-				marshaled, err := cd.MarshalModels([]mapping.Model{value}, codec.MarshalOptions{})
+				marshaled, err := cd.MarshalModels([]mapping.Model{value})
 				if assert.NoError(t, err) {
 					assert.Contains(t, string(marshaled), "time")
 					assert.Contains(t, string(marshaled), `"id":"5"`)
@@ -57,7 +57,7 @@ func TestMarshal(t *testing.T) {
 				cd := prepare(t, &ModelPtrTime{})
 				now := time.Now()
 				value := &ModelPtrTime{ID: 5, Time: &now}
-				marshaled, err := cd.MarshalModels([]mapping.Model{value}, codec.MarshalOptions{})
+				marshaled, err := cd.MarshalModels([]mapping.Model{value})
 				if assert.NoError(t, err) {
 					assert.Contains(t, string(marshaled), "time")
 					assert.Contains(t, string(marshaled), `"id":"5"`)
@@ -166,7 +166,7 @@ func TestMarshal(t *testing.T) {
 			cd := prepareBlogs(t)
 
 			values := []mapping.Model{&Blog{ID: 5, Title: "First"}, &Blog{ID: 2, Title: "Second"}}
-			marshaled, err := cd.MarshalModels(values, codec.MarshalOptions{})
+			marshaled, err := cd.MarshalModels(values)
 			if assert.NoError(t, err) {
 				assert.Contains(t, string(marshaled), `"title":"First"`)
 				assert.Contains(t, string(marshaled), `"title":"Second"`)
@@ -251,7 +251,7 @@ func TestMarshalPayload(t *testing.T) {
 			}},
 		}
 
-		nodes, err := cd.visitPayloadModels(payload)
+		nodes, err := cd.visitPayloadModels(payload, &codec.MarshalOptions{})
 		if assert.NoError(t, err) {
 			assert.Equal(t, strconv.Itoa(pet.ID), nodes[0].ID)
 			if assert.NotEmpty(t, nodes[0].Relationships) {
@@ -295,7 +295,7 @@ func TestMarshalPayload(t *testing.T) {
 		}
 		cd := &Codec{c: c}
 
-		nodes, err := cd.visitPayloadModels(payload)
+		nodes, err := cd.visitPayloadModels(payload, &codec.MarshalOptions{})
 		require.NoError(t, err)
 
 		assert.Equal(t, strconv.Itoa(pet.ID), nodes[0].ID)
@@ -386,7 +386,7 @@ func TestMarshalCustomTag(t *testing.T) {
 
 	cd := &Codec{c: c}
 
-	nodes, err := cd.visitPayloadModels(payload)
+	nodes, err := cd.visitPayloadModels(payload, &codec.MarshalOptions{})
 	require.NoError(t, err)
 
 	require.Len(t, nodes, 1)

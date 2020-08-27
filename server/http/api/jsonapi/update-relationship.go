@@ -56,11 +56,12 @@ func (a *API) handleUpdateRelationship(mStruct *mapping.ModelStruct, relation *m
 		}
 
 		// Unmarshal relationship input.
+		unmarshalOptions := []codec.UnmarshalOption{codec.UnmarshalWithModelStruct(relation.Relationship().RelatedModelStruct())}
+		if a.Options.StrictUnmarshal {
+			unmarshalOptions = append(unmarshalOptions, codec.UnmarshalStrictly())
+		}
 		pu := jsonapi.GetCodec(a.Controller).(codec.PayloadUnmarshaler)
-		payload, err := pu.UnmarshalPayload(req.Body, codec.UnmarshalOptions{
-			StrictUnmarshal: a.Options.StrictUnmarshal,
-			ModelStruct:     relation.Relationship().RelatedModelStruct(),
-		})
+		payload, err := pu.UnmarshalPayload(req.Body, unmarshalOptions...)
 		if err != nil {
 			a.marshalErrors(rw, 0, err)
 			return
@@ -173,14 +174,18 @@ func (a *API) handleUpdateRelationship(mStruct *mapping.ModelStruct, relation *m
 		result.ModelStruct = relation.Relationship().RelatedModelStruct()
 		result.Data = payload.Data
 		result.FieldSets = []mapping.FieldSet{{relation.Relationship().RelatedModelStruct().Primary()}}
-		result.MarshalLinks = codec.LinkOptions{
-			Type:          link,
-			BaseURL:       a.Options.PathPrefix,
-			RootID:        id,
-			Collection:    mStruct.Collection(),
-			RelationField: relation.NeuronName(),
+		marshalOptions := []codec.MarshalOption{
+			codec.MarshalWithLinks(codec.LinkOptions{
+				Type:          link,
+				BaseURL:       a.Options.PathPrefix,
+				RootID:        id,
+				Collection:    mStruct.Collection(),
+				RelationField: relation.NeuronName(),
+			}),
 		}
-		result.MarshalSingularFormat = relation.Kind() == mapping.KindRelationshipSingle
-		a.marshalPayload(rw, result, http.StatusOK)
+		if relation.Kind() == mapping.KindRelationshipSingle {
+			marshalOptions = append(marshalOptions, codec.MarshalSingleModel())
+		}
+		a.marshalPayload(rw, result, http.StatusOK, marshalOptions...)
 	}
 }

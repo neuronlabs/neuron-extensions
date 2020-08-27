@@ -132,11 +132,10 @@ func (a *API) handleRegisterAccount(rw http.ResponseWriter, req *http.Request) {
 	}
 	// Marshal given payload into json codec.
 	payload.ModelStruct = a.model
-	payload.MarshalSingularFormat = true
 
 	rw.WriteHeader(http.StatusCreated)
 	cdc := jsonCodec.GetCodec(a.Controller)
-	if err := cdc.MarshalPayload(rw, payload); err != nil {
+	if err := cdc.MarshalPayload(rw, payload, codec.MarshalSingleModel()); err != nil {
 		log.Errorf("Marshaling account payload failed: %v", err)
 	}
 }

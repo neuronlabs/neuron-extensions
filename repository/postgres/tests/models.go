@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
-//go:generate neurogns models methods --format=goimports --single-file .
+//go:generate neurogonesis models methods --format=goimports --single-file .
 
 // InsertModel is the model prepared for insertion.
 type SimpleModel struct {

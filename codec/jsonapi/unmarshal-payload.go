@@ -9,8 +9,13 @@ import (
 )
 
 // UnmarshalPayload implements codec.PayloadUnmarshaler interface.
-func (c Codec) UnmarshalPayload(r io.Reader, options codec.UnmarshalOptions) (*codec.Payload, error) {
-	payloader, err := unmarshalPayload(r, options)
+func (c Codec) UnmarshalPayload(r io.Reader, options ...codec.UnmarshalOption) (*codec.Payload, error) {
+	o, err := c.unmarshalOptions(options)
+	if err != nil {
+		return nil, err
+	}
+
+	payloader, err := unmarshalPayload(r, o)
 	if err != nil {
 		return nil, unmarshalHandleDecodeError(err)
 	}
@@ -23,9 +28,9 @@ func (c Codec) UnmarshalPayload(r io.Reader, options codec.UnmarshalOptions) (*c
 		}
 	}
 
-	payload := &codec.Payload{ModelStruct: options.ModelStruct}
+	payload := &codec.Payload{ModelStruct: o.ModelStruct}
 	for _, node := range payloader.GetNodes() {
-		if options.ModelStruct == nil {
+		if o.ModelStruct == nil {
 			mStruct, ok := c.c.ModelMap.GetByCollection(node.Type)
 			if !ok {
 				return nil, errors.WrapDetf(codec.ErrUnmarshal, "provided unknown collection type: %s", node.Type).
@@ -40,7 +45,7 @@ func (c Codec) UnmarshalPayload(r io.Reader, options codec.UnmarshalOptions) (*c
 		}
 		modelStruct := payload.ModelStruct
 		model := mapping.NewModel(modelStruct)
-		fieldSet, err := unmarshalNode(modelStruct, node, model, includes, options)
+		fieldSet, err := unmarshalNode(modelStruct, node, model, includes, o)
 		if err != nil {
 			return nil, err
 		}
@@ -48,4 +53,30 @@ func (c Codec) UnmarshalPayload(r io.Reader, options codec.UnmarshalOptions) (*c
 		payload.FieldSets = append(payload.FieldSets, fieldSet)
 	}
 	return payload, nil
+}
+
+func (c Codec) unmarshalOptions(options []codec.UnmarshalOption) (*codec.UnmarshalOptions, error) {
+	o := &codec.UnmarshalOptions{}
+	for _, option := range options {
+		option(o)
+	}
+	if o.ModelStruct == nil && o.Model == nil {
+		return o, nil
+	}
+
+	if o.Model != nil {
+		// Get the model struct from provided options model.
+		mStruct, err := c.c.ModelStruct(o.Model)
+		if err != nil {
+			if errors.Is(err, mapping.ErrModelNotFound) {
+				return nil, errors.Wrap(codec.ErrOptions, "provided option model is not found within given controller")
+			}
+			return nil, errors.Wrapf(codec.ErrOptions, "getting model struct for provided option model failed: %v", err)
+		}
+		if o.ModelStruct != nil && o.ModelStruct != mStruct {
+			return nil, errors.Wrap(codec.ErrOptions, "provided both model and model struct options. But these values doesn't specify the same model structure")
+		}
+		o.ModelStruct = mStruct
+	}
+	return o, nil
 }

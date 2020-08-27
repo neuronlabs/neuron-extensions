@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/patrickmn/go-cache"
 
@@ -50,30 +49,28 @@ func (m *Memory) Initialize(c *core.Controller) error {
 }
 
 // Set implements store.Store interface.
-func (m *Memory) Set(ctx context.Context, record *store.Record) error {
+func (m *Memory) Set(_ context.Context, record *store.Record, options ...store.SetOption) error {
+	o := &store.SetOptions{}
+	for _, option := range options {
+		option(o)
+	}
+	ttl := m.Options.DefaultExpiration
+	if o.TTL != 0 {
+		ttl = o.TTL
+	}
 	key := m.key(record.Key)
 	if record.ExpiresAt.IsZero() {
-		record.ExpiresAt = m.c.Now().Add(m.Options.DefaultExpiration)
+		record.ExpiresAt = m.c.Now().Add(ttl)
 	}
-	m.cache.Set(key, record.Value, m.Options.DefaultExpiration)
-	return nil
-}
+	cp := make([]byte, len(record.Value))
+	copy(cp, record.Value)
 
-// SetWithTTL implements store.Store interface.
-func (m *Memory) SetWithTTL(ctx context.Context, record *store.Record, ttl time.Duration) error {
-	key := m.key(record.Key)
-	cp := &store.Record{Key: record.Key, Value: make([]byte, len(record.Value)), ExpiresAt: record.ExpiresAt}
-	if cp.ExpiresAt.IsZero() {
-		cp.ExpiresAt = m.c.Now().Add(ttl)
-	}
-	copy(cp.Value, record.Value)
-
-	m.cache.Set(key, record.Value, ttl)
+	m.cache.Set(key, cp, ttl)
 	return nil
 }
 
 // Get implements store.Store interface.
-func (m *Memory) Get(ctx context.Context, key string) (*store.Record, error) {
+func (m *Memory) Get(_ context.Context, key string) (*store.Record, error) {
 	v, expiration, found := m.cache.GetWithExpiration(m.key(key))
 	if !found {
 		return nil, store.ErrRecordNotFound
@@ -91,7 +88,7 @@ func (m *Memory) Get(ctx context.Context, key string) (*store.Record, error) {
 }
 
 // Delete implements store.Store interface.
-func (m *Memory) Delete(ctx context.Context, key string) error {
+func (m *Memory) Delete(_ context.Context, key string) error {
 	_, found := m.cache.Get(m.key(key))
 	if !found {
 		return store.ErrRecordNotFound
@@ -101,7 +98,7 @@ func (m *Memory) Delete(ctx context.Context, key string) error {
 }
 
 // Find implements store.Store.
-func (m *Memory) Find(ctx context.Context, options ...store.FindOption) ([]*store.Record, error) {
+func (m *Memory) Find(_ context.Context, options ...store.FindOption) ([]*store.Record, error) {
 	findOptions := &store.FindPattern{}
 	for _, option := range options {
 		option(findOptions)

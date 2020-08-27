@@ -10,7 +10,7 @@ import (
 	"github.com/neuronlabs/neuron/mapping"
 )
 
-//go:generate neurogns models methods methods --format=goimports --type=Model,BasicModel --single-file .
+//go:generate neurogonesis models methods methods --format=goimports --type=Model,BasicModel --single-file .
 
 type Model struct {
 	ID         int        `neuron:"type=primary"`

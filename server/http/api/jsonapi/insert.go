@@ -23,9 +23,13 @@ func (a *API) HandleInsert(model mapping.Model) http.HandlerFunc {
 
 func (a *API) handleInsert(mStruct *mapping.ModelStruct) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
-		// unmarshal the input from the request body.
+		// Unmarshal the input from the request body.
+		unmarshalOptions := []codec.UnmarshalOption{codec.UnmarshalWithModelStruct(mStruct)}
+		if a.Options.StrictUnmarshal {
+			unmarshalOptions = append(unmarshalOptions, codec.UnmarshalStrictly())
+		}
 		pu := jsonapi.GetCodec(a.Controller).(codec.PayloadUnmarshaler)
-		payload, err := pu.UnmarshalPayload(req.Body, codec.UnmarshalOptions{StrictUnmarshal: a.Options.StrictUnmarshal, ModelStruct: mStruct})
+		payload, err := pu.UnmarshalPayload(req.Body, unmarshalOptions...)
 		if err != nil {
 			log.Debugf("Unmarshal scope for: '%s' failed: %v", mStruct.Collection(), err)
 			a.marshalErrors(rw, 0, err)
@@ -173,23 +177,25 @@ func (a *API) handleInsert(mStruct *mapping.ModelStruct) http.HandlerFunc {
 		}
 
 		linkType := codec.ResourceLink
-		// but if the config doesn't allow that - set 'jsonapi.NoLink'
+		// But if the config doesn't allow that - set 'jsonapi.NoLink'
 		if !a.Options.PayloadLinks {
 			linkType = codec.NoLink
 		}
 
 		result.ModelStruct = mStruct
 		result.FieldSets = []mapping.FieldSet{append(mStruct.Fields(), mStruct.RelationFields()...)}
-		if result.MarshalLinks.Type == codec.NoLink {
-			result.MarshalLinks = codec.LinkOptions{
-				Type:       linkType,
-				BaseURL:    a.Options.PathPrefix,
-				RootID:     stringID,
-				Collection: mStruct.Collection(),
-			}
+		marshalOptions := []codec.MarshalOption{codec.MarshalSingleModel()}
+		if linkType != codec.NoLink {
+			marshalOptions = append(marshalOptions,
+				codec.MarshalWithLinks(codec.LinkOptions{
+					Type:       linkType,
+					BaseURL:    a.Options.PathPrefix,
+					RootID:     stringID,
+					Collection: mStruct.Collection(),
+				}),
+			)
 		}
-		result.MarshalSingularFormat = true
-		a.marshalPayload(rw, result, http.StatusCreated)
+		a.marshalPayload(rw, result, http.StatusCreated, marshalOptions...)
 	}
 }
 

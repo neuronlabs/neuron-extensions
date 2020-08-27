@@ -12,8 +12,12 @@ import (
 )
 
 // MarshalPayload implements codec.PayloadMarshaler interface.
-func (c Codec) MarshalPayload(w io.Writer, payload *codec.Payload) error {
-	nodes, err := c.visitPayloadModels(payload)
+func (c Codec) MarshalPayload(w io.Writer, payload *codec.Payload, options ...codec.MarshalOption) error {
+	o := &codec.MarshalOptions{}
+	for _, option := range options {
+		option(o)
+	}
+	nodes, err := c.visitPayloadModels(payload, o)
 	if err != nil {
 		log.Debug2f("visitModels failed: %v", err)
 		return err
@@ -33,13 +37,13 @@ func (c Codec) MarshalPayload(w io.Writer, payload *codec.Payload) error {
 			payload.Meta[KeyTotal] = payload.PaginationLinks.Total
 		}
 	}
-	if len(nodes) == 1 && payload.MarshalSingularFormat {
+	if len(nodes) == 1 && o.SingleResult {
 		payloader = &SinglePayload{Data: nodes[0], Meta: payload.Meta, Links: topLinks}
 	} else {
 		payloader = &ManyPayload{Data: nodes, Meta: payload.Meta, Links: topLinks}
 	}
 	if len(payload.IncludedRelations) != 0 {
-		included, err := c.extractIncludedNodes(payload)
+		included, err := c.extractIncludedNodes(payload, o)
 		if err != nil {
 			return err
 		}
@@ -52,12 +56,12 @@ func (c Codec) MarshalPayload(w io.Writer, payload *codec.Payload) error {
 
 }
 
-func (c Codec) extractIncludedNodes(payload *codec.Payload) ([]*Node, error) {
+func (c Codec) extractIncludedNodes(payload *codec.Payload, options *codec.MarshalOptions) ([]*Node, error) {
 	collectionUniqueNodes := map[*mapping.ModelStruct]map[interface{}]*Node{}
 	var nodes []*Node
 	for _, included := range payload.IncludedRelations {
 		for _, model := range payload.Data {
-			err := c.extractIncludedModelNode(collectionUniqueNodes, included, model, payload.MarshalLinks)
+			err := c.extractIncludedModelNode(collectionUniqueNodes, included, model, options.Link)
 			if err != nil {
 				return nil, err
 			}

@@ -3,6 +3,7 @@ package json
 import (
 	"encoding/json"
 	"io"
+	"time"
 
 	"github.com/neuronlabs/neuron/codec"
 	"github.com/neuronlabs/neuron/errors"
@@ -10,8 +11,12 @@ import (
 )
 
 // MarshalPayload implements codec.PayloadMarshaler interface.
-func (c Codec) MarshalPayload(w io.Writer, payload *codec.Payload) error {
-	if payload.MarshalSingularFormat {
+func (c Codec) MarshalPayload(w io.Writer, payload *codec.Payload, options ...codec.MarshalOption) error {
+	o := &codec.MarshalOptions{}
+	for _, option := range options {
+		option(o)
+	}
+	if o.SingleResult {
 		if len(payload.Data) > 1 {
 			return errors.WrapDetf(errors.ErrInternal, "marshaling singular format with multiple data models")
 		}
@@ -48,6 +53,32 @@ func (c Codec) MarshalPayload(w io.Writer, payload *codec.Payload) error {
 	return nil
 }
 
+// MarshalModel implements codec.ModelMarshaler interface.
+func (c Codec) MarshalModel(model mapping.Model, _ ...codec.MarshalOption) ([]byte, error) {
+	marshaler, err := c.marshalModel(model)
+	if err != nil {
+		return nil, err
+	}
+	return marshaler.MarshalJSON()
+}
+
+// MarshalModels implements codec.ModelMarshaler interface.
+func (c Codec) MarshalModels(models []mapping.Model, _ ...codec.MarshalOption) ([]byte, error) {
+	var err error
+	nodes := make([]marshaler, len(models))
+	for i, model := range models {
+		if model == nil {
+			nodes[i] = nil
+			continue
+		}
+		nodes[i], err = c.marshalModel(model)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return json.Marshal(nodes)
+}
+
 func (c Codec) marshalModel(model mapping.Model) (marshaler, error) {
 	mStruct, err := c.c.ModelStruct(model)
 	if err != nil {
@@ -78,6 +109,22 @@ func (c Codec) marshalModel(model mapping.Model) (marshaler, error) {
 			if err != nil {
 				return nil, err
 			}
+
+			if sField.IsTimePointer() && fieldValue != nil {
+				tv := fieldValue.(*time.Time)
+				if sField.CodecISO8601() {
+					fieldValue = tv.Format(codec.ISO8601TimeFormat)
+				} else {
+					fieldValue = tv.Unix()
+				}
+			} else if sField.IsTime() {
+				tv := fieldValue.(time.Time)
+				if sField.CodecISO8601() {
+					fieldValue = tv.Format(codec.ISO8601TimeFormat)
+				} else {
+					fieldValue = tv.Unix()
+				}
+			}
 			result = append(result, keyValue{Key: sField.CodecName(), Value: fieldValue})
 		case mapping.KindRelationshipSingle:
 			sr, ok := model.(mapping.SingleRelationer)
@@ -89,6 +136,10 @@ func (c Codec) marshalModel(model mapping.Model) (marshaler, error) {
 				return nil, err
 			}
 			if relation == nil && sField.CodecOmitEmpty() {
+				continue
+			}
+			if relation == nil {
+				result = append(result, keyValue{Key: sField.CodecName(), Value: nil})
 				continue
 			}
 			relationNode, err := c.marshalModel(relation)
@@ -110,6 +161,10 @@ func (c Codec) marshalModel(model mapping.Model) (marshaler, error) {
 			}
 			relationNodes := make([]marshaler, len(models))
 			for i, relation := range models {
+				if relation == nil {
+					relationNodes[i] = nil
+					continue
+				}
 				relationNode, err := c.marshalModel(relation)
 				if err != nil {
 					return nil, err

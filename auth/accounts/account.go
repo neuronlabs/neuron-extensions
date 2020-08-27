@@ -10,8 +10,8 @@ import (
 	"github.com/neuronlabs/neuron/database"
 )
 
-//go:generate neurogns models methods --format=goimports .
-//go:generate neurogns collections --format=goimports  .
+//go:generate neurogonesis models methods --format=goimports .
+//go:generate neurogonesis collections --format=goimports  .
 
 // Compile time check if Account implements auth.Account interface.
 var (

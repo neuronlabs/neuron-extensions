@@ -153,15 +153,17 @@ func (a *API) handleGet(mStruct *mapping.ModelStruct) http.HandlerFunc {
 		result.FieldSets = []mapping.FieldSet{queryFieldSet}
 		result.IncludedRelations = queryIncludes
 
-		if result.MarshalLinks.Type == codec.NoLink {
-			result.MarshalLinks = codec.LinkOptions{
+		options := []codec.MarshalOption{
+			codec.MarshalSingleModel(),
+		}
+		if linkType != codec.NoLink {
+			options = append(options, codec.MarshalWithLinks(codec.LinkOptions{
 				Type:       linkType,
 				BaseURL:    a.Options.PathPrefix,
 				RootID:     id,
 				Collection: mStruct.Collection(),
-			}
+			}))
 		}
-		result.MarshalSingularFormat = true
 		result.PaginationLinks = &codec.PaginationLinks{}
 		sb := strings.Builder{}
 		sb.WriteString(a.basePath())
@@ -174,7 +176,7 @@ func (a *API) handleGet(mStruct *mapping.ModelStruct) http.HandlerFunc {
 			sb.WriteString(q.Encode())
 		}
 		result.PaginationLinks.Self = sb.String()
-		a.marshalPayload(rw, result, http.StatusOK)
+		a.marshalPayload(rw, result, http.StatusOK, options...)
 	}
 }
 

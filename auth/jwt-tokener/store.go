@@ -47,7 +47,7 @@ func (t *Tokener) setStoreToken(ctx context.Context, token string, sToken *Store
 		Value:     value,
 		ExpiresAt: sToken.ExpiresAt,
 	}
-	return t.Store.SetWithTTL(ctx, record, ttl)
+	return t.Store.Set(ctx, record, store.SetWithTTL(ttl))
 
 }
 

@@ -91,6 +91,23 @@ func (a *API) handleDelete(mStruct *mapping.ModelStruct) http.HandlerFunc {
 			rw.WriteHeader(http.StatusNoContent)
 			return
 		}
+
+		options := []codec.MarshalOption{
+			codec.MarshalSingleModel(),
+		}
+		linkType := codec.ResourceLink
+		// but if the config doesn't allow that - set 'jsonapi.NoLink'
+		if !a.Options.PayloadLinks {
+			linkType = codec.NoLink
+		}
+		if linkType != codec.NoLink {
+			options = append(options, codec.MarshalWithLinks(codec.LinkOptions{
+				Type:       linkType,
+				BaseURL:    a.Options.PathPrefix,
+				RootID:     id,
+				Collection: mStruct.Collection(),
+			}))
+		}
 		a.marshalPayload(rw, result, http.StatusOK)
 	}
 }
