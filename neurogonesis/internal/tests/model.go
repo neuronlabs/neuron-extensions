@@ -25,7 +25,8 @@ type User struct {
 	PtrWrapped    *external.Int
 	External      *external.Model
 	FavoriteCar   Car
-	FavoriteCarID string `db:";notnull"`
+	FavoriteCarID string     `db:";notnull"`
+	SisterID      *uuid.UUID `db:";notnull"`
 	Cars          []*Car
 	Sons          []*User
 	Sister        *User

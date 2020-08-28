@@ -99,12 +99,9 @@ func ({{.Receiver}} *{{.Name}}) SetFieldValue(field *mapping.StructField, value 
             return nil
         }{{end}}
         {{if not (or $field.IsPointer $field.IsSlice) -}}
-        if field.DatabaseNotNull() {
-            isZero := {{$field.IsZero}}
-            if isZero {
-                {{$out.Receiver}}.{{$field.Name}} = {{$field.Zero}}
-                return nil
-            }
+        if field.DatabaseNotNull() && value == nil {
+            {{$out.Receiver}}.{{$field.Name}} = {{$field.Zero}}
+            return nil
         }
         {{end -}}
         {{if $field.IsSlice -}}
