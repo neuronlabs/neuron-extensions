@@ -1,4 +1,4 @@
-module github.com/neuronlabs/neuron-extensions/server/http
+module github.com/neuronlabs/neuron-extensions/server/xhttp
 
 go 1.13
 
