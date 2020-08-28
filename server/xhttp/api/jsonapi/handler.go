@@ -3,13 +3,14 @@ package jsonapi
 import (
 	"context"
 
-	"github.com/neuronlabs/neuron-extensions/server/xhttp/log"
 	"github.com/neuronlabs/neuron/codec"
 	"github.com/neuronlabs/neuron/core"
 	"github.com/neuronlabs/neuron/database"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/query"
+
+	"github.com/neuronlabs/neuron-extensions/server/xhttp/log"
 )
 
 // DefaultHandler is the default json:api handler. It is used as the default handler in the API.

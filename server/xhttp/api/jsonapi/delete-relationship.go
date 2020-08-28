@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/neuronlabs/neuron-extensions/codec/jsonapi"
 	"github.com/neuronlabs/neuron/codec"
 	"github.com/neuronlabs/neuron/database"
 	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/query"
 	"github.com/neuronlabs/neuron/server"
 
-	"github.com/neuronlabs/neuron-extensions/codec/jsonapi"
+	"github.com/neuronlabs/neuron-extensions/codec/cjsonapi"
 	"github.com/neuronlabs/neuron-extensions/server/xhttp/httputil"
 	"github.com/neuronlabs/neuron-extensions/server/xhttp/log"
 )

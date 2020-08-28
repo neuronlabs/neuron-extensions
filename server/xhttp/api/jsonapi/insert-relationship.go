@@ -4,15 +4,16 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/neuronlabs/neuron-extensions/codec/jsonapi"
-	"github.com/neuronlabs/neuron-extensions/server/xhttp/httputil"
-	"github.com/neuronlabs/neuron-extensions/server/xhttp/log"
 	"github.com/neuronlabs/neuron/codec"
 	"github.com/neuronlabs/neuron/database"
 	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/query"
 	"github.com/neuronlabs/neuron/query/filter"
 	"github.com/neuronlabs/neuron/server"
+
+	"github.com/neuronlabs/neuron-extensions/codec/cjsonapi"
+	"github.com/neuronlabs/neuron-extensions/server/xhttp/httputil"
+	"github.com/neuronlabs/neuron-extensions/server/xhttp/log"
 )
 
 // HandleInsertRelationship handles json:api insert relationship endpoint for the 'model'.
@@ -61,7 +62,7 @@ func (a *API) handleInsertRelationship(mStruct *mapping.ModelStruct, relation *m
 			unmarshalOptions = append(unmarshalOptions, codec.UnmarshalStrictly())
 		}
 		// Unmarshal request input.
-		pu := jsonapi.GetCodec(a.Controller).(codec.PayloadUnmarshaler)
+		pu := cjsonapi.GetCodec(a.Controller).(codec.PayloadUnmarshaler)
 		payload, err := pu.UnmarshalPayload(req.Body, unmarshalOptions...)
 		if err != nil {
 			log.Debugf("[INSERT-RELATIONSHIP][%s][%s] unmarshaling payload failed: %v", mStruct, relation, err)
@@ -238,7 +239,7 @@ func (a *API) handleInsertRelationship(mStruct *mapping.ModelStruct, relation *m
 		}
 		var hasJsonapiMimeType bool
 		for _, qv := range httputil.ParseAcceptHeader(req.Header) {
-			if qv.Value == jsonapi.MimeType {
+			if qv.Value == cjsonapi.MimeType {
 				hasJsonapiMimeType = true
 				break
 			}

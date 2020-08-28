@@ -5,14 +5,15 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/neuronlabs/neuron-extensions/codec/jsonapi"
-	"github.com/neuronlabs/neuron-extensions/server/xhttp/httputil"
-	"github.com/neuronlabs/neuron-extensions/server/xhttp/log"
 	"github.com/neuronlabs/neuron/codec"
 	"github.com/neuronlabs/neuron/database"
 	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/query"
 	"github.com/neuronlabs/neuron/server"
+
+	"github.com/neuronlabs/neuron-extensions/codec/cjsonapi"
+	"github.com/neuronlabs/neuron-extensions/server/xhttp/httputil"
+	"github.com/neuronlabs/neuron-extensions/server/xhttp/log"
 )
 
 // HandleGetRelationship handles json:api get relationship endpoint for the 'model'.
@@ -63,7 +64,7 @@ func (a *API) handleGetRelationship(mStruct *mapping.ModelStruct, relation *mapp
 		relatedModelStruct := relation.Relationship().RelatedModelStruct()
 		if len(req.URL.Query()) > 0 {
 			// Get jsonapi codec ans parse query parameters.
-			parser, ok := jsonapi.GetCodec(a.Controller).(codec.ParameterParser)
+			parser, ok := cjsonapi.GetCodec(a.Controller).(codec.ParameterParser)
 			if !ok {
 				log.Errorf("jsonapi codec doesn't implement ParameterParser")
 				a.marshalErrors(rw, 500, httputil.ErrInternalError())

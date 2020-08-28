@@ -12,7 +12,7 @@ import (
 	"github.com/neuronlabs/neuron/query"
 	"github.com/neuronlabs/neuron/server"
 
-	"github.com/neuronlabs/neuron-extensions/codec/jsonapi"
+	"github.com/neuronlabs/neuron-extensions/codec/cjsonapi"
 	"github.com/neuronlabs/neuron-extensions/server/xhttp/log"
 )
 
@@ -100,7 +100,7 @@ func (a *API) handleList(mStruct *mapping.ModelStruct) http.HandlerFunc {
 		}
 
 		// if there were a query no set link type to 'NoLink'
-		if v, ok := s.StoreGet(jsonapi.StoreKeyMarshalLinks); ok {
+		if v, ok := s.StoreGet(cjsonapi.StoreKeyMarshalLinks); ok {
 			if v.(bool) {
 				linkType = codec.ResourceLink
 			} else {
@@ -153,7 +153,7 @@ func (a *API) handleList(mStruct *mapping.ModelStruct) http.HandlerFunc {
 
 		// extract query values from the req.URL
 		// prepare the pagination links for the options
-		jsonapi.FormatPagination(s.Pagination, temp, pageBased)
+		cjsonapi.FormatPagination(s.Pagination, temp, pageBased)
 
 		paginationLinks := &codec.PaginationLinks{Total: total}
 		sb := strings.Builder{}
@@ -173,7 +173,7 @@ func (a *API) handleList(mStruct *mapping.ModelStruct) http.HandlerFunc {
 		temp, _ = a.queryWithoutPagination(req)
 
 		if next != s.Pagination {
-			jsonapi.FormatPagination(next, temp, pageBased)
+			cjsonapi.FormatPagination(next, temp, pageBased)
 			sb.WriteString(a.basePath())
 			sb.WriteRune('/')
 			sb.WriteString(mStruct.Collection())
@@ -190,7 +190,7 @@ func (a *API) handleList(mStruct *mapping.ModelStruct) http.HandlerFunc {
 			return
 		}
 		if prev != s.Pagination {
-			jsonapi.FormatPagination(prev, temp, pageBased)
+			cjsonapi.FormatPagination(prev, temp, pageBased)
 			sb.WriteString(a.basePath())
 			sb.WriteRune('/')
 			sb.WriteString(mStruct.Collection())
@@ -206,7 +206,7 @@ func (a *API) handleList(mStruct *mapping.ModelStruct) http.HandlerFunc {
 			a.marshalErrors(rw, 0, err)
 			return
 		}
-		jsonapi.FormatPagination(last, temp, pageBased)
+		cjsonapi.FormatPagination(last, temp, pageBased)
 		sb.WriteString(a.basePath())
 		sb.WriteRune('/')
 		sb.WriteString(mStruct.Collection())
@@ -221,7 +221,7 @@ func (a *API) handleList(mStruct *mapping.ModelStruct) http.HandlerFunc {
 			a.marshalErrors(rw, 0, err)
 			return
 		}
-		jsonapi.FormatPagination(first, temp, pageBased)
+		cjsonapi.FormatPagination(first, temp, pageBased)
 		sb.WriteString(a.basePath())
 		sb.WriteRune('/')
 		sb.WriteString(mStruct.Collection())
@@ -240,7 +240,7 @@ func (a *API) queryWithoutPagination(req *http.Request) (url.Values, bool) {
 	for k, v := range req.URL.Query() {
 		switch k {
 		case query.ParamPageLimit, query.ParamPageOffset:
-		case jsonapi.ParamPageNumber, jsonapi.ParamPageSize:
+		case cjsonapi.ParamPageNumber, cjsonapi.ParamPageSize:
 			pageBased = true
 		default:
 			temp[k] = v

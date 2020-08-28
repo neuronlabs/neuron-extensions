@@ -13,7 +13,7 @@ import (
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/mapping"
 
-	jsonCodec "github.com/neuronlabs/neuron-extensions/codec/json"
+	"github.com/neuronlabs/neuron-extensions/codec/cjson"
 	"github.com/neuronlabs/neuron-extensions/server/xhttp/httputil"
 	"github.com/neuronlabs/neuron-extensions/server/xhttp/log"
 )
@@ -135,7 +135,7 @@ func (a *API) handleRegisterAccount(rw http.ResponseWriter, req *http.Request) {
 	payload.ModelStruct = a.model
 
 	rw.WriteHeader(http.StatusCreated)
-	cdc := jsonCodec.GetCodec(a.Controller)
+	cdc := cjson.GetCodec(a.Controller)
 	if err := cdc.MarshalPayload(rw, payload, codec.MarshalSingleModel()); err != nil {
 		log.Errorf("Marshaling account payload failed: %v", err)
 	}

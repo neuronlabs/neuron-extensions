@@ -16,7 +16,7 @@ import (
 	"github.com/neuronlabs/neuron/query"
 	"github.com/neuronlabs/neuron/server"
 
-	"github.com/neuronlabs/neuron-extensions/codec/json"
+	"github.com/neuronlabs/neuron-extensions/codec/cjson"
 	"github.com/neuronlabs/neuron-extensions/server/xhttp/httputil"
 	"github.com/neuronlabs/neuron-extensions/server/xhttp/log"
 	"github.com/neuronlabs/neuron-extensions/server/xhttp/middleware"
@@ -165,12 +165,12 @@ func (a *API) marshalErrors(rw http.ResponseWriter, status int, err error) {
 	// Write status to the header.
 	rw.WriteHeader(status)
 	// Marshal errors into response writer.
-	marshalError := json.GetCodec(a.Controller).MarshalErrors(rw, httpErrors...)
+	marshalError := cjson.GetCodec(a.Controller).MarshalErrors(rw, httpErrors...)
 	if err != nil {
 		log.Errorf("Marshaling errors: '%v' failed: %v", httpErrors, marshalError)
 	}
 }
 
 func (a *API) setContentType(rw http.ResponseWriter) {
-	rw.Header().Set("Content-Type", json.MimeType)
+	rw.Header().Set("Content-Type", cjson.MimeType)
 }

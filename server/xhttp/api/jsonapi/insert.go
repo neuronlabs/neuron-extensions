@@ -4,14 +4,15 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/neuronlabs/neuron-extensions/codec/jsonapi"
-	"github.com/neuronlabs/neuron-extensions/server/xhttp/httputil"
-	"github.com/neuronlabs/neuron-extensions/server/xhttp/log"
 	"github.com/neuronlabs/neuron/codec"
 	"github.com/neuronlabs/neuron/database"
 	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/query"
 	"github.com/neuronlabs/neuron/server"
+
+	"github.com/neuronlabs/neuron-extensions/codec/cjsonapi"
+	"github.com/neuronlabs/neuron-extensions/server/xhttp/httputil"
+	"github.com/neuronlabs/neuron-extensions/server/xhttp/log"
 )
 
 // HandleInsert handles json:api post endpoint for the 'model'. Panics if the model is not mapped for given API controller.
@@ -28,7 +29,7 @@ func (a *API) handleInsert(mStruct *mapping.ModelStruct) http.HandlerFunc {
 		if a.Options.StrictUnmarshal {
 			unmarshalOptions = append(unmarshalOptions, codec.UnmarshalStrictly())
 		}
-		pu := jsonapi.GetCodec(a.Controller).(codec.PayloadUnmarshaler)
+		pu := cjsonapi.GetCodec(a.Controller).(codec.PayloadUnmarshaler)
 		payload, err := pu.UnmarshalPayload(req.Body, unmarshalOptions...)
 		if err != nil {
 			log.Debugf("Unmarshal scope for: '%s' failed: %v", mStruct.Collection(), err)

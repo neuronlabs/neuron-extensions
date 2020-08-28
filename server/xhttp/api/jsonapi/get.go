@@ -12,7 +12,7 @@ import (
 	"github.com/neuronlabs/neuron/query"
 	"github.com/neuronlabs/neuron/server"
 
-	"github.com/neuronlabs/neuron-extensions/codec/jsonapi"
+	"github.com/neuronlabs/neuron-extensions/codec/cjsonapi"
 	"github.com/neuronlabs/neuron-extensions/server/xhttp/httputil"
 	"github.com/neuronlabs/neuron-extensions/server/xhttp/log"
 )
@@ -55,7 +55,7 @@ func (a *API) handleGet(mStruct *mapping.ModelStruct) http.HandlerFunc {
 		s := query.NewScope(mStruct, model)
 
 		// Get jsonapi codec ans parse query parameters.
-		parser, ok := jsonapi.GetCodec(a.Controller).(codec.ParameterParser)
+		parser, ok := cjsonapi.GetCodec(a.Controller).(codec.ParameterParser)
 		if !ok {
 			log.Errorf("jsonapi codec doesn't implement ParameterParser")
 			a.marshalErrors(rw, 500, httputil.ErrInternalError())

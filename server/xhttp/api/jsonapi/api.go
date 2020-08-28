@@ -19,7 +19,7 @@ import (
 	"github.com/neuronlabs/neuron/query"
 	"github.com/neuronlabs/neuron/server"
 
-	"github.com/neuronlabs/neuron-extensions/codec/jsonapi"
+	"github.com/neuronlabs/neuron-extensions/codec/cjsonapi"
 	httpServer "github.com/neuronlabs/neuron-extensions/server/xhttp"
 	"github.com/neuronlabs/neuron-extensions/server/xhttp/httputil"
 	"github.com/neuronlabs/neuron-extensions/server/xhttp/middleware"

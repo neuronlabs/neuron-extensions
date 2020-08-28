@@ -4,15 +4,16 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/neuronlabs/neuron-extensions/codec/jsonapi"
-	"github.com/neuronlabs/neuron-extensions/server/xhttp/httputil"
-	"github.com/neuronlabs/neuron-extensions/server/xhttp/log"
 	"github.com/neuronlabs/neuron/codec"
 	"github.com/neuronlabs/neuron/database"
 	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/query"
 	"github.com/neuronlabs/neuron/query/filter"
 	"github.com/neuronlabs/neuron/server"
+
+	"github.com/neuronlabs/neuron-extensions/codec/cjsonapi"
+	"github.com/neuronlabs/neuron-extensions/server/xhttp/httputil"
+	"github.com/neuronlabs/neuron-extensions/server/xhttp/log"
 )
 
 // HandleUpdate handles json:api list endpoint for the 'model'. Panics if the model is not mapped for given API controller.
@@ -38,7 +39,7 @@ func (a *API) handleUpdate(mStruct *mapping.ModelStruct) http.HandlerFunc {
 			unmarshalOptions = append(unmarshalOptions, codec.UnmarshalStrictly())
 		}
 		// Unmarshal the input from the request body.
-		pu := jsonapi.GetCodec(a.Controller).(codec.PayloadUnmarshaler)
+		pu := cjsonapi.GetCodec(a.Controller).(codec.PayloadUnmarshaler)
 		payload, err := pu.UnmarshalPayload(req.Body, unmarshalOptions...)
 		if err != nil {
 			log.Debugf("Unmarshal scope for: '%s' failed: %v", mStruct.Collection(), err)
@@ -148,7 +149,7 @@ func (a *API) handleUpdate(mStruct *mapping.ModelStruct) http.HandlerFunc {
 		// Get and apply pre hook functions.
 		var hasJsonapiMimeType bool
 		for _, qv := range httputil.ParseAcceptHeader(req.Header) {
-			if qv.Value == jsonapi.MimeType {
+			if qv.Value == cjsonapi.MimeType {
 				hasJsonapiMimeType = true
 				break
 			}

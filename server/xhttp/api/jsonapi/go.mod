@@ -6,5 +6,5 @@ require (
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/neuronlabs/neuron v0.19.1
 	github.com/neuronlabs/neuron-extensions/codec/jsonapi v0.0.3
-	github.com/neuronlabs/neuron-extensions/server/xhttp latest
+	github.com/neuronlabs/neuron-extensions/server/xhttp v0.0.1
 )
