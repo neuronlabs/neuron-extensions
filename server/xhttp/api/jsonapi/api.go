@@ -69,7 +69,7 @@ func (a *API) InitializeAPI(c *core.Controller) error {
 
 	a.Options.Middlewares = append(server.MiddlewareChain{
 		middleware.Controller(c),
-		middleware.WithCodec(jsonapi.GetCodec(c)),
+		middleware.WithCodec(cjsonapi.GetCodec(c)),
 	}, a.Options.Middlewares...)
 
 	// Check if there are any models registered for given API.
@@ -382,7 +382,7 @@ func (a *API) baseModelPath(mStruct *mapping.ModelStruct) string {
 }
 
 func (a *API) writeContentType(rw http.ResponseWriter) {
-	rw.Header().Add("Content-Type", jsonapi.MimeType)
+	rw.Header().Add("Content-Type", cjsonapi.MimeType)
 }
 
 func (a *API) jsonapiUnmarshalOptions() *codec.UnmarshalOptions {
@@ -399,7 +399,7 @@ func (a *API) marshalErrors(rw http.ResponseWriter, status int, err error) {
 	// Write status to the header.
 	rw.WriteHeader(status)
 	// Marshal errors into response writer.
-	err = jsonapi.GetCodec(a.Controller).MarshalErrors(rw, errs...)
+	err = cjsonapi.GetCodec(a.Controller).MarshalErrors(rw, errs...)
 	if err != nil {
 		log.Errorf("Marshaling errors: '%v' failed: %v", err, err)
 	}
@@ -408,10 +408,10 @@ func (a *API) marshalErrors(rw http.ResponseWriter, status int, err error) {
 func (a *API) marshalPayload(rw http.ResponseWriter, payload *codec.Payload, status int, options ...codec.MarshalOption) {
 	a.writeContentType(rw)
 	buf := &bytes.Buffer{}
-	payloadMarshaler := jsonapi.GetCodec(a.Controller).(codec.PayloadMarshaler)
+	payloadMarshaler := cjsonapi.GetCodec(a.Controller).(codec.PayloadMarshaler)
 	if err := payloadMarshaler.MarshalPayload(buf, payload, options...); err != nil {
 		rw.WriteHeader(500)
-		err := jsonapi.GetCodec(a.Controller).MarshalErrors(rw, httputil.ErrInternalError())
+		err := cjsonapi.GetCodec(a.Controller).MarshalErrors(rw, httputil.ErrInternalError())
 		if err != nil {
 			switch err {
 			case io.ErrShortWrite, io.ErrClosedPipe:
@@ -432,7 +432,7 @@ func (a *API) createListScope(model *mapping.ModelStruct, req *http.Request) (*q
 	// Create a query scope and parse url parameters.
 	s := query.NewScope(model)
 	// Get jsonapi codec ans parse query parameters.
-	parser, ok := jsonapi.GetCodec(a.Controller).(codec.ParameterParser)
+	parser, ok := cjsonapi.GetCodec(a.Controller).(codec.ParameterParser)
 	if !ok {
 		log.Errorf("jsonapi codec doesn't implement ParameterParser")
 		return nil, errors.WrapDet(errors.ErrInternal, "jsonapi codec doesn't implement ParameterParser")

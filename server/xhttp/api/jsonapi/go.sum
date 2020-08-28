@@ -40,15 +40,10 @@ github.com/neuronlabs/brotli v1.0.1 h1:hsqYyCmZ2zTZlK8FEUgNNGysaO+5SrhaFz/e/FbLl
 github.com/neuronlabs/brotli v1.0.1/go.mod h1:iysgfWo5kgcULNA2Yi6IRolAdZtg4EMEJkQPEcXnF5I=
 github.com/neuronlabs/inflection v1.0.1 h1:LDuwbM1jYKEf6DDcA7XV7JRn3Sv9/PBiW6iUojZhTZ4=
 github.com/neuronlabs/inflection v1.0.1/go.mod h1:gnqNj1uxAGPYT1LsHRvSyBcd57vvIKTuTmS3ffdgRd8=
-github.com/neuronlabs/neuron v0.19.0 h1:3ipMeh7I1ESO1NP2Qxr0hbIieZYLD1lLA/Lqb97fvm8=
-github.com/neuronlabs/neuron v0.19.0/go.mod h1:xjSqaRsUv89SeieBQ3RsEmMMyEPUbl1/rn2WmK3mmiA=
 github.com/neuronlabs/neuron v0.19.1 h1:My1Ec7sFJqGVs2A2NQg2w+hRPCjbScRUaaxRPtFsqgE=
 github.com/neuronlabs/neuron v0.19.1/go.mod h1:xjSqaRsUv89SeieBQ3RsEmMMyEPUbl1/rn2WmK3mmiA=
-github.com/neuronlabs/neuron-extensions v0.0.0-20200828183403-4170de9f3fbb h1:NLTOyHTJvmy2nxIFn5GMKwbpH9ue+msg90VC019Pdqc=
-github.com/neuronlabs/neuron-extensions/codec/jsonapi v0.0.3 h1:uqzKPdYLOeGSDLakSXxOoEKa2aLXjBftqrRBuscBCNg=
-github.com/neuronlabs/neuron-extensions/codec/jsonapi v0.0.3/go.mod h1:XbsNFlQmNpMQAp6IZ22uSrjHME1k2XgDZ9FkH8MyKX4=
-github.com/neuronlabs/neuron-extensions/server/http v0.0.3 h1:hE852sTP80fXi0ehbEdwYidEL8YqxZEAOUoRAeOPUZQ=
-github.com/neuronlabs/neuron-extensions/server/http v0.0.3/go.mod h1:TkbbixHtmGbx2HFiE26fFs9/lbzYGEMld+kB7vBOL24=
+github.com/neuronlabs/neuron-extensions/codec/cjsonapi v0.0.2 h1:kg4v60cGBj4tM60W0HMZyLDrZfuyIBT4iVIclrEZ/zA=
+github.com/neuronlabs/neuron-extensions/codec/cjsonapi v0.0.2/go.mod h1:8RaA8wv0D2QkJFhTtQQlReXBBuq/Y966Z7P+uZ0ekqE=
 github.com/neuronlabs/neuron-extensions/server/xhttp v0.0.1 h1:5euRQfWqg9786KDdoAi/OiDsest3FaKBxwF0ZaER0Vw=
 github.com/neuronlabs/neuron-extensions/server/xhttp v0.0.1/go.mod h1:LDjEhvsZFvrMjrWE4TycrJI9kZSgmCcgDGueN0t8Xjg=
 github.com/neuronlabs/strcase v1.0.0 h1:F/7Scr7ojAL6l5g3MQiCENGlMI/NK6LwAfaURcUiI7U=

@@ -143,7 +143,7 @@ func (a *API) handleGet(mStruct *mapping.ModelStruct) http.HandlerFunc {
 		}
 
 		linkType := codec.ResourceLink
-		// but if the config doesn't allow that - set 'jsonapi.NoLink'
+		// but if the config doesn't allow that - set 'cjsonapi.NoLink'
 		if !a.Options.PayloadLinks {
 			linkType = codec.NoLink
 		}

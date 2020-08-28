@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/neuronlabs/neuron-extensions/codec/jsonapi"
 	"github.com/neuronlabs/neuron/codec"
 	"github.com/neuronlabs/neuron/database"
 	"github.com/neuronlabs/neuron/mapping"
@@ -62,7 +61,7 @@ func (a *API) handleDeleteRelationship(mStruct *mapping.ModelStruct, relation *m
 		if a.Options.StrictUnmarshal {
 			unmarshalOptions = append(unmarshalOptions, codec.UnmarshalStrictly())
 		}
-		pu := jsonapi.GetCodec(a.Controller).(codec.PayloadUnmarshaler)
+		pu := cjsonapi.GetCodec(a.Controller).(codec.PayloadUnmarshaler)
 		payload, err := pu.UnmarshalPayload(req.Body, unmarshalOptions...)
 		if err != nil {
 			a.marshalErrors(rw, 0, err)
@@ -225,7 +224,7 @@ func (a *API) handleDeleteRelationship(mStruct *mapping.ModelStruct, relation *m
 		}
 		var hasJsonapiMimeType bool
 		for _, qv := range httputil.ParseAcceptHeader(req.Header) {
-			if qv.Value == jsonapi.MimeType {
+			if qv.Value == cjsonapi.MimeType {
 				hasJsonapiMimeType = true
 				break
 			}
