@@ -2,7 +2,7 @@
 // This file was generated at:
 // Tue, 25 Aug 2020 22:05:55 +0200
 
-package json
+package cjson
 
 import (
 	"strconv"

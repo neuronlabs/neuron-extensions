@@ -13,8 +13,8 @@ import (
 	"github.com/neuronlabs/neuron/server"
 
 	"github.com/neuronlabs/neuron-extensions/codec/jsonapi"
-	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
-	"github.com/neuronlabs/neuron-extensions/server/http/log"
+	"github.com/neuronlabs/neuron-extensions/server/xhttp/httputil"
+	"github.com/neuronlabs/neuron-extensions/server/xhttp/log"
 )
 
 // HandleGet handles json:api get endpoint for the 'model'. Panics if the model is not mapped for given API controller.

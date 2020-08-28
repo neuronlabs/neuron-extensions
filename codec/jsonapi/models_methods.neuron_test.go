@@ -2,7 +2,7 @@
 // This file was generated at:
 // Fri, 28 Aug 2020 20:27:05 +0200
 
-package jsonapi
+package cjsonapi
 
 import (
 	"strconv"

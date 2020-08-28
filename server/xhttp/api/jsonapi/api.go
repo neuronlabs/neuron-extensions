@@ -20,9 +20,9 @@ import (
 	"github.com/neuronlabs/neuron/server"
 
 	"github.com/neuronlabs/neuron-extensions/codec/jsonapi"
-	httpServer "github.com/neuronlabs/neuron-extensions/server/http"
-	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
-	"github.com/neuronlabs/neuron-extensions/server/http/middleware"
+	httpServer "github.com/neuronlabs/neuron-extensions/server/xhttp"
+	"github.com/neuronlabs/neuron-extensions/server/xhttp/httputil"
+	"github.com/neuronlabs/neuron-extensions/server/xhttp/middleware"
 )
 
 // Compile time check if API implements httpServer.API.

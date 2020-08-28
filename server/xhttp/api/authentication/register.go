@@ -7,14 +7,15 @@ import (
 	"net/http"
 	"net/url"
 
-	jsonCodec "github.com/neuronlabs/neuron-extensions/codec/json"
-	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
-	"github.com/neuronlabs/neuron-extensions/server/http/log"
 	"github.com/neuronlabs/neuron/auth"
 	"github.com/neuronlabs/neuron/codec"
 	"github.com/neuronlabs/neuron/database"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/mapping"
+
+	jsonCodec "github.com/neuronlabs/neuron-extensions/codec/json"
+	"github.com/neuronlabs/neuron-extensions/server/xhttp/httputil"
+	"github.com/neuronlabs/neuron-extensions/server/xhttp/log"
 )
 
 // RegisterAccountOptions are the options used for registering the account.

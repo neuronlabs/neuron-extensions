@@ -10,7 +10,7 @@ import (
 	"github.com/neuronlabs/neuron/core"
 	"github.com/neuronlabs/neuron/server"
 
-	"github.com/neuronlabs/neuron-extensions/server/http/log"
+	"github.com/neuronlabs/neuron-extensions/server/xhttp/log"
 )
 
 // Compile time check if VersionedServer implements server.VersionedServer.

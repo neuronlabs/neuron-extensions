@@ -2,4 +2,4 @@
 // The mapping between model fields and JSONAPI fields are defined in the models and mapping packages.
 //
 // See https://jsonapi.org for more information.
-package jsonapi
+package cjsonapi

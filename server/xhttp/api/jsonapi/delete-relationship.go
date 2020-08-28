@@ -11,8 +11,8 @@ import (
 	"github.com/neuronlabs/neuron/server"
 
 	"github.com/neuronlabs/neuron-extensions/codec/jsonapi"
-	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
-	"github.com/neuronlabs/neuron-extensions/server/http/log"
+	"github.com/neuronlabs/neuron-extensions/server/xhttp/httputil"
+	"github.com/neuronlabs/neuron-extensions/server/xhttp/log"
 )
 
 // HandleDeleteRelationship handles json:api delete relationship endpoint for the 'model'.

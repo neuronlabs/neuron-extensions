@@ -1,4 +1,4 @@
-package jsonapi
+package cjsonapi
 
 import (
 	"github.com/neuronlabs/neuron/codec"

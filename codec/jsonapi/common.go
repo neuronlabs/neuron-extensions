@@ -1,4 +1,4 @@
-package jsonapi
+package cjsonapi
 
 const (
 	// MediaType is the identifier for the JSON API media type

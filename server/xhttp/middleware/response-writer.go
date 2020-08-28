@@ -9,8 +9,8 @@ import (
 
 	"github.com/neuronlabs/brotli"
 
-	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
-	"github.com/neuronlabs/neuron-extensions/server/http/log"
+	"github.com/neuronlabs/neuron-extensions/server/xhttp/httputil"
+	"github.com/neuronlabs/neuron-extensions/server/xhttp/log"
 )
 
 // ResponseWriter is a middleware that wraps the response writer into httputil.ResponseWriter.

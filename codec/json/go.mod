@@ -1,4 +1,4 @@
-module github.com/neuronlabs/neuron-extensions/codec/json
+module github.com/neuronlabs/neuron-extensions/codec/cjson
 
 go 1.13
 

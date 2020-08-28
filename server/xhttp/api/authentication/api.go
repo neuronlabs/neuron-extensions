@@ -17,9 +17,9 @@ import (
 	"github.com/neuronlabs/neuron/server"
 
 	"github.com/neuronlabs/neuron-extensions/codec/json"
-	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
-	"github.com/neuronlabs/neuron-extensions/server/http/log"
-	"github.com/neuronlabs/neuron-extensions/server/http/middleware"
+	"github.com/neuronlabs/neuron-extensions/server/xhttp/httputil"
+	"github.com/neuronlabs/neuron-extensions/server/xhttp/log"
+	"github.com/neuronlabs/neuron-extensions/server/xhttp/middleware"
 )
 
 // API is an API for the accounts operations.

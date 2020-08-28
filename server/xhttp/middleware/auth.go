@@ -9,7 +9,7 @@ import (
 	"github.com/neuronlabs/neuron/log"
 	"github.com/neuronlabs/neuron/server"
 
-	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
+	"github.com/neuronlabs/neuron-extensions/server/xhttp/httputil"
 )
 
 // BearerAuthenticate gets the Authorization Header from http request, and checks if given Authorization header is valid.

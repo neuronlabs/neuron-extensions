@@ -4,9 +4,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
 	"github.com/neuronlabs/neuron/auth"
 	"github.com/neuronlabs/neuron/errors"
+
+	"github.com/neuronlabs/neuron-extensions/server/xhttp/httputil"
 )
 
 func (a *API) handleLogout(rw http.ResponseWriter, req *http.Request) {

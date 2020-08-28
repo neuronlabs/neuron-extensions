@@ -13,7 +13,7 @@ import (
 	"github.com/neuronlabs/neuron/server"
 
 	"github.com/neuronlabs/neuron-extensions/codec/jsonapi"
-	"github.com/neuronlabs/neuron-extensions/server/http/log"
+	"github.com/neuronlabs/neuron-extensions/server/xhttp/log"
 )
 
 // HandleList handles json:api list endpoint for the 'model'. Panics if the model is not mapped for given API controller.

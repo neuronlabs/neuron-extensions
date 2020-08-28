@@ -3,7 +3,7 @@ package jsonapi
 import (
 	"context"
 
-	"github.com/neuronlabs/neuron-extensions/server/http/log"
+	"github.com/neuronlabs/neuron-extensions/server/xhttp/log"
 	"github.com/neuronlabs/neuron/codec"
 	"github.com/neuronlabs/neuron/core"
 	"github.com/neuronlabs/neuron/database"

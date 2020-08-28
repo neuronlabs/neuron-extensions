@@ -6,12 +6,13 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/neuronlabs/neuron-extensions/server/http/httputil"
-	"github.com/neuronlabs/neuron-extensions/server/http/log"
 	"github.com/neuronlabs/neuron/auth"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/query"
+
+	"github.com/neuronlabs/neuron-extensions/server/xhttp/httputil"
+	"github.com/neuronlabs/neuron-extensions/server/xhttp/log"
 )
 
 func (a *API) handleRefreshToken(rw http.ResponseWriter, req *http.Request) {
