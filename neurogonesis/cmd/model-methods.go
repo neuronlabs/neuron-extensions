@@ -93,7 +93,7 @@ func generateModelMethods(cmd *cobra.Command, args []string) {
 	g := ast.NewModelGenerator(namingConvention, typeNames, tags, excludeTypes)
 
 	// Parse provided argument packages.
-	g.ParsePackages([]string{"."})
+	g.ParsePackages(args)
 
 	// Extract all models from given packages.
 	if err := g.ExtractPackages(); err != nil {

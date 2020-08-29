@@ -51,6 +51,7 @@ func init() {
 Possible values: 'snake', 'kebab', 'lower_camel', 'camel'`)
 	collectionsCmd.Flags().BoolP("single-file", "s", false, "stores all collections within single file")
 	collectionsCmd.Flags().BoolP("external-controller", "c", false, "sets the collection initializer to use external controller")
+	collectionsCmd.Flags().StringP("output", "o", ".", "set the output directory for the collections generated file")
 }
 
 func generateCollections(cmd *cobra.Command, args []string) {
@@ -73,6 +74,17 @@ func generateCollections(cmd *cobra.Command, args []string) {
 		cmd.Usage()
 		os.Exit(2)
 	}
+
+	output, err := cmd.Flags().GetString("output")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		cmd.Usage()
+		os.Exit(1)
+	}
+	if output == "" {
+		output = "."
+	}
+	output = filepath.Clean(output)
 
 	switch namingConvention {
 	case "kebab", "snake", "lower_camel", "camel":
@@ -110,7 +122,7 @@ func generateCollections(cmd *cobra.Command, args []string) {
 	}
 
 	// Extract the directory name from the arguments.
-	dir := directory(args)
+	dir := output
 
 	// Generate collection files.
 	buf := &bytes.Buffer{}

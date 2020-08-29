@@ -161,6 +161,8 @@ func (g *ModelGenerator) ExtractPackages() error {
 	}
 
 	for _, pkg := range g.pkgs {
+		isTesting := strings.HasSuffix(pkg.ID, ".test]")
+
 		for _, file := range pkg.Syntax {
 			for _, decl := range file.Decls {
 				switch d := decl.(type) {
@@ -173,10 +175,7 @@ func (g *ModelGenerator) ExtractPackages() error {
 						for _, model := range models {
 							g.modelsFiles[model] = filepath.Join(pkg.PkgPath, file.Name.Name)
 							model.PackageName = pkg.Name
-							// Check if this is a test package.
-							if strings.HasSuffix(pkg.ID, ".test]") {
-								model.TestFile = true
-							}
+							model.TestFile = isTesting
 						}
 					}
 				case *ast.FuncDecl:

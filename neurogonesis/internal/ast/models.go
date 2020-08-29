@@ -1,6 +1,7 @@
 package ast
 
 import (
+	"errors"
 	"go/ast"
 
 	"github.com/neuronlabs/inflection"
@@ -48,6 +49,9 @@ func (g *ModelGenerator) extractFileModels(d *ast.GenDecl, file *ast.File, pkg *
 			}
 
 			model, err := g.extractModel(file, structType, pkg, modelName)
+			if err == ErrModelAlreadyFound {
+				continue
+			}
 			if err != nil {
 				return nil, err
 			}
@@ -60,6 +64,8 @@ func (g *ModelGenerator) extractFileModels(d *ast.GenDecl, file *ast.File, pkg *
 	}
 	return models, nil
 }
+
+var ErrModelAlreadyFound = errors.New("model already found")
 
 func (g *ModelGenerator) extractModel(file *ast.File, structType *ast.StructType, pkg *packages.Package, modelName string) (model *input.Model, err error) {
 	model = &input.Model{
@@ -145,8 +151,10 @@ func (g *ModelGenerator) extractModel(file *ast.File, structType *ast.StructType
 	}
 
 	log.Debugf("Adding model: '%s'\n", model.Name)
+	if _, ok := g.models[model.Name]; ok {
+		return nil, ErrModelAlreadyFound
+	}
 	g.models[model.Name] = model
-
 	for _, relation := range model.Relations {
 		if relation.IsSlice {
 			model.MultiRelationer = true
