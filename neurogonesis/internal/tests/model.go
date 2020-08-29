@@ -37,3 +37,8 @@ type Car struct {
 	ID     string
 	Plates string
 }
+
+// NeuronCollectionName implements mapping.Model.
+func (c *Car) NeuronCollectionName() string {
+	return "custom_cars"
+}

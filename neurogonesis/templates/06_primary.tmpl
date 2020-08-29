@@ -3,11 +3,12 @@
 // Compile time check if {{.Name}} implements mapping.Model interface.
 var _ mapping.Model = &{{.Name}}{}
 
+{{if not .CustomCollectionName -}}
 // NeuronCollectionName implements mapping.Model interface method.
 // Returns the name of the collection for the '{{.Name}}'.
 func ({{.Receiver}} *{{.Name}}) NeuronCollectionName() string {
     return "{{.CollectionName}}"
-}
+}{{end}}
 
 // IsPrimaryKeyZero implements mapping.Model interface method.
 func ({{.Receiver}} *{{.Name}}) IsPrimaryKeyZero() bool {

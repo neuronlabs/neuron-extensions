@@ -89,10 +89,18 @@ type ModelGenerator struct {
 
 // Method is the structure that defines model methods.
 type Method struct {
-	Pointer        bool
-	Name           string
-	ParameterTypes []string
-	ReturnTypes    []string
+	Pointer         bool
+	Name            string
+	ParameterTypes  []string
+	ReturnTypes     []string
+	ReturnStatement string
+}
+
+// IsNeuronCollectionName checks if the method is for neuron collection name.
+func (m *Method) IsNeuronCollectionName() bool {
+	return m.Name == "NeuronCollectionName" &&
+		len(m.ParameterTypes) == 0 &&
+		len(m.ReturnTypes) == 1 && m.ReturnTypes[0] == "string"
 }
 
 // Collections return generator collections.
@@ -223,6 +231,9 @@ func (g *ModelGenerator) ExtractPackages() error {
 
 	// Set primary fields for the models.
 	for _, model := range g.models {
+		if err := g.checkModelMethods(model); err != nil {
+			return err
+		}
 		if err := g.setFieldsStringGetters(model); err != nil {
 			return err
 		}
@@ -296,7 +307,6 @@ func (g *ModelGenerator) extractMethods(pkgName string, dt *ast.FuncDecl) {
 			break
 		}
 	}
-
 	if len(typeName) == 0 {
 		return
 	}
@@ -309,6 +319,11 @@ func (g *ModelGenerator) extractMethods(pkgName string, dt *ast.FuncDecl) {
 		Pointer: pointer,
 		Name:    dt.Name.Name,
 	}
+	for _, mt := range g.typeMethods[typeName] {
+		if mt.Name == method.Name {
+			return
+		}
+	}
 	if dt.Type.Params != nil {
 		for _, p := range dt.Type.Params.List {
 			method.ParameterTypes = append(method.ParameterTypes, fieldTypeName(p.Type))
@@ -317,6 +332,18 @@ func (g *ModelGenerator) extractMethods(pkgName string, dt *ast.FuncDecl) {
 	if dt.Type.Results != nil {
 		for _, r := range dt.Type.Results.List {
 			method.ReturnTypes = append(method.ReturnTypes, fieldTypeName(r.Type))
+		}
+	}
+	if method.IsNeuronCollectionName() {
+		for _, stmt := range dt.Body.List {
+			if rtrn, ok := stmt.(*ast.ReturnStmt); ok {
+				if len(rtrn.Results) == 1 {
+					if bs, ok := rtrn.Results[0].(*ast.BasicLit); ok {
+						method.ReturnStatement = strings.TrimPrefix(bs.Value, "\"")
+						method.ReturnStatement = strings.TrimSuffix(method.ReturnStatement, "\"")
+					}
+				}
+			}
 		}
 	}
 	log.Debug2f("Extracted method: %#v for type: '%s'\n", method, typeName)

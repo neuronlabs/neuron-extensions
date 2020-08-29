@@ -3,7 +3,6 @@ package input
 import (
 	"sort"
 
-	"github.com/neuronlabs/inflection"
 	"github.com/neuronlabs/strcase"
 )
 
@@ -16,19 +15,19 @@ type MultiModel struct {
 
 // Model is a structure used to insert model into template.
 type Model struct {
-	TestFile                                   bool
-	FileName                                   string
-	PackageName                                string
-	Imports                                    Imports
-	Name                                       string
-	Receiver                                   string
-	CollectionName                             string
-	RepositoryName                             string
-	Primary                                    *Field
-	Fields                                     []*Field
-	Fielder, SingleRelationer, MultiRelationer bool
-	Relations                                  []*Field
-	Receivers                                  map[string]int
+	TestFile                                                         bool
+	FileName                                                         string
+	PackageName                                                      string
+	Imports                                                          Imports
+	Name                                                             string
+	Receiver                                                         string
+	CollectionName                                                   string
+	RepositoryName                                                   string
+	Primary                                                          *Field
+	Fields                                                           []*Field
+	Fielder, SingleRelationer, MultiRelationer, CustomCollectionName bool
+	Relations                                                        []*Field
+	Receivers                                                        map[string]int
 }
 
 // AddImport adds 'imp' imported package if it doesn't exists already.
@@ -38,10 +37,11 @@ func (m *Model) AddImport(imp string) {
 
 // Collection returns model's collection.
 func (m *Model) Collection() *Collection {
+	camelCollection := strcase.ToCamel(m.CollectionName)
 	return &Collection{
-		Name:         "_" + strcase.ToCamel(inflection.Plural(m.Name)),
-		VariableName: "NRN_" + strcase.ToCamel(inflection.Plural(m.Name)),
-		QueryBuilder: strcase.ToLowerCamel(inflection.Plural(m.Name) + "QueryBuilder"),
+		Name:         "_" + camelCollection,
+		VariableName: "NRN_" + camelCollection,
+		QueryBuilder: strcase.ToLowerCamel(m.CollectionName + "QueryBuilder"),
 	}
 }
 
