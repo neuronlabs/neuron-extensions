@@ -1,7 +1,7 @@
 {{define "collection-builder" -}}
 {{$out := . -}}
 // {{.Collection.QueryBuilder}} is the query builder used to create and execute
-// queries for the {{.Model.Name}}model.
+// queries for the {{.ModelName}}model.
 type {{.Collection.QueryBuilder}} struct {
     builder database.Builder
     err error
@@ -33,7 +33,7 @@ func ({{.Collection.Receiver}} *{{.Collection.QueryBuilder}}) Count() (int64, er
     return {{$out.Collection.Receiver}}.builder.Count()
 }
 
-// Insert new '{{.Model.Name}}' instance(s) into the store.
+// Insert new '{{.ModelName}}' instance(s) into the store.
 func ({{.Collection.Receiver}} *{{.Collection.QueryBuilder}}) Insert() error {
     if {{.Collection.Receiver}}.err != nil {
         return {{.Collection.Receiver}}.err
@@ -41,7 +41,7 @@ func ({{.Collection.Receiver}} *{{.Collection.QueryBuilder}}) Insert() error {
     return {{$out.Collection.Receiver}}.builder.Insert()
 }
 
-// Update updates given '{{.Model.Name}}' instances.
+// Update updates given '{{.ModelName}}' instances.
 func ({{.Collection.Receiver}} *{{.Collection.QueryBuilder}}) Update() (int64, error) {
     if {{.Collection.Receiver}}.err != nil {
         return 0, {{.Collection.Receiver}}.err
@@ -50,8 +50,8 @@ func ({{.Collection.Receiver}} *{{.Collection.QueryBuilder}}) Update() (int64, e
 }
 
 
-// Find returns all {{.Model.Name}} models that matches to given query.
-func ({{.Collection.Receiver}} *{{.Collection.QueryBuilder}}) Find() ([]*{{.Model.Name}}, error) {
+// Find returns all {{.ModelName}} models that matches to given query.
+func ({{.Collection.Receiver}} *{{.Collection.QueryBuilder}}) Find() ([]*{{.ModelName}}, error) {
     if {{.Collection.Receiver}}.err != nil {
         return nil, {{.Collection.Receiver}}.err
     }
@@ -59,14 +59,14 @@ func ({{.Collection.Receiver}} *{{.Collection.QueryBuilder}}) Find() ([]*{{.Mode
     if err != nil {
         return nil, err
     }
-    models := make([]*{{ .Model.Name }}, len(queryModels))
+    models := make([]*{{ .ModelName }}, len(queryModels))
     for i := range queryModels {
-        models[i] = queryModels[i].(*{{ .Model.Name }})
+        models[i] = queryModels[i].(*{{ .ModelName }})
     }
     return models, nil
 }
 
-// Refresh refreshes input '{{.Model.Name}}' model fields. It might be combine with the included relations.
+// Refresh refreshes input '{{.ModelName}}' model fields. It might be combine with the included relations.
 func ({{.Collection.Receiver}} *{{.Collection.QueryBuilder}}) Refresh() error {
     if {{.Collection.Receiver}}.err != nil {
         return {{.Collection.Receiver}}.err
@@ -74,9 +74,9 @@ func ({{.Collection.Receiver}} *{{.Collection.QueryBuilder}}) Refresh() error {
     return {{.Collection.Receiver}}.builder.Refresh()
 }
 
-// Get returns single {{.Model.Name}} model that matches given query.
+// Get returns single {{.ModelName}} model that matches given query.
 // If the model is not found the function returns error of query.ErrQueryNoResult.
-func ({{.Collection.Receiver}} *{{.Collection.QueryBuilder}}) Get() (*{{.Model.Name}}, error) {
+func ({{.Collection.Receiver}} *{{.Collection.QueryBuilder}}) Get() (*{{.ModelName}}, error) {
     if {{.Collection.Receiver}}.err != nil {
         return nil, {{.Collection.Receiver}}.err
     }
@@ -84,10 +84,10 @@ func ({{.Collection.Receiver}} *{{.Collection.QueryBuilder}}) Get() (*{{.Model.N
     if err != nil {
         return nil, err
     }
-    return model.(*{{ .Model.Name }}), nil
+    return model.(*{{ .ModelName }}), nil
 }
 
-// Delete deletes {{.Model.Name}} instances that matches given query.
+// Delete deletes {{.ModelName}} instances that matches given query.
 func ({{.Collection.Receiver}} *{{.Collection.QueryBuilder}}) Delete() (int64, error) {
     if {{.Collection.Receiver}}.err != nil {
         return 0, {{.Collection.Receiver}}.err
@@ -123,7 +123,7 @@ func ({{$out.Collection.Receiver}} *{{$out.Collection.QueryBuilder}}) Include{{$
     }
     relation, err := {{$out.Collection.VariableName}}.Model.RelationByIndex({{$relation.Index}})
     if err != nil {
-        {{$out.Collection.Receiver}}.err =  errors.Wrapf(mapping.ErrInternal, "Getting '{{$relation.Name}}' by index for model '{{$out.Model.Name}}' failed: %v", err)
+        {{$out.Collection.Receiver}}.err =  errors.Wrapf(mapping.ErrInternal, "Getting '{{$relation.Name}}' by index for model '{{$out.ModelName}}' failed: %v", err)
         return {{$out.Collection.Receiver}}
     }
     // check the fieldset for the relation.
@@ -222,14 +222,14 @@ func ({{.Collection.Receiver}} *{{.Collection.QueryBuilder}}) OrderBy(fields ...
 {{- $relationName := (toLowerCamel $relation.Name)}}
 {{- $relationSelector := (printf "_%s" $relationName) }}
 
-// Add{{$relation.Name}} adds related model {{$relation.Name}} and matches to given {{$out.Model.Name}}.
+// Add{{$relation.Name}} adds related model {{$relation.Name}} and matches to given {{$out.ModelName}}.
 func ({{$out.Collection.Receiver}} *{{$out.Collection.QueryBuilder}}) Add{{$relation.Name}}({{$relationSelector}} {{if $relation.IsSlice}}...{{end}}*{{$relation.BaseType}}) error {
     if {{$out.Collection.Receiver}}.err != nil {
         return {{$out.Collection.Receiver}}.err
     }
     relation, err := {{$out.Collection.VariableName}}.Model.RelationByIndex({{$relation.Index}})
     if err != nil {
-        return errors.Wrapf(mapping.ErrInternal, "getting '{{$relation.Name}}' relation by index for model '{{$out.Model.Name}}' failed: %v", err)
+        return errors.Wrapf(mapping.ErrInternal, "getting '{{$relation.Name}}' relation by index for model '{{$out.ModelName}}' failed: %v", err)
     }
     {{if not $relation.IsSlice -}}
     return {{$out.Collection.Receiver}}.builder.AddRelations(relation, {{$relationSelector}})
@@ -246,14 +246,14 @@ func ({{$out.Collection.Receiver}} *{{$out.Collection.QueryBuilder}}) Add{{$rela
 {{- $relationName := (toLowerCamel $relation.Name)}}
 {{- $relationSelector := (printf "_%s" $relationName) }}
 
-// Set{{$relation.Name}} sets related model {{$relation.Name}} and matches to given {{$out.Model.Name}}.
+// Set{{$relation.Name}} sets related model {{$relation.Name}} and matches to given {{$out.ModelName}}.
 func ({{$out.Collection.Receiver}} *{{$out.Collection.QueryBuilder}}) Set{{$relation.Name}}({{$relationSelector}} {{if $relation.IsSlice}}...{{end}}*{{$relation.BaseType}}) error {
     if {{$out.Collection.Receiver}}.err != nil {
         return {{$out.Collection.Receiver}}.err
     }
     relation, err := {{$out.Collection.VariableName}}.Model.RelationByIndex({{$relation.Index}})
     if err != nil {
-        return errors.Wrapf(mapping.ErrInternal, "getting '{{$relation.Name}}' relation by index for model '{{$out.Model.Name}}' failed: %v", err)
+        return errors.Wrapf(mapping.ErrInternal, "getting '{{$relation.Name}}' relation by index for model '{{$out.ModelName}}' failed: %v", err)
     }
     {{if not $relation.IsSlice -}}
     return {{$out.Collection.Receiver}}.builder.SetRelations(relation, {{$relationSelector}})
@@ -269,14 +269,14 @@ func ({{$out.Collection.Receiver}} *{{$out.Collection.QueryBuilder}}) Set{{$rela
 {{range $relation := .Model.Relations -}}{{- /* TODO: check if the relation is ready to be removed. */ -}}
 {{- $relationName := (toLowerCamel $relation.Name)}}
 
-// Remove{{$relation.Name}} removes related model {{$relation.Name}} and matches to given {{$out.Model.Name}}.
+// Remove{{$relation.Name}} removes related model {{$relation.Name}} and matches to given {{$out.ModelName}}.
 func ({{$out.Collection.Receiver}} *{{$out.Collection.QueryBuilder}}) Remove{{$relation.Name}}() (int64, error) {
     if {{$out.Collection.Receiver}}.err != nil {
         return 0, {{$out.Collection.Receiver}}.err
     }
     relation, err := {{$out.Collection.VariableName}}.Model.RelationByIndex({{$relation.Index}})
     if err != nil {
-        return 0, errors.Wrapf(mapping.ErrInternal, "getting '{{$relation.Name}}' relation by index for model '{{$out.Model.Name}}' failed: %v", err)
+        return 0, errors.Wrapf(mapping.ErrInternal, "getting '{{$relation.Name}}' relation by index for model '{{$out.ModelName}}' failed: %v", err)
     }
     return {{$out.Collection.Receiver}}.builder.RemoveRelations(relation)
 }

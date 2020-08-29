@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
@@ -102,6 +103,42 @@ func (p *Postgres) Rollback(ctx context.Context, tx *query.Transaction) error {
 			continue
 		}
 		return errors.WrapDetf(p.neuronError(err), "rollback transaction: %s failed: %v", tx.ID, err)
+	}
+	return nil
+}
+
+// Savepoint implements repository.Savepointer.
+func (p *Postgres) Savepoint(ctx context.Context, tx *query.Transaction, name string) error {
+	if tx == nil {
+		return errors.WrapDet(query.ErrTxInvalid, "scope's transaction is nil")
+	}
+	pgxTx, ok := p.checkTransaction(tx.ID)
+	if !ok {
+		log.Errorf("Transaction: '%s' no mapped SQL transaction found", tx.ID)
+		return errors.WrapDet(query.ErrTxInvalid, "no mapped sql transaction found for the scope")
+	}
+
+	_, err := pgxTx.Exec(ctx, fmt.Sprintf("SAVEPOINT %s", name))
+	if err != nil {
+		return errors.Wrapf(query.ErrTxInvalid, "can't set up savepoint for the transaction: %v", err)
+	}
+	return nil
+}
+
+// RollbackSavepoint implements repository.Savepointer interface.
+func (p *Postgres) RollbackSavepoint(ctx context.Context, tx *query.Transaction, name string) error {
+	if tx == nil {
+		return errors.WrapDet(query.ErrTxInvalid, "scope's transaction is nil")
+	}
+	pgxTx, ok := p.checkTransaction(tx.ID)
+	if !ok {
+		log.Errorf("Transaction: '%s' no mapped SQL transaction found", tx.ID)
+		return errors.WrapDet(query.ErrTxInvalid, "no mapped sql transaction found for the scope")
+	}
+
+	_, err := pgxTx.Exec(ctx, fmt.Sprintf("ROLLBACK TO SAVEPOINT %s", name))
+	if err != nil {
+		return errors.Wrapf(query.ErrTxInvalid, "rolling back to savepoint failed: %v", err)
 	}
 	return nil
 }

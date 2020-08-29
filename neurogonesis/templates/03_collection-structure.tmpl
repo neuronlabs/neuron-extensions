@@ -1,6 +1,6 @@
 {{define "collection-structure" -}}
 
-// {{.Collection.VariableName}} is the collection used to query {{.Model.Name}} model.
+// {{.Collection.VariableName}} is the collection used to query {{.ModelName}} model.
 var {{.Collection.VariableName}} = &{{.Collection.Name}}{}
 
 type {{.Collection.Name}} struct {
@@ -9,7 +9,7 @@ type {{.Collection.Name}} struct {
 
 // InitializeCollection implements core.Initializer interface.
 func ({{.Collection.Receiver}} *{{.Collection.Name}}) Initialize(_ctrl *core.Controller) error {
-    mStruct, err := _ctrl.ModelStruct(&{{.Model.Name}}{})
+    mStruct, err := _ctrl.ModelStruct(&{{.ModelName}}{})
     if err != nil {
         return err
     }
@@ -17,8 +17,8 @@ func ({{.Collection.Receiver}} *{{.Collection.Name}}) Initialize(_ctrl *core.Con
     return nil
 }
 
-// ToModels converts the input slice of {{.Model.Name}} into []mapping.Model
-func ({{.Collection.Receiver}} *{{.Collection.Name}}) ToModels(input ...*{{.Model.Name}}) ([]mapping.Model) {
+// ToModels converts the input slice of {{.ModelName}} into []mapping.Model
+func ({{.Collection.Receiver}} *{{.Collection.Name}}) ToModels(input ...*{{.ModelName}}) ([]mapping.Model) {
     output := make([]mapping.Model, len(input))
     for i := range input {
         output[i] = input[i]
@@ -26,17 +26,17 @@ func ({{.Collection.Receiver}} *{{.Collection.Name}}) ToModels(input ...*{{.Mode
     return output
 }
 
-// FromModels converts the input mapping.Model into []*{{.Model.Name}}.
-func ({{.Collection.Receiver}} *{{.Collection.Name}}) FromModels(input ...mapping.Model) ([]*{{.Model.Name}}) {
-    output := make([]*{{.Model.Name}}, len(input))
+// FromModels converts the input mapping.Model into []*{{.ModelName}}.
+func ({{.Collection.Receiver}} *{{.Collection.Name}}) FromModels(input ...mapping.Model) ([]*{{.ModelName}}) {
+    output := make([]*{{.ModelName}}, len(input))
     for i := range input {
-        output[i] = input[i].(*{{.Model.Name}})
+        output[i] = input[i].(*{{.ModelName}})
     }
     return output
 }
 
-// Query creates the query for the {{.Model.Name}}.
-func ({{.Collection.Receiver}} *{{.Collection.Name}}) Query(db database.DB, models ...*{{.Model.Name}}) *{{.Collection.QueryBuilder}} {
+// Query creates the query for the {{.ModelName}}.
+func ({{.Collection.Receiver}} *{{.Collection.Name}}) Query(db database.DB, models ...*{{.ModelName}}) *{{.Collection.QueryBuilder}} {
     var queryModels []mapping.Model
     if len(models) > 0 {
         queryModels = make([]mapping.Model, len(models))
@@ -48,8 +48,8 @@ func ({{.Collection.Receiver}} *{{.Collection.Name}}) Query(db database.DB, mode
     return &{{.Collection.QueryBuilder}}{builder: builder}
 }
 
-// QueryCtx creates the query for the {{.Model.Name}} with provided 'ctx' context.
-func ({{.Collection.Receiver}} *{{.Collection.Name}}) QueryCtx(ctx context.Context, db database.DB, models ...*{{.Model.Name}}) *{{.Collection.QueryBuilder}} {
+// QueryCtx creates the query for the {{.ModelName}} with provided 'ctx' context.
+func ({{.Collection.Receiver}} *{{.Collection.Name}}) QueryCtx(ctx context.Context, db database.DB, models ...*{{.ModelName}}) *{{.Collection.QueryBuilder}} {
     var queryModels []mapping.Model
     if len(models) > 0 {
         queryModels = make([]mapping.Model, len(models))
@@ -61,8 +61,8 @@ func ({{.Collection.Receiver}} *{{.Collection.Name}}) QueryCtx(ctx context.Conte
     return &{{.Collection.QueryBuilder}}{builder: builder}
 }
 
-// Insert inserts {{.Model.Name}} into database.
-func ({{.Collection.Receiver}} *{{.Collection.Name}}) Insert(ctx context.Context, db database.DB, models ...*{{.Model.Name}}) error {
+// Insert inserts {{.ModelName}} into database.
+func ({{.Collection.Receiver}} *{{.Collection.Name}}) Insert(ctx context.Context, db database.DB, models ...*{{.ModelName}}) error {
     if len(models) == 0 {
         return errors.Wrap(query.ErrNoModels, "nothing to insert")
     }
@@ -73,8 +73,8 @@ func ({{.Collection.Receiver}} *{{.Collection.Name}}) Insert(ctx context.Context
     return db.Insert(ctx, {{.Collection.Receiver}}.Model, queryModels...)
 }
 
-// Update updates {{.Model.Name}} models into database.
-func ({{.Collection.Receiver}} *{{.Collection.Name}}) Update(ctx context.Context, db database.DB, models ...*{{.Model.Name}}) (int64, error) {
+// Update updates {{.ModelName}} models into database.
+func ({{.Collection.Receiver}} *{{.Collection.Name}}) Update(ctx context.Context, db database.DB, models ...*{{.ModelName}}) (int64, error) {
     if len(models) == 0 {
         return 0, errors.Wrap(query.ErrNoModels, "nothing to insert")
     }
@@ -85,8 +85,8 @@ func ({{.Collection.Receiver}} *{{.Collection.Name}}) Update(ctx context.Context
     return db.Update(ctx, {{.Collection.Receiver}}.Model, queryModels...)
 }
 
-// Delete deletes {{.Model.Name}} models in database.
-func ({{.Collection.Receiver}} *{{.Collection.Name}}) Delete(ctx context.Context, db database.DB, models ...*{{.Model.Name}}) (int64,error) {
+// Delete deletes {{.ModelName}} models in database.
+func ({{.Collection.Receiver}} *{{.Collection.Name}}) Delete(ctx context.Context, db database.DB, models ...*{{.ModelName}}) (int64,error) {
     if len(models) == 0 {
         return 0, errors.Wrap(query.ErrNoModels, "nothing to insert")
     }
@@ -97,8 +97,8 @@ func ({{.Collection.Receiver}} *{{.Collection.Name}}) Delete(ctx context.Context
     return db.Delete(ctx, {{.Collection.Receiver}}.Model, queryModels...)
 }
 
-// Refresh creates the query for the {{.Model.Name}} with provided 'ctx' context.
-func ({{.Collection.Receiver}} *{{.Collection.Name}}) Refresh(ctx context.Context, db database.DB, models ...*{{.Model.Name}}) error {
+// Refresh creates the query for the {{.ModelName}} with provided 'ctx' context.
+func ({{.Collection.Receiver}} *{{.Collection.Name}}) Refresh(ctx context.Context, db database.DB, models ...*{{.ModelName}}) error {
     var queryModels []mapping.Model
     if len(models) == 0 {
         return errors.Wrap(query.ErrNoModels, "nothing to refresh")
@@ -116,7 +116,7 @@ func ({{.Collection.Receiver}} *{{.Collection.Name}}) Refresh(ctx context.Contex
 
 {{if $relation.IsSlice -}}
 // Add{{$relation.Name}} adds the '{{$relation.Name}}' relationship for provided input 'models'.
-func ({{$out.Collection.Receiver}} *{{$out.Collection.Name}}) Add{{$relation.Name}}(ctx context.Context, db database.DB, model *{{$out.Model.Name}}, relations ...*{{$relation.BaseType}}) error {
+func ({{$out.Collection.Receiver}} *{{$out.Collection.Name}}) Add{{$relation.Name}}(ctx context.Context, db database.DB, model *{{$out.ModelName}}, relations ...*{{$relation.BaseType}}) error {
     if model == nil {
         return errors.Wrap(query.ErrNoModels, "provided nil model")
     }
@@ -142,7 +142,7 @@ func ({{$out.Collection.Receiver}} *{{$out.Collection.Name}}) Add{{$relation.Nam
 
 // Clear{{$relation.Name}}Relation clears the '{{$relation.Name}}' relationship for provided models. For relationships of type:
 // BelongsTo, HasOne, HasMany if foreign key is not nullable than the function would return an error.
-func ({{$out.Collection.Receiver}} *{{$out.Collection.Name}}) Clear{{$relation.Name}}Relation(ctx context.Context, db database.DB, models ...*{{$out.Model.Name}}) (int64, error) {
+func ({{$out.Collection.Receiver}} *{{$out.Collection.Name}}) Clear{{$relation.Name}}Relation(ctx context.Context, db database.DB, models ...*{{$out.ModelName}}) (int64, error) {
     relation, err := {{$out.Collection.Receiver}}.Model.RelationByIndex({{$relation.Index}})
     if err != nil {
         return 0, err
@@ -161,13 +161,13 @@ func ({{$out.Collection.Receiver}} *{{$out.Collection.Name}}) Clear{{$relation.N
 
 
 // Get{{$relation.Name}} gets the '{{$relation.Name}}' relationship for provided input 'model'.
-func ({{$out.Collection.Receiver}} *{{$out.Collection.Name}}) Get{{$relation.Name}}(ctx context.Context, db database.DB, model *{{$out.Model.Name}}, relationFieldset ...string) ({{if $relation.IsSlice -}}[]{{- end -}}*{{$relation.BaseType}}, error) {
+func ({{$out.Collection.Receiver}} *{{$out.Collection.Name}}) Get{{$relation.Name}}(ctx context.Context, db database.DB, model *{{$out.ModelName}}, relationFieldset ...string) ({{if $relation.IsSlice -}}[]{{- end -}}*{{$relation.BaseType}}, error) {
     if model == nil {
         return nil, errors.Wrap(query.ErrNoModels, "provided nil model")
     }
     // Check if primary key has zero value.
     if model.IsPrimaryKeyZero() {
-        return nil, errors.Wrap(mapping.ErrFieldValue, "model's: '{{$out.Model.Name}}' primary key value has zero value")
+        return nil, errors.Wrap(mapping.ErrFieldValue, "model's: '{{$out.ModelName}}' primary key value has zero value")
     }
     relationField, err := {{$out.Collection.Receiver}}.Model.RelationByIndex({{$relation.Index}})
     if err != nil {
@@ -212,13 +212,13 @@ func ({{$out.Collection.Receiver}} *{{$out.Collection.Name}}) Get{{$relation.Nam
 
 
 // Set{{$relation.Name}} sets the '{{$relation.Name}}' relationship for provided input 'models'.
-func ({{$out.Collection.Receiver}} *{{$out.Collection.Name}}) Set{{$relation.Name}}(ctx context.Context, db database.DB, model *{{$out.Model.Name}}, relation{{if $relation.IsSlice -}}s ...{{- else}} {{- end -}}*{{$relation.BaseType}}) error {
+func ({{$out.Collection.Receiver}} *{{$out.Collection.Name}}) Set{{$relation.Name}}(ctx context.Context, db database.DB, model *{{$out.ModelName}}, relation{{if $relation.IsSlice -}}s ...{{- else}} {{- end -}}*{{$relation.BaseType}}) error {
     if model == nil {
         return errors.Wrap(query.ErrNoModels, "provided nil model")
     }
     // Check if primary key has zero value.
     if model.IsPrimaryKeyZero() {
-        return errors.Wrap(mapping.ErrFieldValue, "model's: '{{$out.Model.Name}}' primary key value has zero value")
+        return errors.Wrap(mapping.ErrFieldValue, "model's: '{{$out.ModelName}}' primary key value has zero value")
     }
     relationField, err := {{$out.Collection.Receiver}}.Model.RelationByIndex({{$relation.Index}})
     if err != nil {

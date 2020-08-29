@@ -128,20 +128,26 @@ func generateCollections(cmd *cobra.Command, args []string) {
 	buf := &bytes.Buffer{}
 
 	var modelNames []string
+	v, _ := filepath.Rel(filepath.Clean("."), dir)
+	isModelImported := v != "."
+	if isModelImported {
+		g.ResolveRelationSelectors()
+	}
 	if !singleFile {
-		for _, collection := range g.Collections("") {
+		for _, collection := range g.Collections("", isModelImported) {
 			// Create new file if not exists.
 			fileName := filepath.Join(dir, strcase.ToSnake(collection.Model.Name)+"_collection.neuron")
 			if collection.Model.TestFile {
 				fileName += "_test"
 			}
+
 			fileName += ".go"
 			generateFile(fileName, "collection", buf, collection)
 			modelNames = append(modelNames, collection.Model.Name)
 		}
 	} else {
 		var testCollections, collections []*input.CollectionInput
-		for _, collection := range g.Collections("") {
+		for _, collection := range g.Collections("", isModelImported) {
 			collection.ExternalController = externalController
 			modelNames = append(modelNames, collection.Model.Name)
 			if collection.Model.TestFile {

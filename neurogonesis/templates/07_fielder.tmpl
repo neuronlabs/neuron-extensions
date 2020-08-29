@@ -139,7 +139,7 @@ func ({{.Receiver}} *{{.Name}}) SetFieldValue(field *mapping.StructField, value 
                     {{- end}}
                     {{- else -}}
                     {{if $field.IsPointer -}}
-                    *{{$out.Receiver}}.{{$field.Name}}[i] = v
+                    (*{{$out.Receiver}}.{{$field.Name}})[i] = v
                     {{- else -}}
                     {{$out.Receiver}}.{{$field.Name}}[i] = v
                     {{- end}}

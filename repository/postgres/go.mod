@@ -8,7 +8,7 @@ require (
 	github.com/jackc/pgproto3/v2 v2.0.4 // indirect
 	github.com/jackc/pgtype v1.4.2
 	github.com/jackc/pgx/v4 v4.8.1
-	github.com/neuronlabs/neuron v0.19.1
+	github.com/neuronlabs/neuron v0.20.1
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/stretchr/testify v1.6.1
 	golang.org/x/crypto v0.0.0-20200728195943-123391ffb6de // indirect

@@ -6,7 +6,6 @@ import (
 	"go/ast"
 	"go/token"
 	"os"
-	"path"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -104,9 +103,9 @@ func (m *Method) IsNeuronCollectionName() bool {
 }
 
 // Collections return generator collections.
-func (g *ModelGenerator) Collections(packageName string) (collections []*input.CollectionInput) {
+func (g *ModelGenerator) Collections(packageName string, isModelImported bool) (collections []*input.CollectionInput) {
 	for _, model := range g.Models() {
-		collections = append(collections, model.CollectionInput(packageName))
+		collections = append(collections, model.CollectionInput(packageName, isModelImported))
 	}
 	return collections
 }
@@ -525,8 +524,7 @@ func (g *ModelGenerator) createImportField(file *ast.File, sel *ast.SelectorExpr
 	}
 	for _, imp := range file.Imports {
 		p := strings.Trim(imp.Path.Value, "\"")
-		base := path.Base(p)
-		if base == pkgIdent.Name {
+		if strings.HasSuffix(p, pkgIdent.Name) {
 			i.Path = p
 			break
 		}

@@ -46,7 +46,7 @@ func (m *Model) Collection() *Collection {
 }
 
 // CollectionInput returns template collection input for given model.
-func (m *Model) CollectionInput(packageName string) *CollectionInput {
+func (m *Model) CollectionInput(packageName string, isModelImported bool) *CollectionInput {
 	c := &CollectionInput{
 		PackageName: packageName,
 		Imports: []string{
@@ -56,8 +56,9 @@ func (m *Model) CollectionInput(packageName string) *CollectionInput {
 			"github.com/neuronlabs/neuron/mapping",
 			"github.com/neuronlabs/neuron/query",
 		},
-		Model:      m,
-		Collection: m.Collection(),
+		Model:         m,
+		Collection:    m.Collection(),
+		ModelImported: true,
 	}
 	if c.PackageName == "" {
 		c.PackageName = m.PackageName

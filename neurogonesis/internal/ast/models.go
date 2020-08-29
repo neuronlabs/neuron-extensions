@@ -3,6 +3,7 @@ package ast
 import (
 	"errors"
 	"go/ast"
+	"strings"
 
 	"github.com/neuronlabs/inflection"
 	"github.com/neuronlabs/neuron/log"
@@ -116,6 +117,7 @@ func (g *ModelGenerator) extractModel(file *ast.File, structType *ast.StructType
 			field.IsSlice = isMany(structField.Type)
 			field.IsElemPointer = isElemPointer(structField)
 			field.IsPointer = isPointer(structField)
+			field.Selector = getSelector(structField.Type)
 			model.Relations = append(model.Relations, &field)
 			continue
 		} else if importedField := g.isImported(file, structField); importedField != nil {
@@ -178,6 +180,23 @@ func (g *ModelGenerator) extractModel(file *ast.File, structType *ast.StructType
 	return model, nil
 }
 
+func (g *ModelGenerator) ResolveRelationSelectors() {
+	for _, model := range g.models {
+		for _, relation := range model.Relations {
+			// if relation.Selector
+			if relation.Selector == "" && !strings.ContainsRune(relation.Type, '.') {
+				relation.Selector = model.PackageName
+
+				index := strings.LastIndexAny(relation.Type, "[]*")
+				if index == -1 {
+					relation.Type = model.PackageName + "." + relation.Type
+				} else {
+					relation.Type = relation.Type[:index] + relation.Selector + "." + relation.Type[index+1:]
+				}
+			}
+		}
+	}
+}
 func getArraySize(expr ast.Expr) string {
 	switch x := expr.(type) {
 	case *ast.ArrayType:

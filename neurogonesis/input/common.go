@@ -40,6 +40,15 @@ type CollectionInput struct {
 	Model              *Model
 	Collection         *Collection
 	ExternalController bool
+	ModelImported      bool
+}
+
+// ModelName gets the collection input model type.
+func (c *CollectionInput) ModelName() string {
+	if !c.ModelImported {
+		return c.Model.Name
+	}
+	return c.Model.PackageName + "." + c.Model.Name
 }
 
 // MultiCollectionInput is the input for multiple collections.

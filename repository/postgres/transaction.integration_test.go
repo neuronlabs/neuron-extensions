@@ -78,3 +78,43 @@ func TestTransactions(t *testing.T) {
 		assert.True(t, errors.Is(err, query.ErrNoResult))
 	})
 }
+
+func TestSavepoints(t *testing.T) {
+	c := testingController(t, true, testModels...)
+	p := testingRepository(c)
+
+	ctx := context.Background()
+
+	mStruct, err := c.ModelStruct(&tests.SimpleModel{})
+	require.NoError(t, err)
+
+	defer func() {
+		_ = internal.DropTables(ctx, p.ConnPool, mStruct.DatabaseName, mStruct.DatabaseSchemaName)
+	}()
+
+	db := database.New(c)
+
+	// No results should return no error.
+	tx := db.Begin(ctx, nil)
+
+	model := &tests.SimpleModel{Attr: "Name"}
+	err = tx.Query(mStruct, model).Insert()
+	require.NoError(t, err)
+
+	err = tx.Savepoint("testing")
+	require.NoError(t, err)
+
+	model2 := &tests.SimpleModel{Attr: "Other"}
+	err = tx.Query(mStruct, model2).Insert()
+	require.NoError(t, err)
+
+	err = tx.RollbackSavepoint("testing")
+	require.NoError(t, err)
+
+	cnt, err := tx.Query(mStruct).Count()
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), cnt)
+
+	err = tx.Rollback()
+	require.NoError(t, err)
+}
