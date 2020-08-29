@@ -76,7 +76,7 @@ func (c Collection) Receiver() string {
 		name = c.Name[3:]
 	}
 	if name[0] == '_' {
-		return strings.ToLower(name[1:2])
+		return strings.ToLower(name[:2])
 	}
 	return strings.ToLower(name[:1])
 }

@@ -74,6 +74,7 @@ func (g *ModelGenerator) extractModel(file *ast.File, structType *ast.StructType
 		Name:           modelName,
 		Receivers:      make(map[string]int),
 		PackageName:    pkg.Name,
+		PackagePath:    pkg.PkgPath,
 	}
 
 	// Find primary field key.

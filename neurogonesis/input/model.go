@@ -18,6 +18,7 @@ type Model struct {
 	TestFile                                                         bool
 	FileName                                                         string
 	PackageName                                                      string
+	PackagePath                                                      string
 	Imports                                                          Imports
 	Name                                                             string
 	Receiver                                                         string
@@ -52,9 +53,11 @@ func (m *Model) CollectionInput(packageName string, isModelImported bool) *Colle
 		Imports: []string{
 			"context",
 			"github.com/neuronlabs/neuron/core",
+			"github.com/neuronlabs/neuron/database",
 			"github.com/neuronlabs/neuron/errors",
 			"github.com/neuronlabs/neuron/mapping",
 			"github.com/neuronlabs/neuron/query",
+			"github.com/neuronlabs/neuron/query/filter",
 		},
 		Model:         m,
 		Collection:    m.Collection(),
@@ -62,6 +65,9 @@ func (m *Model) CollectionInput(packageName string, isModelImported bool) *Colle
 	}
 	if c.PackageName == "" {
 		c.PackageName = m.PackageName
+	}
+	if isModelImported {
+		c.Imports.Add(m.PackagePath)
 	}
 	return c
 }
