@@ -69,32 +69,32 @@ func ({{.Receiver}} *{{.Name}}) SetPrimaryKeyValue(value interface{}) error {
         return nil
     }
     {{end -}}
-    if v, ok := value.({{.Primary.Type}}); ok {
-        {{.Receiver}}.{{.Primary.Name}} = v
+    if _v, ok := value.({{.Primary.Type}}); ok {
+        {{.Receiver}}.{{.Primary.Name}} = _v
         return nil
     {{if and (not .Primary.IsSlice) .Primary.IsPointer -}}
-    } else if v, ok := value.({{.Primary.BaseType}}); ok {
-        {{.Receiver}}.{{.Primary.Name}} = &v
+    } else if _v, ok := value.({{.Primary.BaseType}}); ok {
+        {{.Receiver}}.{{.Primary.Name}} = &_v
         return nil
     {{end -}}{{range $wrapped := .Primary.WrappedTypes -}}
-    } else if v, ok := value.({{$wrapped}}); ok {
+    } else if _v, ok := value.({{$wrapped}}); ok {
         {{if $out.Primary.IsPointer -}}
-        temp := {{slice $out.Primary.Type 1}}(v)
+        temp := {{slice $out.Primary.Type 1}}(_v)
         {{$out.Receiver}}.{{$out.Primary.Name}} = &temp
         {{else -}}
-        {{$out.Receiver}}.{{$out.Primary.Name}} = {{$out.Primary.BaseType}}(v)
+        {{$out.Receiver}}.{{$out.Primary.Name}} = {{$out.Primary.BaseType}}(_v)
         {{end -}}
     {{end -}}
     }
     {{if le (len .Primary.AlternateTypes) 1 -}}
     {{- if eq (len .Primary.AlternateTypes) 1 -}}
     // Check alternate types for given field.
-    if v, ok := value.({{index .Primary.AlternateTypes 0}}); ok {
+    if _v, ok := value.({{index .Primary.AlternateTypes 0}}); ok {
         {{if $out.Primary.IsPointer -}}
-        temp := {{slice $out.Primary.Type 1}}(v)
+        temp := {{slice $out.Primary.Type 1}}(_v)
         {{$out.Receiver}}.{{$out.Primary.Name}} = &temp
         {{- else -}}
-        {{$out.Receiver}}.{{$out.Primary.Name}} = {{$out.Primary.Type}}(v)
+        {{$out.Receiver}}.{{$out.Primary.Name}} = {{$out.Primary.Type}}(_v)
         {{- end}}
         return nil
     }
@@ -105,14 +105,14 @@ func ({{.Receiver}} *{{.Name}}) SetPrimaryKeyValue(value interface{}) error {
         value, {{.Receiver}}){{end}}
     {{- else -}}
     // Check alternate types for given field.
-    switch valueType := value.(type) {
+    switch _valueType := value.(type) {
     {{range $alternate := .Primary.AlternateTypes -}}
     case {{$alternate}}:
         {{if $out.Primary.IsPointer -}}
-        temp := {{$out.Primary.BaseType}}(valueType)
+        temp := {{$out.Primary.BaseType}}(_valueType)
         {{$out.Receiver}}.{{$out.Primary.Name}} = &temp
         {{- else -}}
-        {{$out.Receiver}}.{{$out.Primary.Name}} = {{$out.Primary.Type}}(valueType)
+        {{$out.Receiver}}.{{$out.Primary.Name}} = {{$out.Primary.Type}}(_valueType)
         {{- end}}
     {{end -}}default:
         return errors.Wrapf(mapping.ErrFieldValue, "provided invalid value: '%T' for the primary field for model: '{{.Name}}'", value)

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/mapping"
 )
@@ -43,6 +44,11 @@ var (
 
 	// FUUID is the uuid
 	FUUID = &BasicDataType{SQLName: "uuid", DataType: DataType{Name: "uuid"}}
+
+	// FLTree is the LTree extension type.
+	FLTree = &BasicDataType{SQLName: "ltree", DataType: DataType{Name: "ltree"}}
+	// FHStore is the HStore extension type
+	FHStore = &BasicDataType{SQLName: "hstore", DataType: DataType{Name: "hstore"}}
 
 	/** Binary */
 
@@ -85,8 +91,11 @@ var (
 		reflect.Float64: FDouble,
 	}
 	defaultTypeDT = map[reflect.Type]DataTyper{
-		reflect.TypeOf(time.Time{}):  FTimestamp,
-		reflect.TypeOf(&time.Time{}): FTimestamp,
+		reflect.TypeOf(map[string]string{}): FHStore,
+		reflect.TypeOf(time.Time{}):         FTimestamp,
+		reflect.TypeOf(&time.Time{}):        FTimestamp,
+		reflect.TypeOf(uuid.UUID{}):         FUUID,
+		reflect.TypeOf(&uuid.UUID{}):        FUUID,
 	}
 
 	defaultTypes = []DataTyper{
@@ -100,6 +109,8 @@ var (
 		FDate, FTimestamp, FTimestampTZ, FTime, FTimeTZ,
 		// UUID
 		FUUID,
+		// Extensions
+		FLTree, FHStore,
 	}
 )
 

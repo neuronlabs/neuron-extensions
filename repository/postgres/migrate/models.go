@@ -170,9 +170,6 @@ func prepareModel(model *mapping.ModelStruct) error {
 		if field.DatabaseName == "" {
 			field.DatabaseName = mapping.NamingSnake(field.Name())
 		}
-		if _, err := findDataType(field); err != nil {
-			return err
-		}
 		for _, index := range field.DatabaseIndexes() {
 			if index.Name == "" {
 				index.Name = newIndexName(model, field, index)
