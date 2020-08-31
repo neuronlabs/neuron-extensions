@@ -42,8 +42,8 @@ github.com/neuronlabs/inflection v1.0.1 h1:LDuwbM1jYKEf6DDcA7XV7JRn3Sv9/PBiW6iUo
 github.com/neuronlabs/inflection v1.0.1/go.mod h1:gnqNj1uxAGPYT1LsHRvSyBcd57vvIKTuTmS3ffdgRd8=
 github.com/neuronlabs/neuron v0.19.1 h1:My1Ec7sFJqGVs2A2NQg2w+hRPCjbScRUaaxRPtFsqgE=
 github.com/neuronlabs/neuron v0.19.1/go.mod h1:xjSqaRsUv89SeieBQ3RsEmMMyEPUbl1/rn2WmK3mmiA=
-github.com/neuronlabs/neuron v0.20.1 h1:m5eulwK7qQDo9/cadnRKlRsovS5kiof+BwGTaMYfx8A=
-github.com/neuronlabs/neuron v0.20.1/go.mod h1:xjSqaRsUv89SeieBQ3RsEmMMyEPUbl1/rn2WmK3mmiA=
+github.com/neuronlabs/neuron v0.20.2 h1:dqkEn/yuG+kCU2MSMvT7XSZ51rwztcQmkhNGwNZIZt4=
+github.com/neuronlabs/neuron v0.20.2/go.mod h1:xjSqaRsUv89SeieBQ3RsEmMMyEPUbl1/rn2WmK3mmiA=
 github.com/neuronlabs/neuron-extensions/codec/cjson v0.0.2 h1:yCqKsHlLFxh5I7fdexFUs+m5R8A53d7+1F1VYi1YHVQ=
 github.com/neuronlabs/neuron-extensions/codec/cjson v0.0.2/go.mod h1:EhmMqLNxrOB68bCrdL+aWdqEtpv7lL2p78GVzs6aRy8=
 github.com/neuronlabs/neuron-extensions/server/xhttp v0.0.1 h1:5euRQfWqg9786KDdoAi/OiDsest3FaKBxwF0ZaER0Vw=

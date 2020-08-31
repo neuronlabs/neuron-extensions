@@ -9,7 +9,7 @@ import (
 )
 
 //go:generate neurogonesis models methods --format=goimports --single-file .
-//go:generate neurogonesis collections --format=goimports --single-file -o collections .
+//go:generate neurogonesis collections  --single-file -o collections .
 
 // User is testing model.
 type User struct {

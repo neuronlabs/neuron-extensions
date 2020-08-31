@@ -188,7 +188,6 @@ func ({{.Collection.Receiver}} *{{.Collection.QueryBuilder}}) Select(fields ...s
 // OrderBy adds the sort fields into query scope. By default field is ordered ascending. In order to sort descending
 // add '-' before the field name i.e. '-id'. The order of the fields relates to the significance of the sorting order.
 // Allowed fields to sort:
-//  - {{.Model.Primary.Name}}
 {{range $field := .Model.Fields -}}
 {{if $field.Sortable -}}
 //  - {{$field.Name}}

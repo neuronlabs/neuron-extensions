@@ -5,16 +5,19 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgtype/pgxtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/neuronlabs/neuron/database"
 
-	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
-	"github.com/neuronlabs/neuron-extensions/repository/postgres/log"
-	"github.com/neuronlabs/neuron-extensions/repository/postgres/migrate"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/query"
 	"github.com/neuronlabs/neuron/repository"
+
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/log"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/migrate"
 )
 
 // FactoryName defines the name of the factory.
@@ -198,6 +201,21 @@ func (p *Postgres) neuronError(err error) error {
 		return mapped
 	}
 	return ErrUnmappedError
+}
+
+// Querier gets the pgxtype.Querier based on provided 'db'.
+func (p *Postgres) Querier(db database.DB) (pgxtype.Querier, error) {
+	if tx, ok := db.(*database.Tx); ok {
+		if tx.Transaction.State.Done() {
+			return nil, errors.Wrap(query.ErrTxDone, "provided transaction is already done")
+		}
+		pgxTx := p.getTransaction(tx.Transaction.ID)
+		if pgxTx == nil {
+			return nil, errors.Wrap(query.ErrTxInvalid, "provided invalid transaction for this repository")
+		}
+		return pgxTx, nil
+	}
+	return p.ConnPool, nil
 }
 
 func (p *Postgres) connection(s *query.Scope) internal.Connection {
