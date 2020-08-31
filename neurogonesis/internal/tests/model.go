@@ -9,7 +9,7 @@ import (
 )
 
 //go:generate neurogonesis models methods --format=goimports --single-file .
-//go:generate neurogonesis collections  --single-file -o collections .
+//go:generate neurogonesis collections  --single-file --format=goimports -o collections .
 
 // User is testing model.
 type User struct {
@@ -24,17 +24,20 @@ type User struct {
 	Wrapped       external.Int
 	PtrWrapped    *external.Int
 	External      *external.Model
+	ExternalID    int
 	FavoriteCar   Car
 	FavoriteCarID string     `db:";notnull"`
 	SisterID      *uuid.UUID `db:";notnull"`
 	Cars          []*Car
-	Sons          []*User
+	Sons          []*User   `neuron:"foreign=ParentID"`
+	ParentID      uuid.UUID `neuron:"type=foreign"`
 	Sister        *User
 }
 
 // Car is the test model for generator.
 type Car struct {
 	ID     string
+	UserID uuid.UUID
 	Plates string
 }
 

@@ -100,6 +100,7 @@ func (g *ModelGenerator) extractModel(file *ast.File, structType *ast.StructType
 			Model:      model,
 			Ast:        structField,
 		}
+		model.StructFields = append(model.StructFields, &field)
 
 		// Set the Tags for given field.
 		if structField.Tag != nil {

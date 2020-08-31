@@ -28,6 +28,7 @@ type Model struct {
 	Fields                                                           []*Field
 	Fielder, SingleRelationer, MultiRelationer, CustomCollectionName bool
 	Relations                                                        []*Field
+	StructFields                                                     []*Field
 	Receivers                                                        map[string]int
 }
 

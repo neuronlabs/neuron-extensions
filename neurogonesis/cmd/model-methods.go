@@ -96,15 +96,21 @@ func generateModelMethods(cmd *cobra.Command, args []string) {
 	dir := directory(args)
 
 	// Clear previous model methods files.
-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if info.IsDir() {
+	err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if info.IsDir() && path != dir {
 			return filepath.SkipDir
 		}
-		if strings.HasSuffix(path, "_model_methods.neuron") {
-			os.Remove(path)
+		if (!singleFile && strings.HasSuffix(path, "_model_methods.neuron.go")) ||
+			(singleFile && strings.HasSuffix(path, "_methods.neuron.go")) {
+			if err := os.Remove(path); err != nil {
+				return err
+			}
 		}
 		return nil
 	})
+	if err != nil {
+		os.Exit(1)
+	}
 
 	// Parse provided argument packages.
 	g.ParsePackages(args)

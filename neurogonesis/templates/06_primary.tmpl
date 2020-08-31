@@ -163,4 +163,15 @@ func ({{.Receiver}} *{{.Name}}) SetFrom(model mapping.Model) error {
     *{{.Receiver}} = *from
     return nil
 }
+
+// StructFieldValues gets the value for specified 'field'.
+func ({{.Receiver}} *{{.Name}}) StructFieldValue(field *mapping.StructField) (interface{}, error) {
+    switch field.Index[0] {
+    {{range $field := .StructFields -}}
+    case {{$field.Index}}: // {{$field.Name}}
+        return {{$out.Receiver}}.{{$field.Name}}, nil
+    {{end -}}default:
+        return nil, errors.Wrapf(mapping.ErrInvalidModelField, "provided invalid field: '%s' for given model: {{.Name}}'", field.Name())
+    }
+}
 {{- end}}

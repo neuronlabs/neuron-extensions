@@ -4,17 +4,63 @@
 var {{.Collection.VariableName}} = &{{.Collection.Name}}{}
 
 type {{.Collection.Name}} struct {
-    Model *mapping.ModelStruct
+    mStruct *mapping.ModelStruct
 }
 
-// InitializeCollection implements core.Initializer interface.
+// ModelStruct gets the stored model struct.
+func ({{.Collection.Receiver}} *{{.Collection.Name}}) ModelStruct() *mapping.ModelStruct {
+    return {{.Collection.Receiver}}.mStruct
+}
+
+func ({{.Collection.Receiver}} *{{.Collection.Name}}) modelStruct(_db database.DB) (*mapping.ModelStruct, error) {
+    if {{.Collection.Receiver}}.mStruct != nil {
+        return {{.Collection.Receiver}}.mStruct, nil
+    }
+    mStruct, err := _db.Controller().ModelStruct(&{{.ModelName}}{})
+    if err != nil {
+        return nil, err
+    }
+    {{.Collection.Receiver}}.mStruct = mStruct
+    return mStruct, nil
+}
+
+// Initialize is a manual initializer function. The collection is initialized by itself whenever it is used for the queries.
+// If the collection needs to be initialized before, use this function with your controller.
 func ({{.Collection.Receiver}} *{{.Collection.Name}}) Initialize(_ctrl *core.Controller) error {
+    if {{.Collection.Receiver}}.mStruct != nil {
+        // Already initialized.
+        return nil
+    }
     mStruct, err := _ctrl.ModelStruct(&{{.ModelName}}{})
     if err != nil {
         return err
     }
-    {{ .Collection.VariableName }} = &{{.Collection.Name}}{Model: mStruct}
+    {{.Collection.Receiver}}.mStruct = mStruct
     return nil
+}
+
+// FieldsValues gets the values for all provided fields and struct fields.
+func ({{.Collection.Receiver}} *{{.Collection.Name}}) FieldsValues(model *{{.ModelName}}, fields ...string) ([]interface{}, error) {
+    if {{.Collection.Receiver}}.mStruct == nil {
+        return nil, errors.Wrap(mapping.ErrInternal, "provided {{.Collection.VariableName}} collection is not initialized yet")
+    }
+    values := make([]interface{}, len(fields))
+    var (
+        sField *mapping.StructField
+        ok bool
+    )
+    for i, field := range fields {
+        sField, ok = {{.Collection.Receiver}}.mStruct.StructFieldByName(field)
+        if !ok {
+            return nil, errors.Wrapf(mapping.ErrInvalidModelField, "provided field: '%s' is not found in the given model", field)
+        }
+        value, err := model.StructFieldValue(sField)
+        if err != nil {
+            return nil, err
+        }
+        values[i] = value
+    }
+    return values, nil
 }
 
 // ToModels converts the input slice of {{.ModelName}} into []mapping.Model
@@ -44,8 +90,9 @@ func ({{.Collection.Receiver}} *{{.Collection.Name}}) Query(db database.DB, mode
             queryModels[i] = model
         }
     }
-    builder := db.Query({{.Collection.Receiver}}.Model, queryModels ...)
-    return &{{.Collection.QueryBuilder}}{builder: builder}
+    mStruct, err := {{.Collection.Receiver}}.modelStruct(db)
+    builder := db.Query(mStruct, queryModels ...)
+    return &{{.Collection.QueryBuilder}}{builder: builder, err: err}
 }
 
 // QueryCtx creates the query for the {{.ModelName}} with provided 'ctx' context.
@@ -57,8 +104,9 @@ func ({{.Collection.Receiver}} *{{.Collection.Name}}) QueryCtx(ctx context.Conte
             queryModels[i] = model
         }
     }
-    builder := db.QueryCtx(ctx, {{.Collection.Receiver}}.Model, queryModels ...)
-    return &{{.Collection.QueryBuilder}}{builder: builder}
+    mStruct, err := {{.Collection.Receiver}}.modelStruct(db)
+    builder := db.QueryCtx(ctx, mStruct, queryModels ...)
+    return &{{.Collection.QueryBuilder}}{builder: builder, err: err}
 }
 
 // Insert inserts {{.ModelName}} into database.
@@ -66,11 +114,15 @@ func ({{.Collection.Receiver}} *{{.Collection.Name}}) Insert(ctx context.Context
     if len(models) == 0 {
         return errors.Wrap(query.ErrNoModels, "nothing to insert")
     }
+    mStruct, err := {{.Collection.Receiver}}.modelStruct(db)
+    if err != nil {
+        return err
+    }
     queryModels := make([]mapping.Model, len(models))
     for i, model := range models {
         queryModels[i] = model
     }
-    return db.Insert(ctx, {{.Collection.Receiver}}.Model, queryModels...)
+    return db.Insert(ctx, mStruct, queryModels...)
 }
 
 // Update updates {{.ModelName}} models into database.
@@ -78,11 +130,15 @@ func ({{.Collection.Receiver}} *{{.Collection.Name}}) Update(ctx context.Context
     if len(models) == 0 {
         return 0, errors.Wrap(query.ErrNoModels, "nothing to insert")
     }
+    mStruct, err := {{.Collection.Receiver}}.modelStruct(db)
+    if err != nil {
+        return 0, err
+    }
     queryModels := make([]mapping.Model, len(models))
     for i, model := range models {
         queryModels[i] = model
     }
-    return db.Update(ctx, {{.Collection.Receiver}}.Model, queryModels...)
+    return db.Update(ctx, mStruct, queryModels...)
 }
 
 // Delete deletes {{.ModelName}} models in database.
@@ -90,11 +146,15 @@ func ({{.Collection.Receiver}} *{{.Collection.Name}}) Delete(ctx context.Context
     if len(models) == 0 {
         return 0, errors.Wrap(query.ErrNoModels, "nothing to insert")
     }
+    mStruct, err := {{.Collection.Receiver}}.modelStruct(db)
+    if err != nil {
+        return 0, err
+    }
     queryModels := make([]mapping.Model, len(models))
     for i, model := range models {
         queryModels[i] = model
     }
-    return db.Delete(ctx, {{.Collection.Receiver}}.Model, queryModels...)
+    return db.Delete(ctx, mStruct, queryModels...)
 }
 
 // Refresh creates the query for the {{.ModelName}} with provided 'ctx' context.
@@ -103,11 +163,15 @@ func ({{.Collection.Receiver}} *{{.Collection.Name}}) Refresh(ctx context.Contex
     if len(models) == 0 {
         return errors.Wrap(query.ErrNoModels, "nothing to refresh")
     }
+    mStruct, err := {{.Collection.Receiver}}.modelStruct(db)
+    if err != nil {
+        return err
+    }
     queryModels = make([]mapping.Model, len(models))
     for i, model := range models {
         queryModels[i] = model
     }
-    return db.Refresh(ctx, {{.Collection.Receiver}}.Model, queryModels...)
+    return db.Refresh(ctx, mStruct, queryModels...)
 }
 
 
@@ -123,7 +187,11 @@ func ({{$out.Collection.Receiver}} *{{$out.Collection.Name}}) Add{{$relation.Nam
     if len(relations) == 0 {
         return errors.Wrap(query.ErrNoModels, "no relation models provided")
     }
-    relationField, err := {{$out.Collection.Receiver}}.Model.RelationByIndex({{$relation.Index}})
+    mStruct, err := {{$out.Collection.Receiver}}.modelStruct(db)
+    if err != nil {
+        return err
+    }
+    relationField, err := mStruct.RelationByIndex({{$relation.Index}})
     if err != nil {
         return err
     }
@@ -131,7 +199,7 @@ func ({{$out.Collection.Receiver}} *{{$out.Collection.Name}}) Add{{$relation.Nam
     for i := range relations {
         relationModels[i] = relations[i]
     }
-    q := query.NewScope({{$out.Collection.Receiver}}.Model, model)
+    q := query.NewScope(mStruct, model)
     relationAdder, ok := db.(database.QueryRelationAdder)
     if !ok {
         return errors.WrapDetf(query.ErrInternal, "DB doesn't implement QueryRelationAdder interface - %T", db)
@@ -143,7 +211,11 @@ func ({{$out.Collection.Receiver}} *{{$out.Collection.Name}}) Add{{$relation.Nam
 // Clear{{$relation.Name}}Relation clears the '{{$relation.Name}}' relationship for provided models. For relationships of type:
 // BelongsTo, HasOne, HasMany if foreign key is not nullable than the function would return an error.
 func ({{$out.Collection.Receiver}} *{{$out.Collection.Name}}) Clear{{$relation.Name}}Relation(ctx context.Context, db database.DB, models ...*{{$out.ModelName}}) (int64, error) {
-    relation, err := {{$out.Collection.Receiver}}.Model.RelationByIndex({{$relation.Index}})
+    mStruct, err := {{$out.Collection.Receiver}}.modelStruct(db)
+    if err != nil {
+        return 0, err
+    }
+    relation, err := mStruct.RelationByIndex({{$relation.Index}})
     if err != nil {
         return 0, err
     }
@@ -151,7 +223,7 @@ func ({{$out.Collection.Receiver}} *{{$out.Collection.Name}}) Clear{{$relation.N
     for i := range models {
         modelInterfaces[i] = models[i]
     }
-    s := query.NewScope({{$out.Collection.Receiver}}.Model, modelInterfaces...)
+    s := query.NewScope(mStruct, modelInterfaces...)
     relationClearer, ok := db.(database.QueryRelationClearer)
     if !ok {
         return 0, errors.WrapDetf(query.ErrInternal, "DB doesn't implement QueryRelationAdder interface - %T", db)
@@ -169,7 +241,11 @@ func ({{$out.Collection.Receiver}} *{{$out.Collection.Name}}) Get{{$relation.Nam
     if model.IsPrimaryKeyZero() {
         return nil, errors.Wrap(mapping.ErrFieldValue, "model's: '{{$out.ModelName}}' primary key value has zero value")
     }
-    relationField, err := {{$out.Collection.Receiver}}.Model.RelationByIndex({{$relation.Index}})
+    mStruct, err := {{$out.Collection.Receiver}}.modelStruct(db)
+    if err != nil {
+        return nil, err
+    }
+    relationField, err := mStruct.RelationByIndex({{$relation.Index}})
     if err != nil {
         return nil, err
     }
@@ -188,7 +264,7 @@ func ({{$out.Collection.Receiver}} *{{$out.Collection.Name}}) Get{{$relation.Nam
         }
     }
 
-    relations, err := db.GetRelations(ctx, {{$out.Collection.Receiver}}.Model, []mapping.Model{model}, relationField, fields...)
+    relations, err := db.GetRelations(ctx, mStruct, []mapping.Model{model}, relationField, fields...)
     if err != nil {
         return nil, err
     }
@@ -220,11 +296,15 @@ func ({{$out.Collection.Receiver}} *{{$out.Collection.Name}}) Set{{$relation.Nam
     if model.IsPrimaryKeyZero() {
         return errors.Wrap(mapping.ErrFieldValue, "model's: '{{$out.ModelName}}' primary key value has zero value")
     }
-    relationField, err := {{$out.Collection.Receiver}}.Model.RelationByIndex({{$relation.Index}})
+    mStruct, err := {{$out.Collection.Receiver}}.modelStruct(db)
     if err != nil {
         return err
     }
-    q := query.NewScope({{$out.Collection.Receiver}}.Model, model)
+    relationField, err := mStruct.RelationByIndex({{$relation.Index}})
+    if err != nil {
+        return err
+    }
+    q := query.NewScope(mStruct, model)
     {{if not $relation.IsSlice -}}
     if relation.IsPrimaryKeyZero() {
         return errors.Wrap(mapping.ErrFieldValue, "relation '{{$relation.Name}}' model has zero value primary field")
