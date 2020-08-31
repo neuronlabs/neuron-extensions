@@ -15,7 +15,7 @@ import (
 func (p *Postgres) Count(ctx context.Context, s *query.Scope) (int64, error) {
 	q, err := p.parseCountQuery(s)
 	if err != nil {
-		return 0, nil
+		return 0, err
 	}
 	if log.Level().IsAllowed(log.LevelDebug2) {
 		log.Debug2f("[COUNT][QUERY] %s [VALUES]: %v", q.query, q.values)

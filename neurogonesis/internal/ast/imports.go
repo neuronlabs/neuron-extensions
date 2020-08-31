@@ -80,6 +80,11 @@ func (g *ModelGenerator) parseImportPackages() error {
 			if g.isFieldRelation(importedField.AstField) {
 				log.Debugf("Model: '%s' Field: '%s' is relation\n", model.Name, importedField.Field.Name)
 				importedField.Field.IsSlice = isMany(importedField.AstField.Type)
+				if importedField.Field.IsSlice {
+					model.MultiRelationer = true
+				} else {
+					model.SingleRelationer = true
+				}
 				importedField.Field.IsElemPointer = isElemPointer(importedField.AstField)
 				importedField.Field.IsPointer = isPointer(importedField.AstField)
 				importedField.Field.Selector = getSelector(importedField.AstField.Type)

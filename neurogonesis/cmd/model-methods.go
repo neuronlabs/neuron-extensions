@@ -92,6 +92,20 @@ func generateModelMethods(cmd *cobra.Command, args []string) {
 
 	g := ast.NewModelGenerator(namingConvention, typeNames, tags, excludeTypes)
 
+	// Get the directory from the arguments.
+	dir := directory(args)
+
+	// Clear previous model methods files.
+	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if info.IsDir() {
+			return filepath.SkipDir
+		}
+		if strings.HasSuffix(path, "_model_methods.neuron") {
+			os.Remove(path)
+		}
+		return nil
+	})
+
 	// Parse provided argument packages.
 	g.ParsePackages(args)
 
@@ -100,9 +114,6 @@ func generateModelMethods(cmd *cobra.Command, args []string) {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
-
-	// Get the directory from the arguments.
-	dir := directory(args)
 
 	buf := &bytes.Buffer{}
 

@@ -27,7 +27,7 @@ func (p *Postgres) Find(ctx context.Context, s *query.Scope) error {
 
 	rows, err := p.connection(s).Query(ctx, q.query, q.values...)
 	if err != nil {
-		return err
+		return errors.Wrap(p.neuronError(err), "Query")
 	}
 	defer func() {
 		rows.Close()

@@ -129,7 +129,7 @@ func ({{$out.Collection.Receiver}} *{{$out.Collection.QueryBuilder}}) Include{{$
     // check the fieldset for the relation.
     var relationFields []*mapping.StructField
     for _, field := range {{toLowerCamel $relation.Name}}Fieldset {
-        structField, ok := relation.ModelStruct().FieldByName(field)
+        structField, ok := relation.Relationship().RelatedModelStruct().FieldByName(field)
         if !ok {
             {{$out.Collection.Receiver}}.err = errors.Wrapf(mapping.ErrInvalidModelField, "field: '%s' is not found for the '{{$relation.BaseType}}' model", field)
             return {{$out.Collection.Receiver}}

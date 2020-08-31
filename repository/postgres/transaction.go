@@ -47,7 +47,7 @@ func (p *Postgres) Begin(ctx context.Context, tx *query.Transaction) error {
 
 	pgxTx, err := p.ConnPool.BeginTx(ctx, txOpts)
 	if err != nil {
-		return err
+		return errors.Wrap(p.neuronError(err), err.Error())
 	}
 	if log.Level().IsAllowed(log.LevelDebug3) {
 		log.Debug3f("[POSTGRES:%s][TX:%s] BEGIN;", p.id, tx.ID)
@@ -120,7 +120,7 @@ func (p *Postgres) Savepoint(ctx context.Context, tx *query.Transaction, name st
 
 	_, err := pgxTx.Exec(ctx, fmt.Sprintf("SAVEPOINT %s", name))
 	if err != nil {
-		return errors.Wrapf(query.ErrTxInvalid, "can't set up savepoint for the transaction: %v", err)
+		return errors.Wrapf(p.neuronError(err), "can't set up savepoint for the transaction: %v", err)
 	}
 	return nil
 }
@@ -138,7 +138,7 @@ func (p *Postgres) RollbackSavepoint(ctx context.Context, tx *query.Transaction,
 
 	_, err := pgxTx.Exec(ctx, fmt.Sprintf("ROLLBACK TO SAVEPOINT %s", name))
 	if err != nil {
-		return errors.Wrapf(query.ErrTxInvalid, "rolling back to savepoint failed: %v", err)
+		return errors.Wrapf(p.neuronError(err), "rolling back to savepoint failed: %v", err)
 	}
 	return nil
 }

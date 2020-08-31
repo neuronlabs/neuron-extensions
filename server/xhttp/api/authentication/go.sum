@@ -42,6 +42,8 @@ github.com/neuronlabs/inflection v1.0.1 h1:LDuwbM1jYKEf6DDcA7XV7JRn3Sv9/PBiW6iUo
 github.com/neuronlabs/inflection v1.0.1/go.mod h1:gnqNj1uxAGPYT1LsHRvSyBcd57vvIKTuTmS3ffdgRd8=
 github.com/neuronlabs/neuron v0.20.2 h1:dqkEn/yuG+kCU2MSMvT7XSZ51rwztcQmkhNGwNZIZt4=
 github.com/neuronlabs/neuron v0.20.2/go.mod h1:xjSqaRsUv89SeieBQ3RsEmMMyEPUbl1/rn2WmK3mmiA=
+github.com/neuronlabs/neuron v0.20.3 h1:OkjEOIX5M7NfL9yHBekwRt3tMC/liunOyUQe/ZJp95A=
+github.com/neuronlabs/neuron v0.20.3/go.mod h1:xjSqaRsUv89SeieBQ3RsEmMMyEPUbl1/rn2WmK3mmiA=
 github.com/neuronlabs/neuron-extensions/codec/cjson v0.0.4 h1:Y6k3F2DbspqK0s8tKQqE5VmTMp6PECF0KhcnHBYBFuE=
 github.com/neuronlabs/neuron-extensions/codec/cjson v0.0.4/go.mod h1:AiLHI3vPYj3w5kKwFi08h+aIS+QCQGBPszXW8i19kUk=
 github.com/neuronlabs/neuron-extensions/server/xhttp v0.0.2 h1:i6bQfZ4kZElhHyFisR7qQvi5EJMSYU/An32h6iTSJjE=

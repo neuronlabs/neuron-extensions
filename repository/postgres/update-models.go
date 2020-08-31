@@ -36,7 +36,7 @@ func (p *Postgres) UpdateModels(ctx context.Context, s *query.Scope) (affected i
 		for i := 0; i < b.Len(); i++ {
 			tag, err := results.Exec()
 			if err != nil {
-				return affected, err
+				return affected, errors.Wrap(p.neuronError(err), err.Error())
 			}
 			affected += tag.RowsAffected()
 		}
@@ -74,7 +74,7 @@ func (p *Postgres) updateModelsWithBulkFieldSet(ctx context.Context, s *query.Sc
 	for i := 0; i < b.Len(); i++ {
 		tag, err := results.Exec()
 		if err != nil {
-			return affected, err
+			return affected, errors.Wrap(p.neuronError(err), err.Error())
 		}
 		affected += tag.RowsAffected()
 	}
