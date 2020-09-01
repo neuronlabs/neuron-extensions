@@ -334,12 +334,12 @@ func (g *ModelGenerator) extractMethods(pkgName string, dt *ast.FuncDecl) {
 	}
 	if dt.Type.Params != nil {
 		for _, p := range dt.Type.Params.List {
-			method.ParameterTypes = append(method.ParameterTypes, fieldTypeName(p.Type))
+			method.ParameterTypes = append(method.ParameterTypes, g.fieldTypeName(p.Type))
 		}
 	}
 	if dt.Type.Results != nil {
 		for _, r := range dt.Type.Results.List {
-			method.ReturnTypes = append(method.ReturnTypes, fieldTypeName(r.Type))
+			method.ReturnTypes = append(method.ReturnTypes, g.fieldTypeName(r.Type))
 		}
 	}
 	if method.IsNeuronCollectionName() {
@@ -422,25 +422,25 @@ func (g *ModelGenerator) setModelField(astField *ast.Field, inputField *input.Fi
 	inputField.Sortable = isSortable(astField)
 	inputField.IsSlice = isMany(astField.Type)
 	if inputField.IsSlice {
-		if as := getArraySize(astField.Type); as != "" {
+		if as := g.getArraySize(astField.Type); as != "" {
 			inputField.ArraySize, err = strconv.Atoi(as)
 			if err != nil {
-				return err
+				log.Debug("Array size is not a number: %v", err)
 			}
 		}
 	}
 	inputField.IsString = isDeepString(astField.Type)
 	inputField.IsPointer = isPointer(astField)
-	inputField.AlternateTypes = getAlternateTypes(astField.Type)
+	inputField.AlternateTypes = g.getAlternateTypes(astField.Type)
 	if _, ok := tempfuncs.AlternateTypes[inputField.Type]; !ok {
 		tempfuncs.AlternateTypes[inputField.Type] = inputField.AlternateTypes
 	}
-	setFieldZeroValue(inputField, astField.Type, imported)
+	g.setFieldZeroValue(inputField, astField.Type, imported)
 	inputField.Selector = getSelector(astField.Type)
 	if isBSWrapped {
 		inputField.WrappedTypes = []string{"[]byte"}
 	} else if !isBS {
-		inputField.WrappedTypes = getFieldWrappedTypes(astField)
+		inputField.WrappedTypes = g.getFieldWrappedTypes(astField)
 	}
 	return err
 }
@@ -455,7 +455,10 @@ func isByteSlice(arr *ast.ArrayType) bool {
 	if !ok {
 		return false
 	}
-	return ident.Name == "byte"
+	if ident.Name != "byte" {
+		return false
+	}
+	return arr.Len == nil
 }
 
 func isSortable(arr *ast.Field) bool {
@@ -489,6 +492,9 @@ func isByteSliceWrapper(expr ast.Expr) (isTypeByteSlice bool, isWrapper bool) {
 		}
 		art, ok := typeSpec.Type.(*ast.ArrayType)
 		if !ok {
+			return false, false
+		}
+		if art.Len != nil {
 			return false, false
 		}
 		ident, ok := art.Elt.(*ast.Ident)
@@ -665,28 +671,21 @@ func (g *ModelGenerator) isRelation(expr ast.Expr) bool {
 	return false
 }
 
-func fieldTypeName(expr ast.Expr) string {
+func (g *ModelGenerator) fieldTypeName(expr ast.Expr) string {
 	switch tp := expr.(type) {
 	case *ast.Ident:
 		return tp.Name
 	case *ast.ArrayType:
-		switch ln := tp.Len.(type) {
-		case *ast.Ellipsis:
-			return "[...]" + fieldTypeName(tp.Elt)
-		case *ast.BasicLit:
-			return "[" + ln.Value + "]" + fieldTypeName(tp.Elt)
-		default:
-			return "[]" + fieldTypeName(tp.Elt)
-		}
+		return "[" + g.getArrayTypeSize(tp) + "]" + g.fieldTypeName(tp.Elt)
 	case *ast.StarExpr:
-		return "*" + fieldTypeName(tp.X)
+		return "*" + g.fieldTypeName(tp.X)
 	case *ast.StructType:
 		name := "struct{"
 		for i, field := range tp.Fields.List {
 			if len(field.Names) > 0 {
-				name += fieldTypeName(field.Names[0]) + " "
+				name += g.fieldTypeName(field.Names[0]) + " "
 			}
-			name += fieldTypeName(field.Type)
+			name += g.fieldTypeName(field.Type)
 			if i != len(tp.Fields.List)-1 {
 				name += ";"
 			}
@@ -694,22 +693,22 @@ func fieldTypeName(expr ast.Expr) string {
 		name += "}"
 		return name
 	case *ast.MapType:
-		return "map[" + fieldTypeName(tp.Key) + "]" + fieldTypeName(tp.Key)
+		return "map[" + g.fieldTypeName(tp.Key) + "]" + g.fieldTypeName(tp.Key)
 	case *ast.ChanType:
 		switch tp.Dir {
 		case ast.RECV:
-			return "chan<- " + fieldTypeName(tp.Value)
+			return "chan<- " + g.fieldTypeName(tp.Value)
 		case ast.SEND:
-			return "<- chan " + fieldTypeName(tp.Value)
+			return "<- chan " + g.fieldTypeName(tp.Value)
 		default:
-			return "chan " + fieldTypeName(tp.Value)
+			return "chan " + g.fieldTypeName(tp.Value)
 		}
 	case *ast.InterfaceType:
 		return "interface{}"
 	case *ast.SelectorExpr:
-		return fieldTypeName(tp.X) + "." + tp.Sel.Name
+		return g.fieldTypeName(tp.X) + "." + tp.Sel.Name
 	case *ast.Ellipsis:
-		return fieldTypeName(tp.Elt)
+		return g.fieldTypeName(tp.Elt)
 	default:
 		log.Debugf("Unknown field type: %#v\n", tp)
 	}
@@ -785,7 +784,7 @@ func extractTags(structTag string, tagName string, tagSeparator, valueSeparator 
 	return tags
 }
 
-func getFieldWrappedTypes(field *ast.Field) []string {
+func (g *ModelGenerator) getFieldWrappedTypes(field *ast.Field) []string {
 	expr := field.Type
 	if star, ok := expr.(*ast.StarExpr); ok {
 		expr = star.X
@@ -805,23 +804,23 @@ func getFieldWrappedTypes(field *ast.Field) []string {
 	if !ok {
 		return nil
 	}
-	return getWrappedTypes(ts.Type)
+	return g.getWrappedTypes(ts.Type)
 }
 
-func getWrappedTypes(expr ast.Expr) []string {
+func (g *ModelGenerator) getWrappedTypes(expr ast.Expr) []string {
 	switch x := expr.(type) {
 	case *ast.Ident:
-		return getWrappedIdent("", x)
+		return g.getWrappedIdent("", x)
 	case *ast.SelectorExpr:
-		return getWrappedSelector(x)
+		return g.getWrappedSelector(x)
 	// TODO: add case *ast.ArrayType
 	case *ast.ArrayType:
 		tp := "["
-		if bl, ok := x.Len.(*ast.BasicLit); ok {
-			tp += bl.Value
+		if size := g.getArrayTypeSize(x); size != "" && size != "..." {
+			tp += size
 		}
 		tp += "]"
-		tps := getWrappedTypes(x.Elt)
+		tps := g.getWrappedTypes(x.Elt)
 		for i := range tps {
 			tps[i] = tp + tps[i]
 		}
@@ -831,12 +830,12 @@ func getWrappedTypes(expr ast.Expr) []string {
 	}
 }
 
-func getWrappedSelector(expr *ast.SelectorExpr) []string {
-	packageName := fieldTypeName(expr.X)
-	return getWrappedIdent(packageName, expr.Sel)
+func (g *ModelGenerator) getWrappedSelector(expr *ast.SelectorExpr) []string {
+	packageName := g.fieldTypeName(expr.X)
+	return g.getWrappedIdent(packageName, expr.Sel)
 }
 
-func getWrappedIdent(selector string, expr *ast.Ident) []string {
+func (g *ModelGenerator) getWrappedIdent(selector string, expr *ast.Ident) []string {
 	name := expr.Name
 	if selector != "" {
 		name = fmt.Sprintf("%s.%s", selector, name)
@@ -848,7 +847,7 @@ func getWrappedIdent(selector string, expr *ast.Ident) []string {
 	if !ok {
 		return []string{name}
 	}
-	return append([]string{name}, getWrappedTypes(ts.Type)...)
+	return append([]string{name}, g.getWrappedTypes(ts.Type)...)
 }
 
 func getSelector(expr ast.Expr) string {
@@ -866,10 +865,10 @@ func getSelector(expr ast.Expr) string {
 	}
 }
 
-func setFieldZeroValue(field *input.Field, expr ast.Expr, imported bool) {
+func (g *ModelGenerator) setFieldZeroValue(field *input.Field, expr ast.Expr, imported bool) {
 	// Check if given type implements ZeroChecker.
 	// TODO: add check if type implements query.ZeroChecker.
-	field.Zero = getZeroValue(expr, imported)
+	field.Zero = g.getZeroValue(expr)
 	array, ok := expr.(*ast.ArrayType)
 	if ok && array.Len == nil {
 		field.BeforeZero = "len("
@@ -879,7 +878,7 @@ func setFieldZeroValue(field *input.Field, expr ast.Expr, imported bool) {
 	}
 }
 
-func getZeroValue(expr ast.Expr, imported bool) string {
+func (g *ModelGenerator) getZeroValue(expr ast.Expr) string {
 	switch x := expr.(type) {
 	case *ast.Ident:
 		if x.Obj == nil {
@@ -898,16 +897,17 @@ func getZeroValue(expr ast.Expr, imported bool) string {
 			}
 		}
 
-		if imported && x.Obj != nil {
+		if x.Obj != nil {
 			typeSpec, ok := x.Obj.Decl.(*ast.TypeSpec)
 			if ok {
-				_, isStruct := typeSpec.Type.(*ast.StructType)
-				if !isStruct {
-					return fmt.Sprintf("%s(%s)", fieldTypeName(expr), getZeroValue(typeSpec.Type, imported))
+				switch typeSpec.Type.(type) {
+				case *ast.StructType:
+				default:
+					return fmt.Sprintf("%s(%s)", g.fieldTypeName(expr), g.getZeroValue(typeSpec.Type))
 				}
 			}
 		}
-		return fieldTypeName(expr) + "{}"
+		return g.fieldTypeName(expr) + "{}"
 	case *ast.StarExpr:
 		return kindNil
 	case *ast.ArrayType:
@@ -916,40 +916,42 @@ func getZeroValue(expr ast.Expr, imported bool) string {
 			return kindNil
 		}
 		// The array must be defined to zero values.
-		return fieldTypeName(expr) + "{}"
+		return g.fieldTypeName(expr) + "{}"
 	case *ast.MapType:
 		return kindNil
 	case *ast.StructType:
-		return fieldTypeName(expr) + "{}"
+		return g.fieldTypeName(expr) + "{}"
 	case *ast.ChanType:
 		return kindNil
 	case *ast.SelectorExpr:
 		selector, ok := x.X.(*ast.Ident)
 		if !ok {
-			return fieldTypeName(expr) + "{}"
+			return g.fieldTypeName(expr) + "{}"
 		}
-		return selector.Name + "." + getZeroValue(x.Sel, imported)
+		return selector.Name + "." + g.getZeroValue(x.Sel)
 	default:
 		return kindNil
 	}
 }
 
-func getAlternateTypes(expr ast.Expr) []string {
+func (g *ModelGenerator) getAlternateTypes(expr ast.Expr) []string {
 	switch exprType := expr.(type) {
 	case *ast.Ident:
-		return getIdentAlternateTypes(exprType)
+		return g.getIdentAlternateTypes(exprType)
 	case *ast.ArrayType:
-		return getArrayAlternateTypes(exprType)
+		return g.getArrayAlternateTypes(exprType)
 	case *ast.SelectorExpr:
-		return getIdentAlternateTypes(exprType.Sel)
+		return g.getIdentAlternateTypes(exprType.Sel)
 	case *ast.StarExpr:
-		return getAlternateTypes(exprType.X)
+		return g.getAlternateTypes(exprType.X)
 	}
 	return []string{}
 }
 
-func getArrayAlternateTypes(expr *ast.ArrayType) []string {
+func (g *ModelGenerator) getArrayAlternateTypes(expr *ast.ArrayType) []string {
 	switch expr.Len.(type) {
+	case *ast.Ident:
+		return nil
 	case *ast.BasicLit: // Array
 		return nil
 	case *ast.Ellipsis: // [...] Array
@@ -970,18 +972,18 @@ func getArrayAlternateTypes(expr *ast.ArrayType) []string {
 	}
 }
 
-func getIdentAlternateTypes(expr *ast.Ident) []string {
+func (g *ModelGenerator) getIdentAlternateTypes(expr *ast.Ident) []string {
 	if expr.Obj == nil {
-		return getBasicAlternateTypes(expr)
+		return g.getBasicAlternateTypes(expr)
 	}
 	ot, ok := expr.Obj.Decl.(*ast.TypeSpec)
 	if !ok {
 		return []string{}
 	}
-	return getAlternateTypes(ot.Type)
+	return g.getAlternateTypes(ot.Type)
 }
 
-func getBasicAlternateTypes(expr *ast.Ident) (alternateTypes []string) {
+func (g *ModelGenerator) getBasicAlternateTypes(expr *ast.Ident) (alternateTypes []string) {
 	switch expr.Name {
 	case kindInt, kindInt8, kindInt16, kindInt32, kindInt64, kindUint, kindUint8, kindUint16, kindUint32, kindUint64,
 		kindByte, kindRune, kindFloat32, kindFloat64:

@@ -33,16 +33,27 @@ type User struct {
 	Sons          []*User   `neuron:"foreign=ParentID"`
 	ParentID      uuid.UUID `neuron:"type=foreign"`
 	Sister        *User
+	CustomUUID    UUID
 }
 
 // Car is the test model for generator.
 type Car struct {
-	ID     string
-	UserID uuid.UUID
-	Plates string
+	ID       string
+	UserID   uuid.UUID
+	Plates   string
+	Enum     Enum
+	UintEnum UintEnum
 }
 
 // NeuronCollectionName implements mapping.Model.
 func (c *Car) NeuronCollectionName() string {
 	return "custom_cars"
 }
+
+const Size int = 16
+
+type UUID [Size]byte
+
+type Enum int
+
+type UintEnum uint

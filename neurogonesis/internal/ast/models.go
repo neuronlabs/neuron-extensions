@@ -96,7 +96,7 @@ func (g *ModelGenerator) extractModel(file *ast.File, structType *ast.StructType
 			Index:      i,
 			Name:       name.String(),
 			NeuronName: g.namerFunc(name.String()),
-			Type:       fieldTypeName(structField.Type),
+			Type:       g.fieldTypeName(structField.Type),
 			Model:      model,
 			Ast:        structField,
 		}
@@ -200,10 +200,12 @@ func (g *ModelGenerator) ResolveRelationSelectors() {
 		}
 	}
 }
-func getArraySize(expr ast.Expr) string {
+func (g *ModelGenerator) getArraySize(expr ast.Expr) string {
 	switch x := expr.(type) {
+	case *ast.BasicLit:
+		return x.Value
 	case *ast.ArrayType:
-		return getArrayTypeSize(x)
+		return g.getArrayTypeSize(x)
 	case *ast.Ident:
 		if x.Obj == nil {
 			return ""
@@ -212,18 +214,41 @@ func getArraySize(expr ast.Expr) string {
 		if !ok {
 			return ""
 		}
-		return getArraySize(ts.Type)
+		return g.getArraySize(ts.Type)
 	case *ast.StarExpr:
-		return getArraySize(x.X)
+		return g.getArraySize(x.X)
 	case *ast.SelectorExpr:
-		return getArraySize(x.Sel)
+		return g.getArraySize(x.Sel)
 	}
 	return ""
 }
 
-func getArrayTypeSize(sl *ast.ArrayType) string {
-	if bl, ok := sl.Len.(*ast.BasicLit); ok {
-		return bl.Value
+func (g *ModelGenerator) getArrayTypeSize(sl *ast.ArrayType) string {
+	switch tp := sl.Len.(type) {
+	case *ast.BasicLit:
+		return tp.Value
+	case *ast.Ellipsis:
+		return "..."
+	case *ast.Ident:
+		if tp.Obj == nil {
+			return ""
+		}
+		tpl, ok := tp.Obj.Decl.(*ast.TypeSpec)
+		if !ok {
+			tpl, ok = g.loadedTypes[tp.Name]
+			if !ok {
+				vs, ok := tp.Obj.Decl.(*ast.ValueSpec)
+				if !ok {
+					return ""
+				}
+				if len(vs.Values) == 1 {
+					return g.getArraySize(vs.Values[0])
+				}
+				return ""
+			}
+		}
+		return g.getArraySize(tpl.Type)
+	default:
+		return ""
 	}
-	return ""
 }
