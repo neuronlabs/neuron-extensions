@@ -154,7 +154,7 @@ func ({{.Receiver}} *{{.Name}}) SetPrimaryKeyStringValue(value string) error {
 // SetFrom implements FromSetter interface.
 func ({{.Receiver}} *{{.Name}}) SetFrom(model mapping.Model) error {
     if model == nil {
-        return errors.Wrap(mapping.ErrNilModel, "provided nil model to set from")
+        return errors.Wrap(query.ErrInvalidInput, "provided nil model to set from")
     }
     from, ok := model.(*{{.Name}})
     if !ok {
