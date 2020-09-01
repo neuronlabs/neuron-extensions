@@ -1,0 +1,286 @@
+{{define "collection-package-structure" -}}
+var _mStruct *mapping.ModelStruct
+
+func modelStruct(_db database.DB) (*mapping.ModelStruct, error) {
+    if _mStruct != nil {
+        return _mStruct, nil
+    }
+    mStruct, err := _db.Controller().ModelStruct(&{{.ModelName}}{})
+    if err != nil {
+        return nil, err
+    }
+    _mStruct = mStruct
+    return mStruct, nil
+}
+
+// ToModels converts the input slice of {{.ModelName}} into []mapping.Model
+func ToModels(input ...*{{.ModelName}}) ([]mapping.Model) {
+    output := make([]mapping.Model, len(input))
+    for i := range input {
+        output[i] = input[i]
+    }
+    return output
+}
+
+// FromModels converts the input mapping.Model into []*{{.ModelName}}.
+func FromModels(input ...mapping.Model) ([]*{{.ModelName}}) {
+    output := make([]*{{.ModelName}}, len(input))
+    for i := range input {
+        output[i] = input[i].(*{{.ModelName}})
+    }
+    return output
+}
+
+// Query creates the query for the {{.ModelName}}.
+func Query(db database.DB, models ...*{{.ModelName}}) *{{.Collection.QueryBuilder}} {
+    var queryModels []mapping.Model
+    if len(models) > 0 {
+        queryModels = make([]mapping.Model, len(models))
+        for i, model := range models {
+            queryModels[i] = model
+        }
+    }
+    mStruct, err := modelStruct(db)
+    builder := db.Query(mStruct, queryModels ...)
+    return &{{.Collection.QueryBuilder}}{builder: builder, err: err}
+}
+
+// QueryCtx creates the query for the {{.ModelName}} with provided 'ctx' context.
+func QueryCtx(ctx context.Context, db database.DB, models ...*{{.ModelName}}) *{{.Collection.QueryBuilder}} {
+    var queryModels []mapping.Model
+    if len(models) > 0 {
+        queryModels = make([]mapping.Model, len(models))
+        for i, model := range models {
+            queryModels[i] = model
+        }
+    }
+    mStruct, err := modelStruct(db)
+    builder := db.QueryCtx(ctx, mStruct, queryModels ...)
+    return &{{.Collection.QueryBuilder}}{builder: builder, err: err}
+}
+
+// Insert inserts {{.ModelName}} into database.
+func Insert(ctx context.Context, db database.DB, models ...*{{.ModelName}}) error {
+    if len(models) == 0 {
+        return errors.Wrap(query.ErrNoModels, "nothing to insert")
+    }
+    mStruct, err := modelStruct(db)
+    if err != nil {
+        return err
+    }
+    queryModels := make([]mapping.Model, len(models))
+    for i, model := range models {
+        queryModels[i] = model
+    }
+    return db.Insert(ctx, mStruct, queryModels...)
+}
+
+// Update updates {{.ModelName}} models into database.
+func Update(ctx context.Context, db database.DB, models ...*{{.ModelName}}) (int64, error) {
+    if len(models) == 0 {
+        return 0, errors.Wrap(query.ErrNoModels, "nothing to insert")
+    }
+    mStruct, err := modelStruct(db)
+    if err != nil {
+        return 0, err
+    }
+    queryModels := make([]mapping.Model, len(models))
+    for i, model := range models {
+        queryModels[i] = model
+    }
+    return db.Update(ctx, mStruct, queryModels...)
+}
+
+// Delete deletes {{.ModelName}} models in database.
+func Delete(ctx context.Context, db database.DB, models ...*{{.ModelName}}) (int64,error) {
+    if len(models) == 0 {
+        return 0, errors.Wrap(query.ErrNoModels, "nothing to insert")
+    }
+    mStruct, err := modelStruct(db)
+    if err != nil {
+        return 0, err
+    }
+    queryModels := make([]mapping.Model, len(models))
+    for i, model := range models {
+        queryModels[i] = model
+    }
+    return db.Delete(ctx, mStruct, queryModels...)
+}
+
+// Refresh creates the query for the {{.ModelName}} with provided 'ctx' context.
+func Refresh(ctx context.Context, db database.DB, models ...*{{.ModelName}}) error {
+    var queryModels []mapping.Model
+    if len(models) == 0 {
+        return errors.Wrap(query.ErrNoModels, "nothing to refresh")
+    }
+    mStruct, err := modelStruct(db)
+    if err != nil {
+        return err
+    }
+    queryModels = make([]mapping.Model, len(models))
+    for i, model := range models {
+        queryModels[i] = model
+    }
+    return db.Refresh(ctx, mStruct, queryModels...)
+}
+
+
+{{$out := . -}}
+{{range $relation := .Model.Relations -}}
+
+{{if $relation.IsSlice -}}
+// Add{{$relation.Name}} adds the '{{$relation.Name}}' relationship for provided input 'models'.
+func Add{{$relation.Name}}(ctx context.Context, db database.DB, model *{{$out.ModelName}}, relations ...*{{$relation.BaseType}}) error {
+    if model == nil {
+        return errors.Wrap(query.ErrNoModels, "provided nil model")
+    }
+    if len(relations) == 0 {
+        return errors.Wrap(query.ErrNoModels, "no relation models provided")
+    }
+    mStruct, err := modelStruct(db)
+    if err != nil {
+        return err
+    }
+    relationField, err := mStruct.RelationByIndex({{$relation.Index}})
+    if err != nil {
+        return err
+    }
+    relationModels := make([]mapping.Model, len(relations))
+    for i := range relations {
+        relationModels[i] = relations[i]
+    }
+    q := query.NewScope(mStruct, model)
+    relationAdder, ok := db.(database.QueryRelationAdder)
+    if !ok {
+        return errors.WrapDetf(query.ErrInternal, "DB doesn't implement QueryRelationAdder interface - %T", db)
+    }
+    return relationAdder.QueryAddRelations(ctx, q, relationField, relationModels...)
+}
+{{end -}}
+
+// Clear{{$relation.Name}}Relation clears the '{{$relation.Name}}' relationship for provided models. For relationships of type:
+// BelongsTo, HasOne, HasMany if foreign key is not nullable than the function would return an error.
+func Clear{{$relation.Name}}Relation(ctx context.Context, db database.DB, models ...*{{$out.ModelName}}) (int64, error) {
+    mStruct, err := modelStruct(db)
+    if err != nil {
+        return 0, err
+    }
+    relation, err := mStruct.RelationByIndex({{$relation.Index}})
+    if err != nil {
+        return 0, err
+    }
+    modelInterfaces := make([]mapping.Model, len(models))
+    for i := range models {
+        modelInterfaces[i] = models[i]
+    }
+    s := query.NewScope(mStruct, modelInterfaces...)
+    relationClearer, ok := db.(database.QueryRelationClearer)
+    if !ok {
+        return 0, errors.WrapDetf(query.ErrInternal, "DB doesn't implement QueryRelationAdder interface - %T", db)
+    }
+    return relationClearer.QueryClearRelations(ctx, s, relation)
+}
+
+
+// Get{{$relation.Name}} gets the '{{$relation.Name}}' relationship for provided input 'model'.
+func Get{{$relation.Name}}(ctx context.Context, db database.DB, model *{{$out.ModelName}}, relationFieldset ...string) ({{if $relation.IsSlice -}}[]{{- end -}}*{{$relation.BaseType}}, error) {
+    if model == nil {
+        return nil, errors.Wrap(query.ErrNoModels, "provided nil model")
+    }
+    // Check if primary key has zero value.
+    if model.IsPrimaryKeyZero() {
+        return nil, errors.Wrap(mapping.ErrFieldValue, "model's: '{{$out.ModelName}}' primary key value has zero value")
+    }
+    mStruct, err := modelStruct(db)
+    if err != nil {
+        return nil, err
+    }
+    relationField, err := mStruct.RelationByIndex({{$relation.Index}})
+    if err != nil {
+        return nil, err
+    }
+
+    var fields []*mapping.StructField
+    relationModel := relationField.Relationship().RelatedModelStruct()
+    if len(relationFieldset) == 0 {
+        fields = relationModel.Fields()
+    } else {
+        for _, field := range relationFieldset {
+            sField, ok := relationModel.FieldByName(field)
+            if !ok {
+                return nil, errors.Wrapf(mapping.ErrInvalidModelField, "no field: '%s' found for the model: '{{$relation.BaseType}}'", field)
+            }
+            fields = append(fields, sField)
+        }
+    }
+
+    relations, err := db.GetRelations(ctx, mStruct, []mapping.Model{model}, relationField, fields...)
+    if err != nil {
+        return nil, err
+    }
+    if len(relations) == 0 {
+        {{if $relation.IsSlice -}}
+        return []*{{$relation.BaseType}}{}, nil
+        {{- else -}}
+        return nil, nil
+        {{- end}}
+    }
+    {{if $relation.IsSlice -}}
+    result := make([]*{{$relation.BaseType}}, len(relations))
+    for i, relation := range relations {
+        result[i] = relation.(*{{$relation.BaseType}})
+    }
+    return result, nil
+    {{- else -}}
+    return relations[0].(*{{$relation.BaseType}}), nil
+    {{- end}}
+}
+
+
+// Set{{$relation.Name}} sets the '{{$relation.Name}}' relationship for provided input 'models'.
+func Set{{$relation.Name}}(ctx context.Context, db database.DB, model *{{$out.ModelName}}, relation{{if $relation.IsSlice -}}s ...{{- else}} {{- end -}}*{{$relation.BaseType}}) error {
+    if model == nil {
+        return errors.Wrap(query.ErrNoModels, "provided nil model")
+    }
+    // Check if primary key has zero value.
+    if model.IsPrimaryKeyZero() {
+        return errors.Wrap(mapping.ErrFieldValue, "model's: '{{$out.ModelName}}' primary key value has zero value")
+    }
+    mStruct, err := modelStruct(db)
+    if err != nil {
+        return err
+    }
+    relationField, err := mStruct.RelationByIndex({{$relation.Index}})
+    if err != nil {
+        return err
+    }
+    q := query.NewScope(mStruct, model)
+    {{if not $relation.IsSlice -}}
+    if relation.IsPrimaryKeyZero() {
+        return errors.Wrap(mapping.ErrFieldValue, "relation '{{$relation.Name}}' model has zero value primary field")
+    }
+    relationSetter, ok := db.(database.QueryRelationSetter)
+    if !ok {
+        return errors.WrapDetf(query.ErrInternal, "DB doesn't implement QueryRelationSetter interface: %T", db)
+    }
+    return relationSetter.QuerySetRelations(ctx, q, relationField, relation)
+    {{- else -}}
+    if len(relations) == 0 {
+        return errors.Wrap(query.ErrNoModels, "no relation models provided")
+    }
+    relationModels := make([]mapping.Model, len(relations))
+    for i, relation := range relations {
+        if relation.IsPrimaryKeyZero() {
+            return errors.Wrap(mapping.ErrFieldValue, "one of relation '{{$relation.Name}}' model has zero value primary field")
+        }
+        relationModels[i] = relation
+    }
+    relationSetter, ok := db.(database.QueryRelationSetter)
+    if !ok {
+        return errors.WrapDetf(query.ErrInternal, "DB doesn't implement QueryRelationSetter interface: %T", db)
+    }
+    return relationSetter.QuerySetRelations(ctx, q, relationField, relationModels...)
+    {{- end}}
+}
+{{end -}}
+{{- end}}

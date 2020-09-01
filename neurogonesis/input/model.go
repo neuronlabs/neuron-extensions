@@ -85,43 +85,23 @@ func (m *Model) CollectionInput(packageName string, isModelImported bool) *Colle
 	return c
 }
 
-// PackageCollectionInput creates a package collection input.
-func (m *Model) PackageCollectionInput(packageName string, isModelImported bool) *CollectionInput {
-	c := &CollectionInput{
-		PackageName: packageName,
-		Imports: []string{
-			"context",
-
-			"github.com/neuronlabs/neuron/database",
-			"github.com/neuronlabs/neuron/mapping",
-		},
-		Model:         m,
-		Collection:    m.Collection(),
-		ModelImported: true,
-	}
-	if c.PackageName == "" {
-		c.PackageName = m.PackageName
-	}
-	if isModelImported {
-		c.Imports.Add(m.PackagePath)
-	}
-
-	for _, relation := range m.Relations {
-		if relation.IsImported {
-			for _, mi := range m.Imports {
-				if strings.HasSuffix(mi, relation.Selector) {
-					c.Imports.Add(mi)
-					break
-				}
-			}
-		}
-	}
-	return c
-}
-
 // SortFields sorts the fields in the model.
 func (m *Model) SortFields() {
 	sort.Slice(m.Fields, func(i, j int) bool {
 		return m.Fields[i].Index < m.Fields[j].Index
 	})
+}
+
+func (m *Model) UniqueRelationModels() []string {
+	var models []string
+	mp := map[string]struct{}{}
+	for _, relation := range m.Relations {
+		baseType := relation.BaseType()
+		_, ok := mp[baseType]
+		if !ok {
+			models = append(models, baseType)
+			mp[baseType] = struct{}{}
+		}
+	}
+	return models
 }

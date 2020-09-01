@@ -120,23 +120,12 @@ func collectionPackage(cmd *cobra.Command, args []string) {
 		packageName = filepath.Base(filepath.Clean(dir))
 	}
 
-	collection, err := g.CollectionInput(packageName, isModelImported, typeName)
+	pkgCollection, err := g.CollectionInput(packageName, isModelImported, typeName)
 	if err != nil {
 		fmt.Printf("Err: %v\n", err)
 		os.Exit(1)
 	}
-	// Create new file if not exists.
-	collectionFileName := filepath.Join(dir, strcase.ToSnake(collection.Model.Name)+"_collection.neuron")
-	collectionFileName += ".go"
-	generateFile(collectionFileName, "collection", buf, collection)
-	buf.Reset()
-
-	pkgCollection, err := g.PackageCollectionInput(packageName, isModelImported, typeName)
-	if err != nil {
-		fmt.Printf("Err: %v\n", err)
-		os.Exit(1)
-	}
-	collectionPackageFileName := filepath.Join(dir, strcase.ToSnake(collection.Model.Name)+"_collection-package.neuron")
+	collectionPackageFileName := filepath.Join(dir, strcase.ToSnake(pkgCollection.Model.Name)+"_collection-package.neuron")
 	collectionPackageFileName += ".go"
 	generateFile(collectionPackageFileName, "collection-package", buf, pkgCollection)
 

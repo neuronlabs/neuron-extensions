@@ -8,10 +8,8 @@ package {{.PackageName}}
 {{template "imports" .}}
 
 // Neuron_Models stores all generated models in this package.
-var Neuron_Models = []mapping.Model{
-    {{range $model := .Models -}}
-    &{{$model.Name}}{},
-{{end -}}
+var Neuron_Models = []mapping.Model{ {{- range $model := .Models}}
+    &{{$model.Name}}{},{{end}}
 }
 {{range $model := .Models }}
 {{template "model-definition" $model}}

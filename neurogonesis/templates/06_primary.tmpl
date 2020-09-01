@@ -154,7 +154,7 @@ func ({{.Receiver}} *{{.Name}}) SetPrimaryKeyStringValue(value string) error {
 // SetFrom implements FromSetter interface.
 func ({{.Receiver}} *{{.Name}}) SetFrom(model mapping.Model) error {
     if model == nil {
-        return errors.Wrap(query.ErrInvalidInput, "provided nil model to set from")
+        return errors.Wrap(mapping.ErrNilModel, "provided nil model to set from")
     }
     from, ok := model.(*{{.Name}})
     if !ok {
@@ -174,4 +174,11 @@ func ({{.Receiver}} *{{.Name}}) StructFieldValue(field *mapping.StructField) (in
         return nil, errors.Wrapf(mapping.ErrInvalidModelField, "provided invalid field: '%s' for given model: {{.Name}}'", field.Name())
     }
 }
+
+{{if .Relations -}}
+func ({{.Receiver}} *{{.Name}}) ListRelationModels() []mapping.Model {
+    return []mapping.Model{ {{- range $relation := .UniqueRelationModels -}}
+    &{{$relation}}{},{{end -}}}
+}
+{{- end}}
 {{- end}}
