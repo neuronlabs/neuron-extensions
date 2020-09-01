@@ -47,15 +47,14 @@ func init() {
 	rootCmd.AddCommand(collectionsCmd)
 
 	// Here you will define your flags and configuration settings.
-	collectionsCmd.Flags().StringP("naming-convention", "n", "snake", `set the naming convention for the output models. 
+	collectionsCmd.PersistentFlags().StringP("naming-convention", "n", "snake", `set the naming convention for the output models. 
 Possible values: 'snake', 'kebab', 'lower_camel', 'camel'`)
+	collectionsCmd.PersistentFlags().StringP("output", "o", "", "provide output directory without package name")
 	collectionsCmd.Flags().BoolP("single-file", "s", false, "stores all collections within single file")
-	collectionsCmd.Flags().BoolP("external-controller", "c", false, "sets the collection initializer to use external controller")
-	collectionsCmd.Flags().StringP("output", "o", ".", "set the output directory for the collections generated file")
 }
 
 func generateCollections(cmd *cobra.Command, args []string) {
-	namingConvention, err := cmd.Flags().GetString("naming-convention")
+	namingConvention, err := cmd.PersistentFlags().GetString("naming-convention")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		cmd.Usage()
@@ -68,14 +67,7 @@ func generateCollections(cmd *cobra.Command, args []string) {
 		os.Exit(2)
 	}
 
-	externalController, err := cmd.Flags().GetBool("external-controller")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		cmd.Usage()
-		os.Exit(2)
-	}
-
-	output, err := cmd.Flags().GetString("output")
+	output, err := cmd.PersistentFlags().GetString("output")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		cmd.Usage()
@@ -113,7 +105,7 @@ func generateCollections(cmd *cobra.Command, args []string) {
 	}
 
 	// Parse provided argument packages.
-	g.ParsePackages(args)
+	g.ParsePackages(args...)
 
 	// Extract all models from given packages.
 	if err := g.ExtractPackages(); err != nil {
@@ -153,7 +145,6 @@ func generateCollections(cmd *cobra.Command, args []string) {
 	} else {
 		var testCollections, collections []*input.CollectionInput
 		for _, collection := range g.Collections(packageName, isModelImported) {
-			collection.ExternalController = externalController
 			modelNames = append(modelNames, collection.Model.Name)
 			if collection.Model.TestFile {
 				testCollections = append(testCollections, collection)
@@ -162,16 +153,16 @@ func generateCollections(cmd *cobra.Command, args []string) {
 			}
 		}
 		if len(testCollections) > 0 {
-			generateSingleFileCollections(testCollections, dir, true, externalController, buf)
+			generateSingleFileCollections(testCollections, dir, true, buf)
 		}
 		if len(collections) > 0 {
-			generateSingleFileCollections(collections, dir, false, externalController, buf)
+			generateSingleFileCollections(collections, dir, false, buf)
 		}
 	}
 	fmt.Fprintf(os.Stdout, "Success. Generated collections for: %s models.\n", strings.Join(modelNames, ","))
 }
 
-func generateSingleFileCollections(collections []*input.CollectionInput, dir string, isTesting, externalController bool, buf *bytes.Buffer) {
+func generateSingleFileCollections(collections []*input.CollectionInput, dir string, isTesting bool, buf *bytes.Buffer) {
 	multiCollections := &input.MultiCollectionInput{}
 	imports := map[string]struct{}{}
 	for _, collection := range collections {
@@ -179,7 +170,6 @@ func generateSingleFileCollections(collections []*input.CollectionInput, dir str
 			imports[imp] = struct{}{}
 		}
 		multiCollections.PackageName = collection.PackageName
-		multiCollections.ExternalController = externalController
 		multiCollections.Collections = append(multiCollections.Collections, collection)
 	}
 	for imp := range imports {

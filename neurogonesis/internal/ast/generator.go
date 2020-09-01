@@ -110,6 +110,24 @@ func (g *ModelGenerator) Collections(packageName string, isModelImported bool) (
 	return collections
 }
 
+// PackageCollectionInput creates collection input for provided model.
+func (g *ModelGenerator) PackageCollectionInput(packageName string, isModelImported bool, modelName string) (*input.CollectionInput, error) {
+	m, ok := g.models[modelName]
+	if !ok {
+		return nil, fmt.Errorf("model: '%s' not found", modelName)
+	}
+	return m.PackageCollectionInput(packageName, isModelImported), nil
+}
+
+// CollectionInput creates collection input for provided model.
+func (g *ModelGenerator) CollectionInput(packageName string, isModelImported bool, modelName string) (*input.CollectionInput, error) {
+	m, ok := g.models[modelName]
+	if !ok {
+		return nil, fmt.Errorf("model: '%s' not found", modelName)
+	}
+	return m.CollectionInput(packageName, isModelImported), nil
+}
+
 // HasCollectionInitializer checks if the package contains collection initializer.
 func (g *ModelGenerator) HasCollectionInitializer() bool {
 	var rootPkg string
@@ -262,7 +280,7 @@ func (g *ModelGenerator) Models() (models []*input.Model) {
 
 // ParsePackages analyzes the single package constructed from the patterns and Tags.
 // ParsePackages exits if there is an error.
-func (g *ModelGenerator) ParsePackages(patterns []string) {
+func (g *ModelGenerator) ParsePackages(patterns ...string) {
 	cfg := &packages.Config{
 		Mode:  packages.NeedSyntax | packages.NeedImports | packages.NeedDeps | packages.NeedFiles | packages.NeedName,
 		Tests: true,

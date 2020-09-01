@@ -43,8 +43,8 @@ func (m *Model) Collection() *Collection {
 	camelCollection := strcase.ToCamel(m.CollectionName)
 	return &Collection{
 		Name:         "NRN_" + camelCollection,
-		VariableName: "NRN_" + camelCollection,
-		QueryBuilder: strcase.ToLowerCamel(m.CollectionName + "QueryBuilder"),
+		VariableName: "_" + strcase.ToLowerCamel(m.CollectionName),
+		QueryBuilder: "_" + strcase.ToLowerCamel(m.CollectionName+"QueryBuilder"),
 	}
 }
 
@@ -54,12 +54,46 @@ func (m *Model) CollectionInput(packageName string, isModelImported bool) *Colle
 		PackageName: packageName,
 		Imports: []string{
 			"context",
-			"github.com/neuronlabs/neuron/core",
+
 			"github.com/neuronlabs/neuron/database",
 			"github.com/neuronlabs/neuron/errors",
 			"github.com/neuronlabs/neuron/mapping",
 			"github.com/neuronlabs/neuron/query",
 			"github.com/neuronlabs/neuron/query/filter",
+		},
+		Model:         m,
+		Collection:    m.Collection(),
+		ModelImported: true,
+	}
+	if c.PackageName == "" {
+		c.PackageName = m.PackageName
+	}
+	if isModelImported {
+		c.Imports.Add(m.PackagePath)
+	}
+
+	for _, relation := range m.Relations {
+		if relation.IsImported {
+			for _, mi := range m.Imports {
+				if strings.HasSuffix(mi, relation.Selector) {
+					c.Imports.Add(mi)
+					break
+				}
+			}
+		}
+	}
+	return c
+}
+
+// PackageCollectionInput creates a package collection input.
+func (m *Model) PackageCollectionInput(packageName string, isModelImported bool) *CollectionInput {
+	c := &CollectionInput{
+		PackageName: packageName,
+		Imports: []string{
+			"context",
+
+			"github.com/neuronlabs/neuron/database",
+			"github.com/neuronlabs/neuron/mapping",
 		},
 		Model:         m,
 		Collection:    m.Collection(),

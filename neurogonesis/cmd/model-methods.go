@@ -113,7 +113,7 @@ func generateModelMethods(cmd *cobra.Command, args []string) {
 	}
 
 	// Parse provided argument packages.
-	g.ParsePackages(args)
+	g.ParsePackages(args...)
 
 	// Extract all models from given packages.
 	if err := g.ExtractPackages(); err != nil {
