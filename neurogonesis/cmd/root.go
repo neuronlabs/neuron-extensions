@@ -158,7 +158,7 @@ func generateFile(fileName, templateName string, buf *bytes.Buffer, templateValu
 		os.Exit(1)
 	}
 	buf.Reset()
-	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0644)
+	file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: Writing file: %s failed: %v\n", fileName, err)
 		os.Exit(1)
