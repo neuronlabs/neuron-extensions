@@ -126,6 +126,7 @@ func (g *ModelGenerator) extractModel(file *ast.File, structType *ast.StructType
 			log.Debug("is imported")
 			importedField.Field = &field
 			importedField.AstField = structField
+			field.IsImported = true
 			if isPrimary(structField) {
 				model.Primary = importedField.Field
 			}

@@ -2,6 +2,7 @@ package input
 
 import (
 	"sort"
+	"strings"
 
 	"github.com/neuronlabs/strcase"
 )
@@ -41,7 +42,7 @@ func (m *Model) AddImport(imp string) {
 func (m *Model) Collection() *Collection {
 	camelCollection := strcase.ToCamel(m.CollectionName)
 	return &Collection{
-		Name:         "_" + camelCollection,
+		Name:         "NRN_" + camelCollection,
 		VariableName: "NRN_" + camelCollection,
 		QueryBuilder: strcase.ToLowerCamel(m.CollectionName + "QueryBuilder"),
 	}
@@ -69,6 +70,17 @@ func (m *Model) CollectionInput(packageName string, isModelImported bool) *Colle
 	}
 	if isModelImported {
 		c.Imports.Add(m.PackagePath)
+	}
+
+	for _, relation := range m.Relations {
+		if relation.IsImported {
+			for _, mi := range m.Imports {
+				if strings.HasSuffix(mi, relation.Selector) {
+					c.Imports.Add(mi)
+					break
+				}
+			}
+		}
 	}
 	return c
 }

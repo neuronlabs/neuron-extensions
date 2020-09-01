@@ -378,6 +378,11 @@ func registerDataType(dt DataTyper) error {
 	return nil
 }
 
+// MapDataType maps provided type 't' to the given data type 'dt'.
+func MapDataType(t interface{}, dt DataTyper, override ...bool) error {
+	return registerRefTypeDT(reflect.TypeOf(t), dt, override...)
+}
+
 // RegisterRefTypeDT registers default data type for provided reflect.Type.
 func RegisterRefTypeDT(t reflect.Type, dt DataTyper, override ...bool) error {
 	return registerRefTypeDT(t, dt, override...)

@@ -1,8 +1,6 @@
 {{define "collection-structure" -}}
 
-// {{.Collection.VariableName}} is the collection used to query {{.ModelName}} model.
-var {{.Collection.VariableName}} = &{{.Collection.Name}}{}
-
+// {{.Collection.Name}} is the query helper that provides model specific database API.
 type {{.Collection.Name}} struct {
     mStruct *mapping.ModelStruct
 }
@@ -22,45 +20,6 @@ func ({{.Collection.Receiver}} *{{.Collection.Name}}) modelStruct(_db database.D
     }
     {{.Collection.Receiver}}.mStruct = mStruct
     return mStruct, nil
-}
-
-// Initialize is a manual initializer function. The collection is initialized by itself whenever it is used for the queries.
-// If the collection needs to be initialized before, use this function with your controller.
-func ({{.Collection.Receiver}} *{{.Collection.Name}}) Initialize(_ctrl *core.Controller) error {
-    if {{.Collection.Receiver}}.mStruct != nil {
-        // Already initialized.
-        return nil
-    }
-    mStruct, err := _ctrl.ModelStruct(&{{.ModelName}}{})
-    if err != nil {
-        return err
-    }
-    {{.Collection.Receiver}}.mStruct = mStruct
-    return nil
-}
-
-// FieldsValues gets the values for all provided fields and struct fields.
-func ({{.Collection.Receiver}} *{{.Collection.Name}}) FieldsValues(model *{{.ModelName}}, fields ...string) ([]interface{}, error) {
-    if {{.Collection.Receiver}}.mStruct == nil {
-        return nil, errors.Wrap(mapping.ErrInternal, "provided {{.Collection.VariableName}} collection is not initialized yet")
-    }
-    values := make([]interface{}, len(fields))
-    var (
-        sField *mapping.StructField
-        ok bool
-    )
-    for i, field := range fields {
-        sField, ok = {{.Collection.Receiver}}.mStruct.StructFieldByName(field)
-        if !ok {
-            return nil, errors.Wrapf(mapping.ErrInvalidModelField, "provided field: '%s' is not found in the given model", field)
-        }
-        value, err := model.StructFieldValue(sField)
-        if err != nil {
-            return nil, err
-        }
-        values[i] = value
-    }
-    return values, nil
 }
 
 // ToModels converts the input slice of {{.ModelName}} into []mapping.Model
