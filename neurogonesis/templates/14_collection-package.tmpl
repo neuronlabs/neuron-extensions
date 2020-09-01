@@ -10,12 +10,6 @@ package {{.PackageName}}
 // Private variable used by public functions.
 var {{.Collection.VariableName}} = &{{.Collection.Name}}{}
 
-// ModelStruct gets the stored model struct.
-func ModelStruct() *mapping.ModelStruct {
-    return {{.Collection.VariableName}}.ModelStruct()
-}
-
-
 // ToModels converts the input slice of {{.ModelName}} into []mapping.Model
 func ToModels(input ...*{{.ModelName}}) ([]mapping.Model) {
     return {{.Collection.VariableName}}.ToModels(input...)
