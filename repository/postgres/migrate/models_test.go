@@ -10,7 +10,7 @@ import (
 	"github.com/neuronlabs/neuron/mapping"
 )
 
-//go:generate neurogonesis models methods methods --format=goimports --type=Model,BasicModel --single-file .
+//go:generate neurogonesis models methods --format=goimports --type=Model,BasicModel --single-file .
 
 type Model struct {
 	ID         int        `neuron:"type=primary"`
@@ -39,43 +39,31 @@ func TestParseModel(t *testing.T) {
 	t.Run("WithTimeFields", func(t *testing.T) {
 		// type the some model
 		some := &Model{}
-		m := tCtrl(t, some)
+		m := testingModelMap(t, some)
 
-		mStruct, ok := m.GetModelStruct(some)
-		require.True(t, ok)
+		mStruct, err := m.ModelStruct(some)
+		require.NoError(t, err)
 
 		for _, field := range mStruct.StructFields() {
 			switch field.Name() {
 			case "ID":
-				if assert.True(t, ok) {
-					if assert.True(t, ok) {
-						assert.Equal(t, "id", field.DatabaseName)
-					}
-				}
+				assert.Equal(t, "id", field.DatabaseName)
 			case "Attr":
-				if assert.True(t, ok) {
-					if assert.True(t, ok) {
-						assert.Equal(t, "attribute", field.DatabaseName)
-					}
-				}
+				assert.Equal(t, "attribute", field.DatabaseName)
 			case "SnakeCased":
-				if assert.True(t, ok) {
-					if assert.True(t, ok) {
-						assert.Equal(t, "snake_cased", field.DatabaseName)
-					}
-				}
-			case "Nested":
+				assert.Equal(t, "snake_cased", field.DatabaseName)
 			}
 		}
 	})
 }
 
-func tCtrl(t *testing.T, models ...mapping.Model) *mapping.ModelMap {
+func testingModelMap(t *testing.T, models ...mapping.Model) *mapping.ModelMap {
 	t.Helper()
 
-	m := mapping.NewModelMap(mapping.WithNamingConvention(mapping.SnakeCase))
+	m := mapping.New(
+		mapping.WithNamingConvention(mapping.SnakeCase),
+		mapping.WithDefaultDatabaseSchema("public"),
+	)
 	require.NoError(t, m.RegisterModels(models...))
-	require.NoError(t, PrepareModels(m.Models()...))
-
 	return m
 }

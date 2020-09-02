@@ -5,7 +5,7 @@ func modelStruct(_db database.DB) (*mapping.ModelStruct, error) {
     if _mStruct != nil {
         return _mStruct, nil
     }
-    mStruct, err := _db.Controller().ModelStruct(&{{.ModelName}}{})
+    mStruct, err := _db.ModelMap().ModelStruct(&{{.ModelName}}{})
     if err != nil {
         return nil, err
     }

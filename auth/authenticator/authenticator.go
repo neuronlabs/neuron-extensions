@@ -9,9 +9,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/neuronlabs/neuron/auth"
-	"github.com/neuronlabs/neuron/core"
 	"github.com/neuronlabs/neuron/errors"
-	"github.com/neuronlabs/neuron/mapping"
 )
 
 var (
@@ -21,56 +19,7 @@ var (
 // Authenticator is the structure that implements auth.Authenticator as well as auth.Tokener interfaces.
 // It is used to provide full authentication process for the
 type Authenticator struct {
-	Options    *auth.AuthenticatorOptions
-	Controller *core.Controller
-
-	model         *mapping.ModelStruct
-	usernameField *mapping.StructField
-	passwordField *mapping.StructField
-	saltField     *mapping.StructField
-}
-
-// Initialize implements initializer interface.
-func (a *Authenticator) Initialize(c *core.Controller) error {
-	a.Controller = c
-
-	// Check if account model is defined.
-	if c.AccountModel == nil {
-		return auth.ErrAccountModelNotDefined
-	}
-	accountModel := mapping.NewModel(c.AccountModel).(auth.Account)
-
-	// Set the username nad password fields.
-	var ok bool
-	a.usernameField, ok = c.AccountModel.FieldByName(accountModel.UsernameField())
-	if !ok {
-		return errors.Wrap(auth.ErrAccountModelNotDefined, "Authenticator - account username field not found")
-	}
-	a.passwordField, ok = c.AccountModel.FieldByName(accountModel.PasswordHashField())
-	if !ok {
-		return errors.Wrap(auth.ErrAccountModelNotDefined, "Authenticator - account password field not found")
-	}
-
-	// Check if model implements SaltFielder interface if the authentication requires salt.
-	if a.Options.AuthenticateMethod != auth.BCrypt {
-		saltFielder, ok := accountModel.(auth.SaltFielder)
-		if !ok {
-			return errors.Wrap(auth.ErrAccountModelNotDefined, "Authenticator requires account to have the salt field defined. The account model needs implement auth.SaltFielder interface.")
-		}
-		a.saltField, ok = c.AccountModel.FieldByName(saltFielder.SaltField())
-		if !ok {
-			return errors.Wrap(auth.ErrAccountModelNotDefined, "Authenticator - account salt field not found within model")
-		}
-		_, ok = accountModel.(auth.SaltGetter)
-		if !ok {
-			return errors.Wrap(auth.ErrAccountModelNotDefined, "Authenticator, provided account has salt field but doesn't implement auth.SaltGetter interface")
-		}
-		_, ok = accountModel.(auth.SaltSetter)
-		if !ok {
-			return errors.Wrap(auth.ErrAccountModelNotDefined, "Authenticator, provided account has salt field but doesn't implement auth.SaltSetter interface")
-		}
-	}
-	return nil
+	Options *auth.AuthenticatorOptions
 }
 
 // HashAndSetPassword implements auth.PasswordHasher interface.

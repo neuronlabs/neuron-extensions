@@ -28,8 +28,9 @@ type Field struct {
 	StringGetter string
 	StringSetter string
 
-	Model *Model
-	Ast   *ast.Field
+	Model     *Model
+	JoinModel string
+	Ast       *ast.Field
 }
 
 // BaseType returns field type without pointer or slices.

@@ -9,27 +9,25 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
-	"github.com/neuronlabs/neuron-extensions/repository/postgres/tests"
-	"github.com/neuronlabs/neuron/database"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/query"
+
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/tests"
 )
 
 func TestTransactions(t *testing.T) {
-	c := testingController(t, true, testModels...)
-	p := testingRepository(c)
+	db := testingDB(t, true, testModels...)
+	p := testingRepository(db)
 
 	ctx := context.Background()
 
-	mStruct, err := c.ModelStruct(&tests.SimpleModel{})
+	mStruct, err := db.ModelMap().ModelStruct(&tests.SimpleModel{})
 	require.NoError(t, err)
 
 	defer func() {
 		_ = internal.DropTables(ctx, p.ConnPool, mStruct.DatabaseName, mStruct.DatabaseSchemaName)
 	}()
-
-	db := database.New(c)
 
 	t.Run("Commit", func(t *testing.T) {
 		// No results should return no error.
@@ -79,20 +77,19 @@ func TestTransactions(t *testing.T) {
 	})
 }
 
+// TestSavepoints tests the savepoints for the database.
 func TestSavepoints(t *testing.T) {
-	c := testingController(t, true, testModels...)
-	p := testingRepository(c)
+	db := testingDB(t, true, testModels...)
+	p := testingRepository(db)
 
 	ctx := context.Background()
 
-	mStruct, err := c.ModelStruct(&tests.SimpleModel{})
+	mStruct, err := db.ModelMap().ModelStruct(&tests.SimpleModel{})
 	require.NoError(t, err)
 
 	defer func() {
 		_ = internal.DropTables(ctx, p.ConnPool, mStruct.DatabaseName, mStruct.DatabaseSchemaName)
 	}()
-
-	db := database.New(c)
 
 	// No results should return no error.
 	tx := db.Begin(ctx, nil)

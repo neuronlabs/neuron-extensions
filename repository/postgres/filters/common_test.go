@@ -7,8 +7,6 @@ import (
 
 	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/query"
-
-	"github.com/neuronlabs/neuron-extensions/repository/postgres/migrate"
 )
 
 //go:generate neurogonesis models methods methods --format=goimports --type=QueryModel --single-file .
@@ -22,15 +20,15 @@ type QueryModel struct {
 func getScope(t *testing.T) *query.Scope {
 	t.Helper()
 
-	m := mapping.NewModelMap(mapping.WithNamingConvention(mapping.SnakeCase))
+	m := mapping.New(
+		mapping.WithNamingConvention(mapping.SnakeCase),
+		mapping.WithDefaultDatabaseSchema("public"),
+	)
 
 	err := m.RegisterModels(&QueryModel{})
 	require.NoError(t, err)
 
-	mStruct, ok := m.GetModelStruct(&QueryModel{})
-	require.True(t, ok)
-
-	err = migrate.PrepareModels(mStruct)
+	mStruct, err := m.ModelStruct(&QueryModel{})
 	require.NoError(t, err)
 
 	return query.NewScope(mStruct)

@@ -14,11 +14,10 @@ import (
 )
 
 func TestParseInsertQuery(t *testing.T) {
-	c := testingController(t, false, &tests.Model{})
+	db := testingDB(t, false, &tests.Model{})
+	repo := testingRepository(db)
 
-	repo := testingRepository(c)
-
-	m, err := c.ModelStruct(&tests.Model{})
+	m, err := db.ModelMap().ModelStruct(&tests.Model{})
 	require.NoError(t, err)
 
 	model := &tests.Model{
@@ -45,11 +44,11 @@ func TestParseInsertQuery(t *testing.T) {
 }
 
 func TestParseInsertWithNullForeignKey(t *testing.T) {
-	c := testingController(t, false, &tests.ForeignKeyModel{})
+	db := testingDB(t, false, &tests.ForeignKeyModel{})
 
-	repo := testingRepository(c)
+	repo := testingRepository(db)
 
-	m, err := c.ModelStruct(&tests.ForeignKeyModel{})
+	m, err := db.ModelMap().ModelStruct(&tests.ForeignKeyModel{})
 	require.NoError(t, err)
 
 	model := &tests.ForeignKeyModel{}
@@ -67,10 +66,10 @@ func TestParseInsertWithNullForeignKey(t *testing.T) {
 }
 
 func TestParseWithDefault(t *testing.T) {
-	c := testingController(t, false, &tests.Model{})
-	p := testingRepository(c)
+	db := testingDB(t, false, &tests.Model{})
+	p := testingRepository(db)
 
-	m, err := c.ModelStruct(&tests.Model{})
+	m, err := db.ModelMap().ModelStruct(&tests.Model{})
 	require.NoError(t, err)
 
 	model := &tests.Model{
@@ -91,15 +90,14 @@ func TestParseWithDefault(t *testing.T) {
 }
 
 func TestParseBulkInsert(t *testing.T) {
-	c := testingController(t, false, &tests.Model{})
+	db := testingDB(t, false, &tests.Model{})
 
-	repo := testingRepository(c)
+	repo := testingRepository(db)
 
-	m, err := c.ModelStruct(&tests.Model{})
+	m, err := db.ModelMap().ModelStruct(&tests.Model{})
 	require.NoError(t, err)
 
 	batch := &internal.DummyBatch{}
-
 	model := &tests.Model{
 		ID:         1,
 		AttrString: "Some",

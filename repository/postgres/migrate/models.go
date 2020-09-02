@@ -148,49 +148,6 @@ func migrateTable(ctx context.Context, conn internal.Connection, model *mapping.
 	return nil
 }
 
-// PrepareModels prepares database models
-func PrepareModels(models ...*mapping.ModelStruct) error {
-	for _, model := range models {
-		if err := prepareModel(model); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func prepareModel(model *mapping.ModelStruct) error {
-	if model.DatabaseSchemaName == "" {
-		model.DatabaseSchemaName = "public"
-	}
-	if model.DatabaseName == "" {
-		model.DatabaseName = mapping.NamingSnake(model.Collection())
-	}
-
-	for _, field := range model.Fields() {
-		if field.DatabaseName == "" {
-			field.DatabaseName = mapping.NamingSnake(field.Name())
-		}
-		for _, index := range field.DatabaseIndexes() {
-			if index.Name == "" {
-				index.Name = newIndexName(model, field, index)
-			}
-		}
-	}
-
-	for _, index := range model.DatabaseIndexes() {
-		for _, parameter := range index.Parameters {
-			switch parameter {
-			case BTreeIndex, HashIndex, GiSTIndex, GINIndex:
-				index.Type = parameter
-			}
-		}
-		if index.Type == "" {
-			index.Type = BTreeIndex
-		}
-	}
-	return nil
-}
-
 // tableDefinitions gets model's table definition.
 func tableDefinitions(model *mapping.ModelStruct) ([]string, error) {
 	sb := &strings.Builder{}

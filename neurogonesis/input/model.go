@@ -33,6 +33,13 @@ type Model struct {
 	Receivers                                                        map[string]int
 }
 
+func (m *Model) Mapping() string {
+	if m.PackagePath == "github.com/neuronlabs/neuron/mapping" {
+		return ""
+	}
+	return "mapping."
+}
+
 // AddImport adds 'imp' imported package if it doesn't exists already.
 func (m *Model) AddImport(imp string) {
 	m.Imports.Add(imp)
@@ -101,6 +108,12 @@ func (m *Model) UniqueRelationModels() []string {
 		if !ok {
 			models = append(models, baseType)
 			mp[baseType] = struct{}{}
+		}
+		if relation.JoinModel != "" {
+			if _, ok = mp[relation.JoinModel]; !ok {
+				models = append(models, relation.JoinModel)
+				mp[relation.JoinModel] = struct{}{}
+			}
 		}
 	}
 	return models

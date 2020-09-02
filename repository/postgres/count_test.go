@@ -13,11 +13,10 @@ import (
 
 // TestParseCount tests the count method for the postgres repository
 func TestParseCount(t *testing.T) {
-	c := testingController(t, false, &tests.Model{})
+	db := testingDB(t, false, &tests.Model{})
+	p := testingRepository(db)
 
-	p := testingRepository(c)
-
-	mStruct, err := c.ModelStruct(&tests.Model{})
+	mStruct, err := db.ModelMap().ModelStruct(&tests.Model{})
 	require.NoError(t, err)
 
 	s := query.NewScope(mStruct)

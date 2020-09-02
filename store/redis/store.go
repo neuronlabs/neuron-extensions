@@ -7,15 +7,15 @@ import (
 
 	"github.com/go-redis/redis/v8"
 
-	"github.com/neuronlabs/neuron/core"
 	"github.com/neuronlabs/neuron/errors"
+	"github.com/neuronlabs/neuron/service"
 	"github.com/neuronlabs/neuron/store"
 )
 
 var (
-	_ store.Store = &Redis{}
-	_ core.Dialer = &Redis{}
-	_ core.Closer = &Redis{}
+	_ store.Store    = &Redis{}
+	_ service.Dialer = &Redis{}
+	_ service.Closer = &Redis{}
 )
 
 // Redis is the key-value store implementation for the neuron framework.
@@ -40,7 +40,7 @@ func (r *Redis) Dial(ctx context.Context) error {
 }
 
 // Close implements Closer interface.
-func (r *Redis) Close(ctx context.Context) error {
+func (r *Redis) Close(_ context.Context) error {
 	return r.r.Close()
 }
 

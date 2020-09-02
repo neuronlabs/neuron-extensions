@@ -13,6 +13,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/neuronlabs/inflection"
 	"github.com/neuronlabs/neuron/log"
 	"github.com/neuronlabs/strcase"
 	"golang.org/x/tools/go/packages"
@@ -141,12 +142,9 @@ func (g *ModelGenerator) HasCollectionInitializer() bool {
 }
 
 // CollectionInitializer gets collection initializer.
-func (g *ModelGenerator) CollectionInitializer(externalController bool) *input.Collections {
+func (g *ModelGenerator) CollectionInitializer() *input.Collections {
 	model := g.Models()[0]
-	col := &input.Collections{PackageName: model.PackageName, ExternalController: externalController}
-	if externalController {
-		col.Imports.Add("github.com/neuronlabs/neuron/core")
-	}
+	col := &input.Collections{PackageName: model.PackageName}
 	return col
 }
 
@@ -248,11 +246,53 @@ func (g *ModelGenerator) ExtractPackages() error {
 		if err := g.setFieldStringParserFunctions(model); err != nil {
 			return err
 		}
+		if err := g.setMany2ManyRelations(model); err != nil {
+			return err
+		}
 	}
 
 	// Sort model fields.
 	for _, model := range g.models {
 		model.SortFields()
+	}
+	return nil
+}
+
+func (g *ModelGenerator) setMany2ManyRelations(model *input.Model) error {
+	for _, relation := range model.Relations {
+		if !relation.IsSlice {
+			continue
+		}
+		if !g.isMany2ManyRelation(relation.Ast) {
+			continue
+		}
+		joinModel, ok := g.many2manyJoinModel(relation.Ast)
+		if ok {
+			if _, ok = g.loadedTypes[joinModel]; !ok {
+				return fmt.Errorf("provided join model: '%s' is not found for the models: '%s' relation: '%s'", joinModel, model.Name, relation.Name)
+			}
+		} else {
+			relatedModel := relation.BaseType()
+			var selector string
+			if i := strings.IndexRune(relatedModel, '.'); i != -1 {
+				selector = relatedModel[:i]
+				relatedModel = relatedModel[i+1:]
+			}
+			name1 := model.Name + inflection.Plural(relatedModel)
+			name2 := relatedModel + inflection.Plural(model.Name)
+			if joinModelType, ok := g.loadedTypes[name1]; ok {
+				joinModel = joinModelType.Name.Name
+			} else if joinModelType, ok := g.loadedTypes[name2]; ok {
+				joinModel = joinModelType.Name.Name
+			} else if joinModelType, ok := g.loadedTypes[selector+"."+name1]; ok {
+				joinModel = joinModelType.Name.Name
+			} else if joinModelType, ok := g.loadedTypes[selector+"."+name2]; ok {
+				joinModel = joinModelType.Name.Name
+			} else {
+				return fmt.Errorf("no join model found for the models: '%s' relation: '%s'", model.Name, relation.Name)
+			}
+		}
+		relation.JoinModel = joinModel
 	}
 	return nil
 }
@@ -572,6 +612,36 @@ func isPrimary(field *ast.Field) bool {
 		return true
 	}
 	return false
+}
+
+func (g *ModelGenerator) isMany2ManyRelation(field *ast.Field) bool {
+	if field.Tag == nil {
+		return false
+	}
+	tags := extractTags(field.Tag.Value, "neuron", ";", ",")
+
+	for _, tag := range tags {
+		if strings.EqualFold(tag.key, "many2many") {
+			return true
+		}
+	}
+	return false
+}
+
+func (g *ModelGenerator) many2manyJoinModel(field *ast.Field) (string, bool) {
+	tags := extractTags(field.Tag.Value, "neuron", ";", ",")
+
+	for _, tag := range tags {
+		if strings.EqualFold(tag.key, "many2many") {
+			if len(tag.values) >= 1 {
+				if tag.values[0] == "_" {
+					return "", false
+				}
+				return tag.values[0], true
+			}
+		}
+	}
+	return "", false
 }
 
 func (g *ModelGenerator) isFieldRelation(field *ast.Field) bool {

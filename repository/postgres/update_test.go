@@ -13,11 +13,11 @@ import (
 )
 
 func TestBuildUpdateQuery(t *testing.T) {
-	c := testingController(t, false, &tests.Model{})
-	p := testingRepository(c)
+	db := testingDB(t, false, &tests.Model{})
+	p := testingRepository(db)
 
 	t.Run("Model", func(t *testing.T) {
-		mStruct, err := c.ModelStruct(&tests.Model{})
+		mStruct, err := db.ModelMap().ModelStruct(&tests.Model{})
 		require.NoError(t, err)
 
 		s := query.NewScope(mStruct, &tests.Model{AttrString: "Name"})
@@ -28,7 +28,7 @@ func TestBuildUpdateQuery(t *testing.T) {
 	})
 
 	t.Run("BatchModel", func(t *testing.T) {
-		mStruct, err := c.ModelStruct(&tests.Model{})
+		mStruct, err := db.ModelMap().ModelStruct(&tests.Model{})
 		require.NoError(t, err)
 
 		s := query.NewScope(mStruct, &tests.Model{ID: 1, AttrString: "Name", Int: 50}, &tests.Model{ID: 2, AttrString: "Surname", Int: 100})

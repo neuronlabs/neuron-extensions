@@ -9,30 +9,27 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
-	"github.com/neuronlabs/neuron-extensions/repository/postgres/tests"
-	"github.com/neuronlabs/neuron/database"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/query"
+
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
+	"github.com/neuronlabs/neuron-extensions/repository/postgres/tests"
 )
 
 func TestInsertSingleModel(t *testing.T) {
-	c := testingController(t, true, testModels...)
-	p := testingRepository(c)
+	db := testingDB(t, true, testModels...)
+	p := testingRepository(db)
 
 	ctx := context.Background()
-	mStruct, err := c.ModelStruct(&tests.SimpleModel{})
+	mStruct, err := db.ModelMap().ModelStruct(&tests.SimpleModel{})
 	require.NoError(t, err)
 
 	defer func() {
 		_ = internal.DropTables(ctx, p.ConnPool, mStruct.DatabaseName, mStruct.DatabaseSchemaName)
-		mStruct, err = c.ModelStruct(&tests.ForeignKeyModel{})
+		mStruct, err = db.ModelMap().ModelStruct(&tests.ForeignKeyModel{})
 		require.NoError(t, err)
 		_ = internal.DropTables(ctx, p.ConnPool, mStruct.DatabaseName, mStruct.DatabaseSchemaName)
 	}()
-
-	// No results should return no error.
-	db := database.New(c)
 
 	newModel := func() *tests.SimpleModel {
 		return &tests.SimpleModel{
@@ -50,7 +47,7 @@ func TestInsertSingleModel(t *testing.T) {
 
 	t.Run("ForeignKeyNotNull", func(t *testing.T) {
 		model := &tests.ForeignKeyModel{}
-		mStruct, err := c.ModelStruct(model)
+		mStruct, err := db.ModelMap().ModelStruct(model)
 		require.NoError(t, err)
 
 		err = db.Query(mStruct, model).Select(mStruct.MustFieldByName("ForeignKey")).Insert()

@@ -9,32 +9,23 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neuronlabs/neuron/database"
-
 	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
 	"github.com/neuronlabs/neuron-extensions/repository/postgres/tests"
 )
 
 // // TestIntegrationPatch integration tests for update method.
 func TestUpdate(t *testing.T) {
-	c := testingController(t, true, &tests.SimpleModel{})
-	p := testingRepository(c)
+	db := testingDB(t, true, &tests.SimpleModel{})
+	p := testingRepository(db)
 
 	ctx := context.Background()
 
-	err := c.MigrateModels(ctx, &tests.SimpleModel{})
-	require.NoError(t, err)
-
-	mStruct, err := c.ModelStruct(&tests.SimpleModel{})
+	mStruct, err := db.ModelMap().ModelStruct(&tests.SimpleModel{})
 	require.NoError(t, err)
 
 	defer func() {
 		_ = internal.DropTables(ctx, p.ConnPool, mStruct.DatabaseName, mStruct.DatabaseSchemaName)
 	}()
-
-	// No results should return no error.
-	db := database.New(c)
-
 	newModel := func() *tests.SimpleModel {
 		return &tests.SimpleModel{
 			Attr: "Something",
@@ -83,23 +74,17 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestUpdateForeign(t *testing.T) {
-	c := testingController(t, true, &tests.ForeignKeyModel{})
-	p := testingRepository(c)
+	db := testingDB(t, true, &tests.ForeignKeyModel{})
+	p := testingRepository(db)
 
 	ctx := context.Background()
 
-	err := c.MigrateModels(ctx, &tests.ForeignKeyModel{})
-	require.NoError(t, err)
-
-	mStruct, err := c.ModelStruct(&tests.ForeignKeyModel{})
+	mStruct, err := db.ModelMap().ModelStruct(&tests.ForeignKeyModel{})
 	require.NoError(t, err)
 
 	defer func() {
 		_ = internal.DropTables(ctx, p.ConnPool, mStruct.DatabaseName, mStruct.DatabaseSchemaName)
 	}()
-
-	// No results should return no error.
-	db := database.New(c)
 
 	model := &tests.ForeignKeyModel{}
 	err = db.Query(mStruct, model).Insert()
@@ -108,28 +93,3 @@ func TestUpdateForeign(t *testing.T) {
 	_, err = db.Query(mStruct, model).Select(mStruct.MustFieldByName("ForeignKey")).Update()
 	require.NoError(t, err)
 }
-
-// func TestIntegrationPatch(t *testing.T) {
-// 	c, db := prepareIntegrateRepository(t)
-//
-// 	defer db.Close()
-// 	defer deleteTestModelTable(t, db)
-//
-// 	tm := &tests.Model{AttrString: "different"}
-// 	s, err := query.NewC(c, tm)
-// 	require.NoError(t, err)
-//
-// 	require.NoError(t, s.FilterField(query.NewFilterField(s.ModelStruct.Primary(), query.OpEqual, 2)))
-// 	require.NoError(t, s.SetFields("AttrString"))
-// 	if assert.NoError(t, s.Patch(), "%s", s) {
-// 		ti := time.Time{}
-// 		r := db.QueryRow("SELECT attr_string, updated_at FROM test_models WHERE id = $1", 2)
-//
-// 		var attr string
-// 		require.NoError(t, r.Scan(&attr, &ti))
-//
-// 		assert.Equal(t, "different", attr)
-//
-// 		assert.Equal(t, ti.Round(time.Millisecond).Unix(), tm.UpdatedAt.Unix(), ti.String())
-// 	}
-// }

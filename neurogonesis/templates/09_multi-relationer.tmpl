@@ -1,16 +1,16 @@
 {{define "multi-relationer" -}}
 {{- $out := . -}}
-// Compile time check for the mapping.MultiRelationer interface implementation.
-var _ mapping.MultiRelationer = &{{.Name}}{}
+// Compile time check for the {{$out.Mapping}}MultiRelationer interface implementation.
+var _ {{$out.Mapping}}MultiRelationer = &{{.Name}}{}
 
-// AddRelationModel implements mapping.MultiRelationer interface.
-func ({{.Receiver}} *{{.Name}}) AddRelationModel(relation *mapping.StructField, model mapping.Model) error {
+// AddRelationModel implements {{$out.Mapping}}MultiRelationer interface.
+func ({{.Receiver}} *{{.Name}}) AddRelationModel(relation *{{$out.Mapping}}StructField, model {{$out.Mapping}}Model) error {
     switch relation.Index[0] {
     {{range $relation := .Relations -}}{{if $relation.IsSlice -}}
     case {{$relation.Index}}: // {{$relation.Name}}
         {{ $relationName := (toLowerCamel $relation.BaseType) -}}{{$relationName}}, ok := model.(*{{$relation.BaseType}})
         if !ok {
-            return errors.Wrapf(mapping.ErrInvalidRelationValue, "provided invalid value type: '%T'  for the field: '{{$relation.Name}}'", model)
+            return errors.Wrapf({{$out.Mapping}}ErrInvalidRelationValue, "provided invalid value type: '%T'  for the field: '{{$relation.Name}}'", model)
         }
         {{if $relation.IsPointer -}}
         if {{$out.Receiver}}.{{$relation.Name}} == nil {
@@ -21,13 +21,13 @@ func ({{.Receiver}} *{{.Name}}) AddRelationModel(relation *mapping.StructField, 
         {{if $relation.IsPointer }}*{{end}}{{$out.Receiver}}.{{$relation.Name}} = append({{if $relation.IsPointer}}*{{end}}{{$out.Receiver}}.{{$relation.Name}}, {{if not $relation.IsElemPointer}}*{{end}}{{$relationName}})
     {{end -}}{{end -}}
     default:
-        return errors.Wrapf(mapping.ErrInvalidRelationField, "provided invalid relation: '%T' for the model '{{.Name}}'", model)
+        return errors.Wrapf({{$out.Mapping}}ErrInvalidRelationField, "provided invalid relation: '%T' for the model '{{.Name}}'", model)
     }
     return nil
 }
 
-// GetRelationModels implements mapping.MultiRelationer interface.
-func ({{.Receiver}} *{{.Name}}) GetRelationModels(relation *mapping.StructField) (models []mapping.Model, err error) {
+// GetRelationModels implements {{$out.Mapping}}MultiRelationer interface.
+func ({{.Receiver}} *{{.Name}}) GetRelationModels(relation *{{$out.Mapping}}StructField) (models []{{$out.Mapping}}Model, err error) {
     switch relation.Index[0] {
     {{range $relation := .Relations -}}{{if $relation.IsSlice -}}
     case {{$relation.Index}}: // {{$relation.Name}}
@@ -42,34 +42,34 @@ func ({{.Receiver}} *{{.Name}}) GetRelationModels(relation *mapping.StructField)
         {{- end}}
     {{end -}}{{end -}}
     default:
-        return nil, errors.Wrapf(mapping.ErrInvalidRelationField, "provided invalid relation: '%s' for model: '%T'", relation, {{.Receiver}})
+        return nil, errors.Wrapf({{$out.Mapping}}ErrInvalidRelationField, "provided invalid relation: '%s' for model: '%T'", relation, {{.Receiver}})
     }
     return models, nil
 }
 
-// GetRelationModelAt implements mapping.MultiRelationer interface.
-func ({{.Receiver}} *{{.Name}}) GetRelationModelAt(relation *mapping.StructField, index int) (models mapping.Model, err error) {
+// GetRelationModelAt implements {{$out.Mapping}}MultiRelationer interface.
+func ({{.Receiver}} *{{.Name}}) GetRelationModelAt(relation *{{$out.Mapping}}StructField, index int) (models {{$out.Mapping}}Model, err error) {
     switch relation.Index[0] {
     {{range $relation := .Relations -}}{{if $relation.IsSlice -}}
     case {{$relation.Index}}: // {{$relation.Name}}
         {{if $relation.IsPointer -}}
         if {{$out.Receiver}}.{{$relation.Name}} == nil {
-            return nil, errors.Wrapf(mapping.ErrInvalidRelationIndex, "index out of possible range. Model: '{{$out.Name}}', Field {{$relation.Name}}")
+            return nil, errors.Wrapf({{$out.Mapping}}ErrInvalidRelationIndex, "index out of possible range. Model: '{{$out.Name}}', Field {{$relation.Name}}")
         }
         {{end -}}
         if index > len({{if $relation.IsPointer}}*{{end}}{{$out.Receiver}}.{{$relation.Name}}) - 1 {
-            return nil, errors.Wrapf(mapping.ErrInvalidRelationIndex, "index out of possible range. Model: '{{$out.Name}}', Field {{$relation.Name}}")
+            return nil, errors.Wrapf({{$out.Mapping}}ErrInvalidRelationIndex, "index out of possible range. Model: '{{$out.Name}}', Field {{$relation.Name}}")
         }
         return {{if not $relation.IsElemPointer}}&{{end}}{{if $relation.IsPointer}}(*{{end}}{{$out.Receiver}}.{{$relation.Name}}{{if $relation.IsPointer}}){{end}}[index], nil
     {{end -}}{{end -}}
     default:
-        return nil, errors.Wrapf(mapping.ErrInvalidRelationField, "provided invalid relation: '%s' for model: '%T'", relation, {{$out.Receiver}})
+        return nil, errors.Wrapf({{$out.Mapping}}ErrInvalidRelationField, "provided invalid relation: '%s' for model: '%T'", relation, {{$out.Receiver}})
     }
     return models, nil
 }
 
-// GetRelationLen implements mapping.MultiRelationer interface.
-func ({{.Receiver}} *{{.Name}}) GetRelationLen(relation *mapping.StructField) (int, error) {
+// GetRelationLen implements {{$out.Mapping}}MultiRelationer interface.
+func ({{.Receiver}} *{{.Name}}) GetRelationLen(relation *{{$out.Mapping}}StructField) (int, error) {
     switch relation.Index[0] {
     {{range $relation := .Relations -}}{{if $relation.IsSlice -}}
     case {{$relation.Index}}: // {{$relation.Name}}
@@ -81,12 +81,12 @@ func ({{.Receiver}} *{{.Name}}) GetRelationLen(relation *mapping.StructField) (i
         return len({{if $relation.IsPointer}}*{{end}}{{$out.Receiver}}.{{$relation.Name}}), nil
     {{end -}}{{end -}}
     default:
-        return 0, errors.Wrapf(mapping.ErrInvalidRelationField, "provided invalid relation: '%s' for model: '%T'", relation, {{.Receiver}})
+        return 0, errors.Wrapf({{$out.Mapping}}ErrInvalidRelationField, "provided invalid relation: '%s' for model: '%T'", relation, {{.Receiver}})
     }
 }
 
-// SetRelationModels implements mapping.MultiRelationer interface.
-func ({{.Receiver}} *{{.Name}}) SetRelationModels(relation *mapping.StructField, models ...mapping.Model) error {
+// SetRelationModels implements {{$out.Mapping}}MultiRelationer interface.
+func ({{.Receiver}} *{{.Name}}) SetRelationModels(relation *{{$out.Mapping}}StructField, models ...{{$out.Mapping}}Model) error {
     switch relation.Index[0] {
     {{range $relation := .Relations -}}{{if $relation.IsSlice -}}
     case {{$relation.Index}}: // {{$relation.Name}}
@@ -95,7 +95,7 @@ func ({{.Receiver}} *{{.Name}}) SetRelationModels(relation *mapping.StructField,
         for i, model := range models {
             {{$relationName}}, ok := model.(*{{$relation.BaseType}})
             if !ok {
-                return errors.Wrapf(mapping.ErrInvalidRelationValue, "provided invalid value type: '%T'  for the field: '{{$relation.Name}}'", model)
+                return errors.Wrapf({{$out.Mapping}}ErrInvalidRelationValue, "provided invalid value type: '%T'  for the field: '{{$relation.Name}}'", model)
             }
             temp[i] = {{$relationName}}
         }
@@ -106,7 +106,7 @@ func ({{.Receiver}} *{{.Name}}) SetRelationModels(relation *mapping.StructField,
         {{end -}}
     {{end -}}{{end -}}
     default:
-        return errors.Wrapf(mapping.ErrInvalidRelationField, "provided invalid relation: '%s' for the model '{{.Name}}'", relation.String())
+        return errors.Wrapf({{$out.Mapping}}ErrInvalidRelationField, "provided invalid relation: '%s' for the model '{{.Name}}'", relation.String())
     }
     return nil
 }

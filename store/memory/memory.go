@@ -7,7 +7,6 @@ import (
 
 	"github.com/patrickmn/go-cache"
 
-	"github.com/neuronlabs/neuron/core"
 	"github.com/neuronlabs/neuron/errors"
 	"github.com/neuronlabs/neuron/log"
 	"github.com/neuronlabs/neuron/store"
@@ -18,7 +17,6 @@ var _ store.Store = &Memory{}
 
 // Memory is a in-memory store implementation for neuron store.
 type Memory struct {
-	c       *core.Controller
 	cache   *cache.Cache
 	Options *store.Options
 }
@@ -42,12 +40,6 @@ func New(options ...store.Option) (*Memory, error) {
 	return m, nil
 }
 
-// Initialize implements core.Initializer interface.
-func (m *Memory) Initialize(c *core.Controller) error {
-	m.c = c
-	return nil
-}
-
 // Set implements store.Store interface.
 func (m *Memory) Set(_ context.Context, record *store.Record, options ...store.SetOption) error {
 	o := &store.SetOptions{}
@@ -60,7 +52,7 @@ func (m *Memory) Set(_ context.Context, record *store.Record, options ...store.S
 	}
 	key := m.key(record.Key)
 	if record.ExpiresAt.IsZero() {
-		record.ExpiresAt = m.c.Now().Add(ttl)
+		record.ExpiresAt = m.Options.TimeFunc().Add(ttl)
 	}
 	cp := make([]byte, len(record.Value))
 	copy(cp, record.Value)

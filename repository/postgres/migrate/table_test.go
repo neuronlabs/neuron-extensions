@@ -12,10 +12,10 @@ func TestTableDefinition(t *testing.T) {
 	t.Run("SimpleModel", func(t *testing.T) {
 		// type the some model
 		some := &Model{}
-		m := tCtrl(t, some)
+		m := testingModelMap(t, some)
 
-		mStruct, ok := m.GetModelStruct(some)
-		require.True(t, ok)
+		mStruct, err := m.ModelStruct(some)
+		require.NoError(t, err)
 
 		def, err := tableDefinitions(mStruct)
 		require.NoError(t, err)
@@ -32,10 +32,10 @@ deleted_at timestamp with time zone
 
 	t.Run("WithPredefinedType", func(t *testing.T) {
 		model := &BasicModel{}
-		m := tCtrl(t, model)
+		m := testingModelMap(t, model)
 
-		mStruct, ok := m.GetModelStruct(model)
-		require.True(t, ok)
+		mStruct, err := m.ModelStruct(model)
+		require.NoError(t, err)
 
 		def, err := tableDefinitions(mStruct)
 		require.NoError(t, err)

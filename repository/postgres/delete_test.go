@@ -13,10 +13,10 @@ import (
 
 // TestParseDeleteQuery tests the parse delete query method.
 func TestParseDeleteQuery(t *testing.T) {
-	c := testingController(t, false, &tests.Model{})
-	p := testingRepository(c)
+	db := testingDB(t, false, &tests.Model{})
+	p := testingRepository(db)
 
-	mStruct, err := c.ModelStruct(&tests.Model{})
+	mStruct, err := db.ModelMap().ModelStruct(&tests.Model{})
 	require.NoError(t, err)
 
 	s := query.NewScope(mStruct)

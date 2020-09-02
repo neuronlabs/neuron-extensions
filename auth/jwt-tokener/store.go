@@ -34,7 +34,7 @@ func (t *Tokener) getStoreToken(ctx context.Context, token string) (*StoreToken,
 }
 
 func (t *Tokener) setStoreToken(ctx context.Context, token string, sToken *StoreToken) error {
-	ttl := t.c.Now().Sub(sToken.ExpiresAt)
+	ttl := t.Options.TimeFunc().Sub(sToken.ExpiresAt)
 	value, err := json.Marshal(sToken)
 	if err != nil {
 		log.Errorf("[jwt-tokener] marshal store token failed: %v", err)

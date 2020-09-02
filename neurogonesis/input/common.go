@@ -28,19 +28,17 @@ func (i *Imports) Sort() {
 
 // Collections is template input structure used for creation of the collections initialization file.
 type Collections struct {
-	PackageName        string
-	Imports            Imports
-	ExternalController bool
+	PackageName string
+	Imports     Imports
 }
 
 // CollectionInput creates a collection input.
 type CollectionInput struct {
-	PackageName        string
-	Imports            Imports
-	Model              *Model
-	Collection         *Collection
-	ExternalController bool
-	ModelImported      bool
+	PackageName   string
+	Imports       Imports
+	Model         *Model
+	Collection    *Collection
+	ModelImported bool
 }
 
 // ModelName gets the collection input model type.
@@ -53,10 +51,9 @@ func (c *CollectionInput) ModelName() string {
 
 // MultiCollectionInput is the input for multiple collections.
 type MultiCollectionInput struct {
-	PackageName        string
-	Imports            Imports
-	Collections        []*CollectionInput
-	ExternalController bool
+	PackageName string
+	Imports     Imports
+	Collections []*CollectionInput
 }
 
 // Collection is a structure used to insert into collection definition.

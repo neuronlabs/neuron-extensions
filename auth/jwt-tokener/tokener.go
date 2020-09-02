@@ -2,14 +2,13 @@ package tokener
 
 import (
 	"context"
+	"reflect"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
 
 	"github.com/neuronlabs/neuron/auth"
-	"github.com/neuronlabs/neuron/core"
 	"github.com/neuronlabs/neuron/errors"
-	"github.com/neuronlabs/neuron/mapping"
 	"github.com/neuronlabs/neuron/store"
 )
 
@@ -22,7 +21,6 @@ type Tokener struct {
 	Store   store.Store
 	Options auth.TokenerOptions
 
-	c                       *core.Controller
 	signingKey, validateKey interface{}
 }
 
@@ -31,6 +29,7 @@ func New(options ...auth.TokenerOption) (*Tokener, error) {
 	o := &auth.TokenerOptions{
 		TokenExpiration:        time.Minute * 10,
 		RefreshTokenExpiration: time.Hour * 24,
+		TimeFunc:               time.Now,
 	}
 	for _, option := range options {
 		option(o)
@@ -40,6 +39,10 @@ func New(options ...auth.TokenerOption) (*Tokener, error) {
 		Store:   o.Store,
 		Parser:  jwt.Parser{SkipClaimsValidation: true},
 		Options: *o,
+	}
+
+	if o.Model == nil {
+		return nil, errors.Wrap(auth.ErrInitialization, "no account model defined for the tokener")
 	}
 
 	// Set the signing and validate keys for given options.
@@ -65,22 +68,6 @@ func New(options ...auth.TokenerOption) (*Tokener, error) {
 		return nil, errors.Wrap(auth.ErrInitialization, "provided unsupported signing method")
 	}
 	return t, nil
-}
-
-// Initialize implements core.Initializer interface.
-func (t *Tokener) Initialize(c *core.Controller) error {
-	t.c = c
-
-	if t.Store == nil {
-		if c.DefaultStore == nil {
-			return errors.Wrap(auth.ErrInitialization, "no store found for the tokener")
-		}
-		t.Store = c.DefaultStore
-	}
-	if c.AccountModel == nil {
-		return errors.Wrap(auth.ErrInitialization, "no account model defined  for the tokener")
-	}
-	return nil
 }
 
 // InspectToken inspects given token string and returns provided claims.
@@ -116,7 +103,7 @@ func (t *Tokener) Token(ctx context.Context, account auth.Account, options ...au
 	}
 
 	// Set the claims for the full token.
-	expiresAt := t.c.Now().Add(o.ExpirationTime)
+	expiresAt := t.Options.TimeFunc().Add(o.ExpirationTime)
 	claims := &AccessClaims{
 		Account: account,
 		// Set the claims with current accountID and expiresAt.
@@ -134,7 +121,7 @@ func (t *Tokener) Token(ctx context.Context, account auth.Account, options ...au
 	refreshToken := o.RefreshToken
 	if refreshToken == "" {
 		// Create and sign refresh token.
-		refreshTokenExpiration := t.c.Now().Add(t.Options.RefreshTokenExpiration)
+		refreshTokenExpiration := t.Options.TimeFunc().Add(t.Options.RefreshTokenExpiration)
 		refClaims := &Claims{
 			StandardClaims: jwt.StandardClaims{
 				// Token subject should be account ID.
@@ -187,7 +174,7 @@ func (t *Tokener) RevokeToken(ctx context.Context, token string) error {
 		return err
 	}
 
-	now := t.c.Now()
+	now := t.Options.TimeFunc()
 	sToken.RevokedAt = &now
 	if err = t.setStoreToken(ctx, token, sToken); err != nil {
 		return err
@@ -230,7 +217,7 @@ func (t *Tokener) revokeToken(ctx context.Context, token string, now time.Time, 
 
 func (t *Tokener) inspectToken(ctx context.Context, token string) (auth.Claims, *StoreToken, error) {
 	// Initialize jwt.MapClaims.
-	claims := &AccessClaims{Account: mapping.NewModel(t.c.AccountModel).(auth.Account)}
+	claims := &AccessClaims{Account: t.newAccount()}
 	_, err := t.Parser.ParseWithClaims(token, claims, func(tk *jwt.Token) (interface{}, error) {
 		if tk.Method != t.Options.SigningMethod {
 			return nil, errors.Wrap(auth.ErrToken, "provided invalid signing algorithm for the token")
@@ -256,4 +243,9 @@ func (t *Tokener) inspectToken(ctx context.Context, token string) (auth.Claims, 
 		return &claims.Claims, sToken, nil
 	}
 	return claims, sToken, nil
+}
+
+func (t *Tokener) newAccount() auth.Account {
+	tp := reflect.TypeOf(t.Options.Model)
+	return reflect.New(tp.Elem()).Interface().(auth.Account)
 }

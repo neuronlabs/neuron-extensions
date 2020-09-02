@@ -9,27 +9,26 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neuronlabs/neuron/mapping"
+
 	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
 	"github.com/neuronlabs/neuron-extensions/repository/postgres/tests"
-	"github.com/neuronlabs/neuron/database"
-	"github.com/neuronlabs/neuron/mapping"
 )
 
 // TestIntegrationDelete integration tests for the deleteQuery processes.
 func TestIntegrationDelete(t *testing.T) {
-	c := testingController(t, true, testModels...)
-	p := testingRepository(c)
+	db := testingDB(t, true, testModels...)
+	p := testingRepository(db)
 
 	ctx := context.Background()
 
-	mStruct, err := c.ModelStruct(&tests.SimpleModel{})
+	mStruct, err := db.ModelMap().ModelStruct(&tests.SimpleModel{})
 	require.NoError(t, err)
 
 	defer func() {
 		_ = internal.DropTables(ctx, p.ConnPool, mStruct.DatabaseName, mStruct.DatabaseSchemaName)
 	}()
 
-	db := database.New(c)
 	newModel := func() *tests.SimpleModel {
 		return &tests.SimpleModel{
 			Attr: "Something",
@@ -66,19 +65,17 @@ func TestIntegrationDelete(t *testing.T) {
 }
 
 func TestSoftDelete(t *testing.T) {
-	c := testingController(t, true, testModels...)
-	p := testingRepository(c)
+	db := testingDB(t, true, testModels...)
+	p := testingRepository(db)
 
 	ctx := context.Background()
 
-	mStruct, err := c.ModelStruct(&tests.Model{})
+	mStruct, err := db.ModelMap().ModelStruct(&tests.Model{})
 	require.NoError(t, err)
 
 	defer func() {
 		_ = internal.DropTables(ctx, p.ConnPool, mStruct.DatabaseName, mStruct.DatabaseSchemaName)
 	}()
-
-	db := database.New(c)
 
 	newModel := func() *tests.Model {
 		return &tests.Model{

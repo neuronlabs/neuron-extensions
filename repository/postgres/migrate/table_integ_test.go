@@ -23,7 +23,7 @@ func TestAutoMigrateModels(t *testing.T) {
 	repoCfg := internal.TestingPostgresConfig(t)
 	models := []mapping.Model{&Model{}, &BasicModel{}}
 
-	m := tCtrl(t, models...)
+	m := testingModelMap(t, models...)
 
 	log.SetLevel(log.LevelDebug)
 
@@ -34,10 +34,10 @@ func TestAutoMigrateModels(t *testing.T) {
 	defer db.Close()
 
 	for _, model := range models {
-		modelStruct, ok := m.GetModelStruct(model)
-		require.True(t, ok)
+		modelStruct, err := m.ModelStruct(model)
+		require.NoError(t, err)
 
-		err := Models(ctx, db, modelStruct)
+		err = Models(ctx, db, modelStruct)
 		require.NoError(t, err)
 
 		_, err = db.Exec(ctx, fmt.Sprintf("DROP TABLE IF EXISTS %s.%s;", quoteIdentifier(modelStruct.DatabaseSchemaName), modelStruct.DatabaseName))

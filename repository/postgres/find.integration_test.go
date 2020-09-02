@@ -11,17 +11,16 @@ import (
 
 	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
 	"github.com/neuronlabs/neuron-extensions/repository/postgres/tests"
-	"github.com/neuronlabs/neuron/database"
 )
 
 // TestRepositoryFind tests the repository list method.
 func TestRepositoryFind(t *testing.T) {
-	c := testingController(t, true, testModels...)
-	p := testingRepository(c)
+	db := testingDB(t, true, testModels...)
+	p := testingRepository(db)
 
 	ctx := context.Background()
 
-	mStruct, err := c.ModelStruct(&tests.SimpleModel{})
+	mStruct, err := db.ModelMap().ModelStruct(&tests.SimpleModel{})
 	require.NoError(t, err)
 
 	defer func() {
@@ -29,8 +28,6 @@ func TestRepositoryFind(t *testing.T) {
 	}()
 
 	// No results should return no error.
-	db := database.New(c)
-
 	models, err := db.Query(mStruct).Find()
 	require.NoError(t, err)
 

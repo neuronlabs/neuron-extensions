@@ -149,7 +149,9 @@ func (g *ModelGenerator) extractModel(file *ast.File, structType *ast.StructType
 	}
 	defaultModelPackages := []string{
 		"github.com/neuronlabs/neuron/errors",
-		"github.com/neuronlabs/neuron/mapping",
+	}
+	if pkg.PkgPath != "github.com/neuronlabs/neuron/mapping" {
+		model.Imports.Add("github.com/neuronlabs/neuron/mapping")
 	}
 	for _, pkg := range defaultModelPackages {
 		model.Imports.Add(pkg)

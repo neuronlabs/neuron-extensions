@@ -168,11 +168,6 @@ func (p *Postgres) HealthCheck(ctx context.Context) (*repository.HealthResponse,
 	}, nil
 }
 
-// RegisterModels implements repository.Repository interface.
-func (p *Postgres) RegisterModels(models ...*mapping.ModelStruct) error {
-	return migrate.PrepareModels(models...)
-}
-
 /**
 
 Private Methods

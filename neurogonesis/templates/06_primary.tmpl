@@ -1,48 +1,48 @@
 {{define "primary" -}}
 {{- $out := . -}}
-// Compile time check if {{.Name}} implements mapping.Model interface.
-var _ mapping.Model = &{{.Name}}{}
+// Compile time check if {{.Name}} implements {{.Mapping}}Model interface.
+var _ {{.Mapping}}Model = &{{.Name}}{}
 
 {{if not .CustomCollectionName -}}
-// NeuronCollectionName implements mapping.Model interface method.
+// NeuronCollectionName implements {{.Mapping}}Model interface method.
 // Returns the name of the collection for the '{{.Name}}'.
 func ({{.Receiver}} *{{.Name}}) NeuronCollectionName() string {
     return "{{.CollectionName}}"
 }{{end}}
 
-// IsPrimaryKeyZero implements mapping.Model interface method.
+// IsPrimaryKeyZero implements {{.Mapping}}Model interface method.
 func ({{.Receiver}} *{{.Name}}) IsPrimaryKeyZero() bool {
     return {{.Primary.IsZero}}
 }
 
-// GetPrimaryKeyValue implements mapping.Model interface method.
+// GetPrimaryKeyValue implements {{.Mapping}}Model interface method.
 func ({{.Receiver}} *{{.Name}}) GetPrimaryKeyValue() interface{} {
     return {{.Receiver}}.{{.Primary.Name}}
 }
 
-// GetPrimaryKeyStringValue implements mapping.Model interface method.
+// GetPrimaryKeyStringValue implements {{.Mapping}}Model interface method.
 func ({{.Receiver}} *{{.Name}}) GetPrimaryKeyStringValue() (string, error) {
     {{if .Primary.StringGetter -}}
     return {{ stringer (selector .Receiver .Primary.Name) .Primary.StringGetter}}, nil
     {{- else if .Primary.IsTextMarshaler -}}
     id, err := {{.Receiver}}.{{.Primary.Name}}.MarshalText()
     if err != nil {
-        return "", errors.Wrapf(mapping.ErrFieldValue, "invalid primary field value: %v to parse string. Err: %v", {{.Receiver}}.{{.Primary.Name}}, err)
+        return "", errors.Wrapf({{.Mapping}}ErrFieldValue, "invalid primary field value: %v to parse string. Err: %v", {{.Receiver}}.{{.Primary.Name}}, err)
     }
     return string(id), nil
     {{- else if .Primary.IsString -}}
     return {{.Receiver}}.{{.Primary.Name}}.String(), nil
     {{- else -}}
-    return "", errors.Wrap(mapping.ErrModelDefinition, "model '{{.Name}}' has invalid primary key field type to parse string.")
+    return "", errors.Wrap({{.Mapping}}ErrModelDefinition, "model '{{.Name}}' has invalid primary key field type to parse string.")
     {{- end}}
 }
 
-// GetPrimaryKeyAddress implements mapping.Model interface method.
+// GetPrimaryKeyAddress implements {{.Mapping}}Model interface method.
 func ({{.Receiver}} *{{.Name}}) GetPrimaryKeyAddress() interface{} {
     return &{{.Receiver}}.{{.Primary.Name}}
 }
 
-// GetPrimaryKeyHashableValue implements mapping.Model interface method.
+// GetPrimaryKeyHashableValue implements {{.Mapping}}Model interface method.
 func ({{.Receiver}} *{{.Name}}) GetPrimaryKeyHashableValue() interface{} {
     {{if .Primary.IsPointer -}}
     if {{.Receiver}}.{{.Primary.Name}} == nil {
@@ -56,12 +56,12 @@ func ({{.Receiver}} *{{.Name}}) GetPrimaryKeyHashableValue() interface{} {
     {{end -}}
 }
 
-// GetPrimaryKeyZeroValue implements mapping.Model interface method.
+// GetPrimaryKeyZeroValue implements {{.Mapping}}Model interface method.
 func ({{.Receiver}} *{{.Name}}) GetPrimaryKeyZeroValue() interface{} {
     return {{if eq .Primary.Zero "nil"}}{{if .Primary.IsPointer}}({{end}}{{.Primary.Type}}{{if .Primary.IsPointer}}){{end}}({{end}}{{.Primary.GetZero}}{{if eq .Primary.Zero "nil"}}){{end}}
 }
 
-// SetPrimaryKey implements mapping.Model interface method.
+// SetPrimaryKey implements {{.Mapping}}Model interface method.
 func ({{.Receiver}} *{{.Name}}) SetPrimaryKeyValue(value interface{}) error {
     {{if .Primary.IsPointer -}}
     if value == nil {
@@ -99,9 +99,9 @@ func ({{.Receiver}} *{{.Name}}) SetPrimaryKeyValue(value interface{}) error {
         return nil
     }
     {{end -}}{{if .Primary.Scanner -}}
-        return {{.Receiver}}.{{.Primary.Name}}.Scan(value)
+        return {{$out.Receiver}}.{{$out.Primary.Name}}.Scan(value)
     {{else -}}
-        return errors.Wrapf(mapping.ErrFieldValue, "provided invalid value: '%T' for the primary field for model: '%T'",
+        return errors.Wrapf({{$out.Mapping}}ErrFieldValue, "provided invalid value: '%T' for the primary field for model: '%T'",
         value, {{.Receiver}}){{end}}
     {{- else -}}
     // Check alternate types for given field.
@@ -115,12 +115,12 @@ func ({{.Receiver}} *{{.Name}}) SetPrimaryKeyValue(value interface{}) error {
         {{$out.Receiver}}.{{$out.Primary.Name}} = {{$out.Primary.Type}}(_valueType)
         {{- end}}
     {{end -}}default:
-        return errors.Wrapf(mapping.ErrFieldValue, "provided invalid value: '%T' for the primary field for model: '{{.Name}}'", value)
+        return errors.Wrapf({{.Mapping}}ErrFieldValue, "provided invalid value: '%T' for the primary field for model: '{{.Name}}'", value)
     }
     return nil{{end}}
 }
 
-// SetPrimaryKeyStringValue implements mapping.Model interface method.
+// SetPrimaryKeyStringValue implements {{.Mapping}}Model interface method.
 func ({{.Receiver}} *{{.Name}}) SetPrimaryKeyStringValue(value string) error {
     {{if .Primary.StringSetter -}}
     tmp, err := {{ stringParser "value" .Primary.StringSetter }}
@@ -135,7 +135,7 @@ func ({{.Receiver}} *{{.Name}}) SetPrimaryKeyStringValue(value string) error {
     return nil
     {{- else if .Primary.IsTextUnmarshaler -}}
     if err := {{.Receiver}}.{{.Primary.Name}}.UnmarshalText([]byte(value)); err != nil {
-        return errors.Wrapf(mapping.ErrFieldValue, "invalid primary field value: %v to parse string. Err: %v", {{.Receiver}}.{{.Primary.Name}}, err)
+        return errors.Wrapf({{.Mapping}}ErrFieldValue, "invalid primary field value: %v to parse string. Err: %v", {{.Receiver}}.{{.Primary.Name}}, err)
     }
     return nil
     {{- else if and .Primary.IsString (not .Primary.IsSlice) -}}
@@ -147,37 +147,38 @@ func ({{.Receiver}} *{{.Name}}) SetPrimaryKeyStringValue(value string) error {
     return nil
     {{- end}}
     {{- else -}}
-    return errors.Wrap(mapping.ErrModelDefinition, "model '{{.Name}}' has invalid primary key field type to parse string.")
+    return errors.Wrap({{.Mapping}}ErrModelDefinition, "model '{{.Name}}' has invalid primary key field type to parse string.")
     {{- end}}
 }
 
 // SetFrom implements FromSetter interface.
-func ({{.Receiver}} *{{.Name}}) SetFrom(model mapping.Model) error {
+func ({{.Receiver}} *{{.Name}}) SetFrom(model {{.Mapping}}Model) error {
     if model == nil {
-        return errors.Wrap(query.ErrInvalidInput, "provided nil model to set from")
+        return errors.Wrap({{.Mapping}}ErrNilModel, "provided nil model to set from")
     }
     from, ok := model.(*{{.Name}})
     if !ok {
-        return errors.WrapDetf(mapping.ErrModelNotMatch, "provided model doesn't match the input: %T", model)
+        return errors.WrapDetf({{.Mapping}}ErrModelNotMatch, "provided model doesn't match the input: %T", model)
     }
     *{{.Receiver}} = *from
     return nil
 }
 
 // StructFieldValues gets the value for specified 'field'.
-func ({{.Receiver}} *{{.Name}}) StructFieldValue(field *mapping.StructField) (interface{}, error) {
+func ({{.Receiver}} *{{.Name}}) StructFieldValue(field *{{.Mapping}}StructField) (interface{}, error) {
     switch field.Index[0] {
     {{range $field := .StructFields -}}
     case {{$field.Index}}: // {{$field.Name}}
         return {{$out.Receiver}}.{{$field.Name}}, nil
     {{end -}}default:
-        return nil, errors.Wrapf(mapping.ErrInvalidModelField, "provided invalid field: '%s' for given model: {{.Name}}'", field.Name())
+        return nil, errors.Wrapf({{.Mapping}}ErrInvalidModelField, "provided invalid field: '%s' for given model: {{.Name}}'", field.Name())
     }
 }
 
 {{if .Relations -}}
-func ({{.Receiver}} *{{.Name}}) ListRelationModels() []mapping.Model {
-    return []mapping.Model{ {{- range $relation := .UniqueRelationModels -}}
+// ListRelationModels lists unique relation models.
+func ({{.Receiver}} *{{.Name}}) ListRelationModels() []{{.Mapping}}Model {
+    return []{{.Mapping}}Model{ {{- range $relation := .UniqueRelationModels -}}
     &{{$relation}}{},{{end -}}}
 }
 {{- end}}

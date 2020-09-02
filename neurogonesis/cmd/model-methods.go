@@ -100,8 +100,7 @@ func generateModelMethods(cmd *cobra.Command, args []string) {
 		if info.IsDir() && path != dir {
 			return filepath.SkipDir
 		}
-		if (!singleFile && strings.HasSuffix(path, "_model_methods.neuron.go")) ||
-			(singleFile && strings.HasSuffix(path, "_methods.neuron.go")) {
+		if strings.Contains(path, "_methods.neuron") {
 			if err := os.Remove(path); err != nil {
 				return err
 			}

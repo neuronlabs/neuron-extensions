@@ -12,23 +12,20 @@ import (
 
 	"github.com/neuronlabs/neuron-extensions/repository/postgres/internal"
 	"github.com/neuronlabs/neuron-extensions/repository/postgres/tests"
-	"github.com/neuronlabs/neuron/database"
 	"github.com/neuronlabs/neuron/query/filter"
 )
 
 func TestArrayIntegrationModel(t *testing.T) {
-	c := testingController(t, true, &tests.ArrayModel{})
-	p := testingRepository(c)
+	db := testingDB(t, true, &tests.ArrayModel{})
+	p := testingRepository(db)
 
 	ctx := context.Background()
-	mStruct, err := c.ModelStruct(&tests.ArrayModel{})
+	mStruct, err := db.ModelMap().ModelStruct(&tests.ArrayModel{})
 	require.NoError(t, err)
 
 	defer func() {
 		_ = internal.DropTables(ctx, p.ConnPool, mStruct.DatabaseName, mStruct.DatabaseSchemaName)
 	}()
-
-	db := database.New(c)
 
 	model := &tests.ArrayModel{
 		ID:          uuid.New(),
@@ -36,7 +33,7 @@ func TestArrayIntegrationModel(t *testing.T) {
 		SliceString: []string{"4", "5", "6"},
 	}
 
-	mStruct = c.MustModelStruct(model)
+	mStruct = db.ModelMap().MustModelStruct(model)
 	err = db.QueryCtx(ctx, mStruct, model).Insert()
 	require.NoError(t, err)
 

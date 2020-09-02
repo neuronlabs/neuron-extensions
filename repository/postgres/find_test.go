@@ -13,10 +13,10 @@ import (
 )
 
 func TestParseSelect(t *testing.T) {
-	c := testingController(t, false, &tests.Model{})
-	repo := testingRepository(c)
+	db := testingDB(t, false, &tests.Model{})
+	repo := testingRepository(db)
 
-	mStruct, err := c.ModelStruct(&tests.Model{})
+	mStruct, err := db.ModelMap().ModelStruct(&tests.Model{})
 	require.NoError(t, err)
 
 	attrField, ok := mStruct.Attribute("attr_string")
