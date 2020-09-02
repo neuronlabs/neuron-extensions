@@ -147,14 +147,15 @@ func (p *Postgres) HealthCheck(ctx context.Context) (*repository.HealthResponse,
 		// if no pool is defined than no Dial method was done.
 		return nil, errors.Wrapf(repository.ErrConnection, "no connection established")
 	}
-	var temp string
-	if err := p.ConnPool.QueryRow(ctx, "SELECT 1").Scan(&temp); err != nil {
+
+	if _, err := p.ConnPool.Exec(ctx, "SELECT 1"); err != nil {
 		return &repository.HealthResponse{
 			Status: repository.StatusFail,
 			Output: err.Error(),
 		}, nil
 	}
 
+	var temp string
 	if err := p.ConnPool.QueryRow(ctx, "SELECT VERSION()").Scan(&temp); err != nil {
 		return &repository.HealthResponse{
 			Status: repository.StatusFail,
