@@ -97,8 +97,8 @@ github.com/mattn/go-isatty v0.0.9/go.mod h1:YNRxwqDuOph6SZLI9vUUz6OYw3QyUt7WiY2y
 github.com/mattn/go-isatty v0.0.12/go.mod h1:cbi8OIDigv2wuxKPP5vlRcQ1OAZbq2CE4Kysco4FUpU=
 github.com/neuronlabs/inflection v1.0.1 h1:LDuwbM1jYKEf6DDcA7XV7JRn3Sv9/PBiW6iUojZhTZ4=
 github.com/neuronlabs/inflection v1.0.1/go.mod h1:gnqNj1uxAGPYT1LsHRvSyBcd57vvIKTuTmS3ffdgRd8=
-github.com/neuronlabs/neuron v0.21.5 h1:2uCfyn3ynNlkttlKnetw9NRGOou/22wUNfa4l7JvZyY=
-github.com/neuronlabs/neuron v0.21.5/go.mod h1:xjSqaRsUv89SeieBQ3RsEmMMyEPUbl1/rn2WmK3mmiA=
+github.com/neuronlabs/neuron v0.21.6 h1:bxG2UIJ7fon7qn0AzORy7iehSms4CSiZUzTtm89wzcM=
+github.com/neuronlabs/neuron v0.21.6/go.mod h1:xjSqaRsUv89SeieBQ3RsEmMMyEPUbl1/rn2WmK3mmiA=
 github.com/neuronlabs/strcase v1.0.0 h1:F/7Scr7ojAL6l5g3MQiCENGlMI/NK6LwAfaURcUiI7U=
 github.com/neuronlabs/strcase v1.0.0/go.mod h1:IhdRx7jB1zZAQ5r2ryfBc/28sWmXZDbQi7XokQKCpgo=
 github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
