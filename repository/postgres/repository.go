@@ -85,10 +85,15 @@ func (p *Postgres) ID() string {
 }
 
 // Close closes given repository connections.
-func (p *Postgres) Close(ctx context.Context) (err error) {
+func (p *Postgres) Close(_ context.Context) (err error) {
 	log.Debug2f("Closing postgres repository started")
-	log.Debug2f("Closing: %d connections", p.ConnPool.Stat().AcquiredConns())
-	p.ConnPool.Close()
+	acquiredConns := p.ConnPool.Stat().AcquiredConns()
+	log.Debug2f("Closing: %d connections", acquiredConns)
+	if acquiredConns > 0 {
+		// NOTE: this freezes - in the documentation pgx says it would be closed no matter if the close function is called.
+		// 	Waiting for pgx fix.
+		// p.ConnPool.Close()
+	}
 	log.Debug2f("Closing postgres repository finished")
 	return nil
 }

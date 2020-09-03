@@ -133,7 +133,7 @@ func generateCollections(cmd *cobra.Command, args []string) {
 	if !singleFile {
 		for _, collection := range g.Collections(packageName, isModelImported) {
 			// Create new file if not exists.
-			fileName := filepath.Join(dir, strcase.ToSnake(collection.Model.Name)+"_collection.neuron")
+			fileName := filepath.Join(dir, strcase.ToSnake(collection.Model.Name)+"_db.neuron")
 			if collection.Model.TestFile {
 				fileName += "_test"
 			}
@@ -175,7 +175,7 @@ func generateSingleFileCollections(collections []*input.CollectionInput, dir str
 	for imp := range imports {
 		multiCollections.Imports = append(multiCollections.Imports, imp)
 	}
-	fileName := filepath.Join(dir, "collections.neuron")
+	fileName := filepath.Join(dir, "db.neuron")
 	if isTesting {
 		fileName += "_test"
 	}

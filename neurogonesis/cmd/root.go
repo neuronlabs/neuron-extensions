@@ -42,9 +42,10 @@ var (
 
 // rootCmd represents the base command when called without any sub commands
 var rootCmd = &cobra.Command{
-	Use:   "neurogonesis",
-	Short: "A code generator for the neuron package.",
-	Long:  `It is a code generator for the Golang github.com/neuronlabs/neuron package.`,
+	Version: "v0.0.5",
+	Use:     "neurogonesis",
+	Short:   "A code generator for the neuron package.",
+	Long:    `It is a code generator for the Golang github.com/neuronlabs/neuron package.`,
 }
 
 func init() {

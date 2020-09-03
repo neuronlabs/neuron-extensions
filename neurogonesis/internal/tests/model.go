@@ -38,11 +38,12 @@ type User struct {
 
 // Car is the test model for generator.
 type Car struct {
-	ID       string
-	UserID   uuid.UUID
-	Plates   string
-	Enum     Enum
-	UintEnum UintEnum
+	ID            string
+	UserID        uuid.UUID
+	Plates        string
+	Directory     SqlEnum
+	EnumField     Enum
+	UintEnumField UintEnum
 }
 
 // NeuronCollectionName implements mapping.Model.
@@ -56,4 +57,24 @@ type UUID [Size]byte
 
 type Enum int
 
+const (
+	_ Enum = iota
+	FirstE
+	SecondE
+)
+
 type UintEnum uint
+
+func (u UintEnum) String() string {
+	return "value"
+}
+
+func (u *UintEnum) Do() {
+
+}
+
+const (
+	_ UintEnum = iota
+	First
+	Second
+)

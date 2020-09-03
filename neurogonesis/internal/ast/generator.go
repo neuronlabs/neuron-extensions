@@ -910,12 +910,20 @@ func (g *ModelGenerator) getWrappedIdent(selector string, expr *ast.Ident) []str
 	if selector != "" {
 		name = fmt.Sprintf("%s.%s", selector, name)
 	}
+	var (
+		ts *ast.TypeSpec
+		ok bool
+	)
 	if expr.Obj == nil {
-		return []string{name}
-	}
-	ts, ok := expr.Obj.Decl.(*ast.TypeSpec)
-	if !ok {
-		return []string{name}
+		ts, ok = g.loadedTypes[expr.Name]
+		if !ok {
+			return g.getBasicAlternateTypes(expr)
+		}
+	} else {
+		ts, ok = expr.Obj.Decl.(*ast.TypeSpec)
+		if !ok {
+			return []string{name}
+		}
 	}
 	return append([]string{name}, g.getWrappedTypes(ts.Type)...)
 }
@@ -951,6 +959,10 @@ func (g *ModelGenerator) setFieldZeroValue(field *input.Field, expr ast.Expr, im
 func (g *ModelGenerator) getZeroValue(expr ast.Expr) string {
 	switch x := expr.(type) {
 	case *ast.Ident:
+		var (
+			ts *ast.TypeSpec
+			ok bool
+		)
 		if x.Obj == nil {
 			switch x.Name {
 			case kindInt, kindInt8, kindInt16, kindInt32, kindInt64, kindUint, kindUint8, kindUint16, kindUint32, kindUint64,
@@ -964,18 +976,19 @@ func (g *ModelGenerator) getZeroValue(expr ast.Expr) string {
 				return "0"
 			case kindPointer:
 				return kindNil
+			default:
+				ts, ok = g.loadedTypes[x.Name]
 			}
+		} else {
+			ts, ok = x.Obj.Decl.(*ast.TypeSpec)
 		}
-
-		if x.Obj != nil {
-			typeSpec, ok := x.Obj.Decl.(*ast.TypeSpec)
-			if ok {
-				switch typeSpec.Type.(type) {
-				case *ast.StructType:
-				default:
-					return fmt.Sprintf("%s(%s)", g.fieldTypeName(expr), g.getZeroValue(typeSpec.Type))
-				}
-			}
+		if !ok {
+			return g.fieldTypeName(expr) + "{}"
+		}
+		switch ts.Type.(type) {
+		case *ast.StructType:
+		default:
+			return fmt.Sprintf("%s(%s)", g.fieldTypeName(expr), g.getZeroValue(ts.Type))
 		}
 		return g.fieldTypeName(expr) + "{}"
 	case *ast.StarExpr:
@@ -1043,14 +1056,22 @@ func (g *ModelGenerator) getArrayAlternateTypes(expr *ast.ArrayType) []string {
 }
 
 func (g *ModelGenerator) getIdentAlternateTypes(expr *ast.Ident) []string {
+	var (
+		ts *ast.TypeSpec
+		ok bool
+	)
 	if expr.Obj == nil {
-		return g.getBasicAlternateTypes(expr)
+		ts, ok = g.loadedTypes[expr.Name]
+		if !ok {
+			return g.getBasicAlternateTypes(expr)
+		}
+	} else {
+		ts, ok = expr.Obj.Decl.(*ast.TypeSpec)
 	}
-	ot, ok := expr.Obj.Decl.(*ast.TypeSpec)
 	if !ok {
 		return []string{}
 	}
-	return g.getAlternateTypes(ot.Type)
+	return g.getAlternateTypes(ts.Type)
 }
 
 func (g *ModelGenerator) getBasicAlternateTypes(expr *ast.Ident) (alternateTypes []string) {
