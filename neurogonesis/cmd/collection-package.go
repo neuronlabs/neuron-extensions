@@ -125,7 +125,7 @@ func collectionPackage(cmd *cobra.Command, args []string) {
 		fmt.Printf("Err: %v\n", err)
 		os.Exit(1)
 	}
-	collectionPackageFileName := filepath.Join(dir, strcase.ToSnake(pkgCollection.Model.Name)+"_collection-package.neuron")
+	collectionPackageFileName := filepath.Join(dir, strcase.ToSnake(pkgCollection.Model.Name)+"_db.neuron")
 	collectionPackageFileName += ".go"
 	generateFile(collectionPackageFileName, "collection-package", buf, pkgCollection)
 

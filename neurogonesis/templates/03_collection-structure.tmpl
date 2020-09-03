@@ -139,7 +139,7 @@ func ({{.Collection.Receiver}} *{{.Collection.Name}}) Refresh(ctx context.Contex
 
 {{if $relation.IsSlice -}}
 // Add{{$relation.Name}} adds the '{{$relation.Name}}' relationship for provided input 'models'.
-func ({{$out.Collection.Receiver}} *{{$out.Collection.Name}}) Add{{$relation.Name}}(ctx context.Context, db database.DB, model *{{$out.ModelName}}, relations ...*{{$relation.BaseType}}) error {
+func ({{$out.Collection.Receiver}} *{{$out.Collection.Name}}) Add{{$relation.Name}}(ctx context.Context, db database.DB, model *{{$out.ModelName}}, relations ...*{{$relation.BaseUnwrappedType}}) error {
     if model == nil {
         return errors.Wrap(query.ErrNoModels, "provided nil model")
     }
@@ -192,7 +192,7 @@ func ({{$out.Collection.Receiver}} *{{$out.Collection.Name}}) Clear{{$relation.N
 
 
 // Get{{$relation.Name}} gets the '{{$relation.Name}}' relationship for provided input 'model'.
-func ({{$out.Collection.Receiver}} *{{$out.Collection.Name}}) Get{{$relation.Name}}(ctx context.Context, db database.DB, model *{{$out.ModelName}}, relationFieldset ...string) ({{if $relation.IsSlice -}}[]{{- end -}}*{{$relation.BaseType}}, error) {
+func ({{$out.Collection.Receiver}} *{{$out.Collection.Name}}) Get{{$relation.Name}}(ctx context.Context, db database.DB, model *{{$out.ModelName}}, relationFieldset ...string) ({{if $relation.IsSlice -}}[]{{- end -}}*{{$relation.BaseUnwrappedType}}, error) {
     if model == nil {
         return nil, errors.Wrap(query.ErrNoModels, "provided nil model")
     }
@@ -217,7 +217,7 @@ func ({{$out.Collection.Receiver}} *{{$out.Collection.Name}}) Get{{$relation.Nam
         for _, field := range relationFieldset {
             sField, ok := relationModel.FieldByName(field)
             if !ok {
-                return nil, errors.Wrapf(mapping.ErrInvalidModelField, "no field: '%s' found for the model: '{{$relation.BaseType}}'", field)
+                return nil, errors.Wrapf(mapping.ErrInvalidModelField, "no field: '%s' found for the model: '{{$relation.BaseUnwrappedType}}'", field)
             }
             fields = append(fields, sField)
         }
@@ -229,25 +229,25 @@ func ({{$out.Collection.Receiver}} *{{$out.Collection.Name}}) Get{{$relation.Nam
     }
     if len(relations) == 0 {
         {{if $relation.IsSlice -}}
-        return []*{{$relation.BaseType}}{}, nil
+        return []*{{$relation.BaseUnwrappedType}}{}, nil
         {{- else -}}
         return nil, nil
         {{- end}}
     }
     {{if $relation.IsSlice -}}
-    result := make([]*{{$relation.BaseType}}, len(relations))
+    result := make([]*{{$relation.BaseUnwrappedType}}, len(relations))
     for i, relation := range relations {
-        result[i] = relation.(*{{$relation.BaseType}})
+        result[i] = relation.(*{{$relation.BaseUnwrappedType}})
     }
     return result, nil
     {{- else -}}
-    return relations[0].(*{{$relation.BaseType}}), nil
+    return relations[0].(*{{$relation.BaseUnwrappedType}}), nil
     {{- end}}
 }
 
 
 // Set{{$relation.Name}} sets the '{{$relation.Name}}' relationship for provided input 'models'.
-func ({{$out.Collection.Receiver}} *{{$out.Collection.Name}}) Set{{$relation.Name}}(ctx context.Context, db database.DB, model *{{$out.ModelName}}, relation{{if $relation.IsSlice -}}s ...{{- else}} {{- end -}}*{{$relation.BaseType}}) error {
+func ({{$out.Collection.Receiver}} *{{$out.Collection.Name}}) Set{{$relation.Name}}(ctx context.Context, db database.DB, model *{{$out.ModelName}}, relation{{if $relation.IsSlice -}}s ...{{- else}} {{- end -}}*{{$relation.BaseUnwrappedType}}) error {
     if model == nil {
         return errors.Wrap(query.ErrNoModels, "provided nil model")
     }

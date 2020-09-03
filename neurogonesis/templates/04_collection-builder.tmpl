@@ -131,7 +131,7 @@ func ({{$out.Collection.Receiver}} *{{$out.Collection.QueryBuilder}}) Include{{$
     for _, field := range {{toLowerCamel $relation.Name}}Fieldset {
         structField, ok := relation.Relationship().RelatedModelStruct().FieldByName(field)
         if !ok {
-            {{$out.Collection.Receiver}}.err = errors.Wrapf(mapping.ErrInvalidModelField, "field: '%s' is not found for the '{{$relation.BaseType}}' model", field)
+            {{$out.Collection.Receiver}}.err = errors.Wrapf(mapping.ErrInvalidModelField, "field: '%s' is not found for the '{{$relation.BaseUnwrappedType}}' model", field)
             return {{$out.Collection.Receiver}}
         }
         relationFields = append(relationFields, structField)
@@ -222,7 +222,7 @@ func ({{.Collection.Receiver}} *{{.Collection.QueryBuilder}}) OrderBy(fields ...
 {{- $relationSelector := (printf "_%s" $relationName) }}
 
 // Add{{$relation.Name}} adds related model {{$relation.Name}} and matches to given {{$out.ModelName}}.
-func ({{$out.Collection.Receiver}} *{{$out.Collection.QueryBuilder}}) Add{{$relation.Name}}({{$relationSelector}} {{if $relation.IsSlice}}...{{end}}*{{$relation.BaseType}}) error {
+func ({{$out.Collection.Receiver}} *{{$out.Collection.QueryBuilder}}) Add{{$relation.Name}}({{$relationSelector}} {{if $relation.IsSlice}}...{{end}}*{{$relation.BaseUnwrappedType}}) error {
     if {{$out.Collection.Receiver}}.err != nil {
         return {{$out.Collection.Receiver}}.err
     }
@@ -246,7 +246,7 @@ func ({{$out.Collection.Receiver}} *{{$out.Collection.QueryBuilder}}) Add{{$rela
 {{- $relationSelector := (printf "_%s" $relationName) }}
 
 // Set{{$relation.Name}} sets related model {{$relation.Name}} and matches to given {{$out.ModelName}}.
-func ({{$out.Collection.Receiver}} *{{$out.Collection.QueryBuilder}}) Set{{$relation.Name}}({{$relationSelector}} {{if $relation.IsSlice}}...{{end}}*{{$relation.BaseType}}) error {
+func ({{$out.Collection.Receiver}} *{{$out.Collection.QueryBuilder}}) Set{{$relation.Name}}({{$relationSelector}} {{if $relation.IsSlice}}...{{end}}*{{$relation.BaseUnwrappedType}}) error {
     if {{$out.Collection.Receiver}}.err != nil {
         return {{$out.Collection.Receiver}}.err
     }

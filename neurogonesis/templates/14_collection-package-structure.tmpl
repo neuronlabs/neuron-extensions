@@ -130,7 +130,7 @@ func Refresh(ctx context.Context, db database.DB, models ...*{{.ModelName}}) err
 
 {{if $relation.IsSlice -}}
 // Add{{$relation.Name}} adds the '{{$relation.Name}}' relationship for provided input 'models'.
-func Add{{$relation.Name}}(ctx context.Context, db database.DB, model *{{$out.ModelName}}, relations ...*{{$relation.BaseType}}) error {
+func Add{{$relation.Name}}(ctx context.Context, db database.DB, model *{{$out.ModelName}}, relations ...*{{$relation.BaseUnwrappedType}}) error {
     if model == nil {
         return errors.Wrap(query.ErrNoModels, "provided nil model")
     }
@@ -183,7 +183,7 @@ func Clear{{$relation.Name}}Relation(ctx context.Context, db database.DB, models
 
 
 // Get{{$relation.Name}} gets the '{{$relation.Name}}' relationship for provided input 'model'.
-func Get{{$relation.Name}}(ctx context.Context, db database.DB, model *{{$out.ModelName}}, relationFieldset ...string) ({{if $relation.IsSlice -}}[]{{- end -}}*{{$relation.BaseType}}, error) {
+func Get{{$relation.Name}}(ctx context.Context, db database.DB, model *{{$out.ModelName}}, relationFieldset ...string) ({{if $relation.IsSlice -}}[]{{- end -}}*{{$relation.BaseUnwrappedType}}, error) {
     if model == nil {
         return nil, errors.Wrap(query.ErrNoModels, "provided nil model")
     }
@@ -208,7 +208,7 @@ func Get{{$relation.Name}}(ctx context.Context, db database.DB, model *{{$out.Mo
         for _, field := range relationFieldset {
             sField, ok := relationModel.FieldByName(field)
             if !ok {
-                return nil, errors.Wrapf(mapping.ErrInvalidModelField, "no field: '%s' found for the model: '{{$relation.BaseType}}'", field)
+                return nil, errors.Wrapf(mapping.ErrInvalidModelField, "no field: '%s' found for the model: '{{$relation.BaseUnwrappedType}}'", field)
             }
             fields = append(fields, sField)
         }
@@ -220,25 +220,25 @@ func Get{{$relation.Name}}(ctx context.Context, db database.DB, model *{{$out.Mo
     }
     if len(relations) == 0 {
         {{if $relation.IsSlice -}}
-        return []*{{$relation.BaseType}}{}, nil
+        return []*{{$relation.BaseUnwrappedType}}{}, nil
         {{- else -}}
         return nil, nil
         {{- end}}
     }
     {{if $relation.IsSlice -}}
-    result := make([]*{{$relation.BaseType}}, len(relations))
+    result := make([]*{{$relation.BaseUnwrappedType}}, len(relations))
     for i, relation := range relations {
-        result[i] = relation.(*{{$relation.BaseType}})
+        result[i] = relation.(*{{$relation.BaseUnwrappedType}})
     }
     return result, nil
     {{- else -}}
-    return relations[0].(*{{$relation.BaseType}}), nil
+    return relations[0].(*{{$relation.BaseUnwrappedType}}), nil
     {{- end}}
 }
 
 
 // Set{{$relation.Name}} sets the '{{$relation.Name}}' relationship for provided input 'models'.
-func Set{{$relation.Name}}(ctx context.Context, db database.DB, model *{{$out.ModelName}}, relation{{if $relation.IsSlice -}}s ...{{- else}} {{- end -}}*{{$relation.BaseType}}) error {
+func Set{{$relation.Name}}(ctx context.Context, db database.DB, model *{{$out.ModelName}}, relation{{if $relation.IsSlice -}}s ...{{- else}} {{- end -}}*{{$relation.BaseUnwrappedType}}) error {
     if model == nil {
         return errors.Wrap(query.ErrNoModels, "provided nil model")
     }

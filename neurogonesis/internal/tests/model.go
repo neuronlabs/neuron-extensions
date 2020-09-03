@@ -11,6 +11,7 @@ import (
 //go:generate neurogonesis models methods --format=goimports --single-file .
 //go:generate neurogonesis collections  --single-file --format=goimports -o collections .
 //go:generate neurogonesis collections package User usercollection
+//go:generate neurogonesis collections package Car cardb
 
 // User is testing model.
 type User struct {
