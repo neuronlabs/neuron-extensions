@@ -100,7 +100,7 @@ func generateModelMethods(cmd *cobra.Command, args []string) {
 		if info.IsDir() && path != dir {
 			return filepath.SkipDir
 		}
-		if strings.Contains(path, "meth.gen") {
+		if strings.HasSuffix(path, ".gen.go") && !strings.HasSuffix(path, "db.gen.go") {
 			if err := os.Remove(path); err != nil {
 				return err
 			}
@@ -126,7 +126,7 @@ func generateModelMethods(cmd *cobra.Command, args []string) {
 	var modelNames []string
 	if !singleFile {
 		for _, model := range g.Models() {
-			fileName := filepath.Join(dir, strcase.ToSnake(model.Name)+"_meth.gen")
+			fileName := filepath.Join(dir, strcase.ToSnake(model.Name)+".gen")
 			if model.TestFile {
 				fileName += "_test"
 			}
@@ -167,7 +167,7 @@ func generateSingleFileMethods(models []*input.Model, dir string, isTesting bool
 	for imp := range imports {
 		multiModels.Imports = append(multiModels.Imports, imp)
 	}
-	fileName := filepath.Join(dir, "methods.gen")
+	fileName := filepath.Join(dir, "models.gen")
 	if isTesting {
 		fileName += "_test"
 	}
