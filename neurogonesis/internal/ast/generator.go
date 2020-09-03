@@ -859,28 +859,49 @@ func (g *ModelGenerator) getFieldWrappedTypes(field *ast.Field) []string {
 	if star, ok := expr.(*ast.StarExpr); ok {
 		expr = star.X
 	}
+	var sel string
 	var ident *ast.Ident
 	if selector, ok := expr.(*ast.SelectorExpr); ok {
 		ident = selector.Sel
+		sel = g.fieldTypeName(selector.X)
 	} else if x, ok := field.Type.(*ast.Ident); ok {
 		ident = x
 	} else {
 		return nil
 	}
+	var (
+		ts *ast.TypeSpec
+		ok bool
+	)
 	if ident.Obj == nil {
-		return nil
+		name := ident.Name
+		if sel != "" {
+			name = sel + "." + name
+		}
+		ts, ok = g.loadedTypes[name]
+		if !ok {
+			return nil
+		}
+	} else {
+		ts, ok = ident.Obj.Decl.(*ast.TypeSpec)
+		if !ok {
+			return nil
+		}
 	}
-	ts, ok := ident.Obj.Decl.(*ast.TypeSpec)
-	if !ok {
-		return nil
-	}
-	return g.getWrappedTypes(ts.Type)
+
+	return g.getWrappedTypes(ts.Type, sel)
 }
 
-func (g *ModelGenerator) getWrappedTypes(expr ast.Expr) []string {
+func (g *ModelGenerator) getWrappedTypes(expr ast.Expr, sel string) []string {
 	switch x := expr.(type) {
 	case *ast.Ident:
-		return g.getWrappedIdent("", x)
+		return g.getWrappedIdent(sel, x)
+	case *ast.StarExpr:
+		types := g.getWrappedTypes(x.X, sel)
+		for i := range types {
+			types[i] = "*" + types[0]
+		}
+		return types
 	case *ast.SelectorExpr:
 		return g.getWrappedSelector(x)
 	// TODO: add case *ast.ArrayType
@@ -890,7 +911,7 @@ func (g *ModelGenerator) getWrappedTypes(expr ast.Expr) []string {
 			tp += size
 		}
 		tp += "]"
-		tps := g.getWrappedTypes(x.Elt)
+		tps := g.getWrappedTypes(x.Elt, sel)
 		for i := range tps {
 			tps[i] = tp + tps[i]
 		}
@@ -917,7 +938,7 @@ func (g *ModelGenerator) getWrappedIdent(selector string, expr *ast.Ident) []str
 	if expr.Obj == nil {
 		ts, ok = g.loadedTypes[expr.Name]
 		if !ok {
-			return g.getBasicAlternateTypes(expr)
+			return []string{expr.Name}
 		}
 	} else {
 		ts, ok = expr.Obj.Decl.(*ast.TypeSpec)
@@ -925,7 +946,7 @@ func (g *ModelGenerator) getWrappedIdent(selector string, expr *ast.Ident) []str
 			return []string{name}
 		}
 	}
-	return append([]string{name}, g.getWrappedTypes(ts.Type)...)
+	return append([]string{name}, g.getWrappedTypes(ts.Type, "")...)
 }
 
 func getSelector(expr ast.Expr) string {

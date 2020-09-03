@@ -119,6 +119,7 @@ func (g *ModelGenerator) extractModel(file *ast.File, structType *ast.StructType
 			field.IsSlice = isMany(structField.Type)
 			field.IsElemPointer = isElemPointer(structField)
 			field.IsPointer = isPointer(structField)
+			field.WrappedTypes = g.getFieldWrappedTypes(field.Ast)
 			field.Selector = getSelector(structField.Type)
 			model.Relations = append(model.Relations, &field)
 			continue

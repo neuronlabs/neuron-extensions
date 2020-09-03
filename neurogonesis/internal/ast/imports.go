@@ -87,6 +87,7 @@ func (g *ModelGenerator) parseImportPackages() error {
 				}
 				importedField.Field.IsElemPointer = isElemPointer(importedField.AstField)
 				importedField.Field.IsPointer = isPointer(importedField.AstField)
+				importedField.Field.WrappedTypes = g.getFieldWrappedTypes(importedField.AstField)
 				importedField.Field.Selector = getSelector(importedField.AstField.Type)
 				model.Relations = append(model.Relations, importedField.Field)
 				continue

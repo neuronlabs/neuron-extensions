@@ -103,7 +103,7 @@ func (m *Model) UniqueRelationModels() []string {
 	var models []string
 	mp := map[string]struct{}{}
 	for _, relation := range m.Relations {
-		baseType := relation.BaseType()
+		baseType := relation.BaseUnwrappedType()
 		_, ok := mp[baseType]
 		if !ok {
 			models = append(models, baseType)

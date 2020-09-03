@@ -8,7 +8,7 @@ func ({{.Receiver}} *{{.Name}}) AddRelationModel(relation *{{$out.Mapping}}Struc
     switch relation.Index[0] {
     {{range $relation := .Relations -}}{{if $relation.IsSlice -}}
     case {{$relation.Index}}: // {{$relation.Name}}
-        {{ $relationName := (toLowerCamel $relation.BaseType) -}}{{$relationName}}, ok := model.(*{{$relation.BaseType}})
+        {{ $relationName := (toLowerCamel $relation.BaseType) -}}{{$relationName}}, ok := model.(*{{$relation.BaseUnwrappedType}})
         if !ok {
             return errors.Wrapf({{$out.Mapping}}ErrInvalidRelationValue, "provided invalid value type: '%T'  for the field: '{{$relation.Name}}'", model)
         }
@@ -18,7 +18,7 @@ func ({{.Receiver}} *{{.Name}}) AddRelationModel(relation *{{$out.Mapping}}Struc
             {{$out.Receiver}}.{{$relation.Name}} = &temp
         }
         {{ end -}}
-        {{if $relation.IsPointer }}*{{end}}{{$out.Receiver}}.{{$relation.Name}} = append({{if $relation.IsPointer}}*{{end}}{{$out.Receiver}}.{{$relation.Name}}, {{if not $relation.IsElemPointer}}*{{end}}{{$relationName}})
+        {{if $relation.IsPointer }}*{{end}}{{$out.Receiver}}.{{$relation.Name}} = append({{if $relation.IsPointer}}*{{end}}{{$out.Receiver}}.{{$relation.Name}}, {{if not $relation.IsBaseRelationPointer}}*{{end}}{{$relationName}})
     {{end -}}{{end -}}
     default:
         return errors.Wrapf({{$out.Mapping}}ErrInvalidRelationField, "provided invalid relation: '%T' for the model '{{.Name}}'", model)
@@ -31,7 +31,7 @@ func ({{.Receiver}} *{{.Name}}) GetRelationModels(relation *{{$out.Mapping}}Stru
     switch relation.Index[0] {
     {{range $relation := .Relations -}}{{if $relation.IsSlice -}}
     case {{$relation.Index}}: // {{$relation.Name}}
-        {{if $relation.IsElemPointer -}}
+        {{if $relation.IsBaseRelationPointer -}}
         for _, model := range {{$out.Receiver}}.{{$relation.Name}} {
             models = append(models, model)
         }
@@ -60,7 +60,7 @@ func ({{.Receiver}} *{{.Name}}) GetRelationModelAt(relation *{{$out.Mapping}}Str
         if index > len({{if $relation.IsPointer}}*{{end}}{{$out.Receiver}}.{{$relation.Name}}) - 1 {
             return nil, errors.Wrapf({{$out.Mapping}}ErrInvalidRelationIndex, "index out of possible range. Model: '{{$out.Name}}', Field {{$relation.Name}}")
         }
-        return {{if not $relation.IsElemPointer}}&{{end}}{{if $relation.IsPointer}}(*{{end}}{{$out.Receiver}}.{{$relation.Name}}{{if $relation.IsPointer}}){{end}}[index], nil
+        return {{if not $relation.IsBaseRelationPointer}}&{{end}}{{if $relation.IsPointer}}(*{{end}}{{$out.Receiver}}.{{$relation.Name}}{{if $relation.IsPointer}}){{end}}[index], nil
     {{end -}}{{end -}}
     default:
         return nil, errors.Wrapf({{$out.Mapping}}ErrInvalidRelationField, "provided invalid relation: '%s' for model: '%T'", relation, {{$out.Receiver}})
@@ -90,14 +90,18 @@ func ({{.Receiver}} *{{.Name}}) SetRelationModels(relation *{{$out.Mapping}}Stru
     switch relation.Index[0] {
     {{range $relation := .Relations -}}{{if $relation.IsSlice -}}
     case {{$relation.Index}}: // {{$relation.Name}}
-        temp := make([]*{{$relation.BaseType}}, len(models))
-        {{$relationName := (toLowerCamel $relation.BaseType) -}}
+        temp := make([]{{if $relation.IsBaseRelationPointer}}*{{end}}{{$relation.BaseUnwrappedType}}, len(models))
+        {{$relationName := (toLowerCamel $relation.BaseUnwrappedType) -}}
         for i, model := range models {
-            {{$relationName}}, ok := model.(*{{$relation.BaseType}})
+            {{$relationName}}, ok := model.(*{{$relation.BaseUnwrappedType}})
             if !ok {
                 return errors.Wrapf({{$out.Mapping}}ErrInvalidRelationValue, "provided invalid value type: '%T'  for the field: '{{$relation.Name}}'", model)
             }
-            temp[i] = {{$relationName}}
+            {{if not $relation.IsBaseRelationPointer -}}
+            if {{$relationName}} == nil {
+                continue
+            }{{end}}
+            temp[i] = {{if not $relation.IsBaseRelationPointer}}*{{end}}{{$relationName}}
         }
         {{if $relation.IsPointer -}}
         {{$out.Receiver}}.{{$relation.Name}} = &temp

@@ -38,12 +38,14 @@ type User struct {
 
 // Car is the test model for generator.
 type Car struct {
-	ID            string
-	UserID        uuid.UUID
-	Plates        string
-	Directory     SqlEnum
-	EnumField     Enum
-	UintEnumField UintEnum
+	ID               string
+	UserID           uuid.UUID
+	Plates           string
+	Directory        SqlEnum
+	EnumField        Enum
+	UintEnumField    UintEnum
+	Models           external.Models
+	NonPointerModels external.NonPointerModels
 }
 
 // NeuronCollectionName implements mapping.Model.

@@ -9,3 +9,7 @@ type Int int
 type Model struct {
 	ID int
 }
+
+type Models []*Model
+
+type NonPointerModels []Model

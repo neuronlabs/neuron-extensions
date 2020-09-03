@@ -42,6 +42,35 @@ func (f *Field) BaseType() string {
 	return f.Type[index+1:]
 }
 
+// BaseUnwrappedType.
+func (f *Field) BaseUnwrappedType() string {
+	var t string
+	if len(f.WrappedTypes) == 1 {
+		t = f.WrappedTypes[0]
+	} else {
+		t = f.Type
+	}
+	index := strings.LastIndexAny(t, "[]*")
+	if index == -1 {
+		return t
+	}
+	return t[index+1:]
+}
+
+func (f *Field) RelationBaseType() string {
+	return f.BaseUnwrappedType()
+}
+
+func (f *Field) IsBaseRelationPointer() bool {
+	if len(f.WrappedTypes) != 1 {
+		return f.IsElemPointer
+	}
+	t := f.WrappedTypes[0]
+
+	index := strings.IndexRune(t, '*')
+	return index != -1
+}
+
 // IsZero returns string template IsZero checker.
 func (f *Field) IsZero() string {
 	if f.ZeroChecker {
