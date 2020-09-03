@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"github.com/jackc/pgconn"
+	"github.com/neuronlabs/neuron/errors"
 
 	"github.com/neuronlabs/neuron/query"
 	"github.com/neuronlabs/neuron/repository"
@@ -80,16 +81,17 @@ var pqMapping = map[string]error{
 func Get(err error) (error, bool) {
 	pgErr, ok := err.(*pgconn.PgError)
 	if !ok {
-		return ErrInternal, false
+		// If it isn't postgres error than don't handle it.
+		return err, false
 	}
 
 	cl, ok := pqMapping[pgErr.Code]
 	if ok {
-		return cl, ok
+		return errors.Wrap(cl, err.Error()), ok
 	}
 	if len(pgErr.Code) >= 2 {
 		cl, ok = pqMapping[pgErr.Code[0:2]]
-		return cl, ok
+		return errors.Wrap(cl, err.Error()), ok
 	}
-	return ErrInternal, ok
+	return errors.Wrap(ErrInternal, err.Error()), ok
 }
