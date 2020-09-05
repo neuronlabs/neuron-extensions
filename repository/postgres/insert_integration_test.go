@@ -4,7 +4,9 @@ package postgres
 
 import (
 	"context"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -88,5 +90,84 @@ func TestInsertSingleModel(t *testing.T) {
 		if assert.Error(t, err) {
 			assert.True(t, errors.Is(err, query.ErrViolationUnique))
 		}
+	})
+}
+
+func TestInsertErrors(t *testing.T) {
+	db := testingDB(t, true, testModels...)
+	p := testingRepository(db)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
+	defer cancel()
+
+	mm := db.ModelMap()
+	mStruct, err := mm.ModelStruct(&tests.SimpleModel{})
+	require.NoError(t, err)
+
+	fKMstruct, err := mm.ModelStruct(&tests.ForeignKeyModel{})
+	require.NoError(t, err)
+
+	defer func() {
+		for _, model := range testModels {
+			mStruct, err = mm.ModelStruct(model)
+			require.NoError(t, err)
+			_ = internal.DropTables(ctx, p.ConnPool, mStruct.DatabaseName, mStruct.DatabaseSchemaName)
+		}
+	}()
+
+	_, err = p.ConnPool.Exec(ctx, fmt.Sprintf("ALTER TABLE %s.%s ADD CONSTRAINT simple_fk FOREIGN KEY (%s) REFERENCES %s.%s (%s)",
+		fKMstruct.DatabaseSchemaName, fKMstruct.DatabaseName, fKMstruct.MustFieldByName("ForeignKey").DatabaseName,
+		mStruct.DatabaseSchemaName, mStruct.DatabaseName, mStruct.Primary().DatabaseName))
+	require.NoError(t, err)
+
+	defer func() {
+		_, err = p.ConnPool.Exec(ctx, fmt.Sprintf("ALTER TABLE %s.%s DROP CONSTRAINT simple_fk", fKMstruct.DatabaseSchemaName, fKMstruct.DatabaseName))
+		require.NoError(t, err)
+	}()
+
+	t.Run("ViolationFK", func(t *testing.T) {
+		t.Run("Bulk", func(t *testing.T) {
+			err = db.Insert(ctx, fKMstruct, &tests.ForeignKeyModel{ForeignKey: 20}, &tests.ForeignKeyModel{ForeignKey: 21})
+			if assert.Error(t, err) {
+				assert.True(t, errors.Is(err, query.ErrViolationForeignKey))
+			}
+		})
+
+		t.Run("Single", func(t *testing.T) {
+			err = db.Insert(ctx, fKMstruct, &tests.ForeignKeyModel{ForeignKey: 20}, &tests.ForeignKeyModel{ForeignKey: 21})
+			if assert.Error(t, err) {
+				assert.True(t, errors.Is(err, query.ErrViolationForeignKey))
+			}
+		})
+	})
+
+	t.Run("Unique", func(t *testing.T) {
+		simple := &tests.SimpleModel{}
+		simple2 := &tests.SimpleModel{}
+		simple3 := &tests.SimpleModel{}
+		err = db.Insert(ctx, mStruct, simple, simple2, simple3)
+		require.NoError(t, err)
+
+		fk := &tests.ForeignKeyModel{ForeignKey: simple.ID}
+		err = db.Insert(ctx, fKMstruct, fk)
+		require.NoError(t, err)
+
+		fk2 := &tests.ForeignKeyModel{ForeignKey: simple2.ID}
+		err = db.Insert(ctx, fKMstruct, fk2)
+		require.NoError(t, err)
+
+		t.Run("Single", func(t *testing.T) {
+			err = db.Insert(ctx, fKMstruct, fk2)
+			if assert.Error(t, err) {
+				assert.True(t, errors.Is(err, query.ErrViolationUnique))
+			}
+		})
+
+		t.Run("Bulk", func(t *testing.T) {
+			err = db.Insert(ctx, fKMstruct, &tests.ForeignKeyModel{ID: fk.ID, ForeignKey: simple3.ID}, &tests.ForeignKeyModel{ID: fk2.ID, ForeignKey: simple3.ID})
+			if assert.Error(t, err) {
+				assert.True(t, errors.Is(err, query.ErrViolationUnique))
+			}
+		})
 	})
 }

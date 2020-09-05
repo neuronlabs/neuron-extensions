@@ -175,6 +175,9 @@ func tableDefinitions(model *mapping.ModelStruct) ([]string, error) {
 
 	var i int
 	for _, field := range model.Fields() {
+		if field.DatabaseSkip() {
+			continue
+		}
 		dt, err := findDataType(field)
 		if err != nil {
 			return nil, err
@@ -202,6 +205,9 @@ func tableDefinitions(model *mapping.ModelStruct) ([]string, error) {
 
 	// write external data types
 	for _, field := range model.Fields() {
+		if field.DatabaseSkip() {
+			continue
+		}
 		dt, err := findDataType(field)
 		if err != nil {
 			return nil, err

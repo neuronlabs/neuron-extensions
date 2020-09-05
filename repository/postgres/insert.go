@@ -36,8 +36,8 @@ func (p *Postgres) insertWithCommonFieldSet(ctx context.Context, s *query.Scope)
 		return err
 	}
 
-	if log.Level().IsAllowed(log.LevelDebug3) {
-		log.Debug3f("%s", q.query)
+	if log.Level().IsAllowed(log.LevelDebug) {
+		log.Debug(q.query)
 	}
 
 	if q.primarySelected {
@@ -49,20 +49,31 @@ func (p *Postgres) insertWithCommonFieldSet(ctx context.Context, s *query.Scope)
 		return nil
 	}
 
-	rows, err := p.connection(s).Query(ctx, q.query, q.values...)
-	if err != nil {
-		log.Debugf("Insert query failed: %v", err)
-		return errors.WrapDetf(p.neuronError(err), "insert query failed")
-	}
-	var i int
-	for rows.Next() {
-		if err = rows.Scan(s.Models[i].GetPrimaryKeyAddress()); err != nil {
-			log.Debugf("Scanning failed: %v", err)
-			return errors.WrapDetf(p.neuronError(err), "inserting failed: %v", err)
+	switch len(s.Models) {
+	case 1:
+		row := p.connection(s).QueryRow(ctx, q.query, q.values...)
+		if err = row.Scan(s.Models[0].GetPrimaryKeyAddress()); err != nil {
+			log.Debugf("Insert query failed: %v", err)
+			return errors.WrapDetf(p.neuronError(err), err.Error())
 		}
-		i++
+	default:
+		rows, err := p.connection(s).Query(ctx, q.query, q.values...)
+		if err != nil {
+			return errors.WrapDetf(p.neuronError(err), err.Error())
+		}
+		defer rows.Close()
+		var i int
+		for rows.Next() {
+			if err = rows.Scan(s.Models[i].GetPrimaryKeyAddress()); err != nil {
+				return errors.WrapDetf(p.neuronError(err), err.Error())
+			}
+			i++
+		}
+		if err = rows.Err(); err != nil {
+			log.Debugf("Insert query failed: %v", err)
+			return errors.WrapDetf(p.neuronError(err), err.Error())
+		}
 	}
-	rows.Close()
 	return nil
 }
 
@@ -82,21 +93,30 @@ func (p *Postgres) insertWithBulkFieldSet(ctx context.Context, s *query.Scope) e
 			if _, err = br.Exec(); err != nil {
 				return errors.WrapDetf(p.neuronError(err), "insert failed: %v", err)
 			}
+		case 1:
+			row := br.QueryRow()
+			err = row.Scan(s.Models[indices[0]].GetPrimaryKeyAddress())
+			if err != nil {
+				return errors.WrapDetf(p.neuronError(err), "insert failed: %v", err)
+			}
 		default:
 			rows, err := br.Query()
 			if err != nil {
 				return errors.WrapDetf(p.neuronError(err), "insert failed: %v", err)
 			}
-
+			defer rows.Close()
 			var i int
 			for rows.Next() {
-				if err = rows.Scan(s.Models[indices[i]].GetPrimaryKeyAddress()); err != nil {
-					rows.Close()
-					return errors.WrapDetf(p.neuronError(err), "insert failed: %v", err)
+				idx := indices[i]
+				if err = rows.Scan(s.Models[idx].GetPrimaryKeyAddress()); err != nil {
+					return errors.WrapDetf(p.neuronError(err), "rows err: %v", err)
 				}
 				i++
 			}
-			rows.Close()
+			err = rows.Err()
+			if err != nil {
+				return errors.WrapDetf(p.neuronError(err), "rows err: %v", err)
+			}
 		}
 	}
 	return nil

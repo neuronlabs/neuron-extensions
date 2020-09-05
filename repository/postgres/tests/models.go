@@ -43,5 +43,6 @@ type ArrayModel struct {
 
 type ForeignKeyModel struct {
 	ID         int
+	Name       string
 	ForeignKey int `neuron:"type=fk" db:";notnull"`
 }
