@@ -59,9 +59,10 @@ func TestParseInsertWithNullForeignKey(t *testing.T) {
 	q, err := repo.parseInsertWithCommonFieldSet(s)
 	require.NoError(t, err)
 
-	assert.Equal(t, "INSERT INTO public.foreign_key_models (foreign_key) VALUES ($1) RETURNING id", q.query)
-	if assert.Len(t, q.values, 1) {
-		assert.Nil(t, q.values[0])
+	assert.Equal(t, "INSERT INTO public.foreign_key_models (name,foreign_key) VALUES ($1,$2) RETURNING id", q.query)
+	if assert.Len(t, q.values, 2) {
+		assert.Equal(t, q.values[0], "")
+		assert.Nil(t, q.values[1])
 	}
 }
 
